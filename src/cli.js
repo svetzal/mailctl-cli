@@ -15,6 +15,7 @@ import { searchMailbox } from "./search.js";
 import { deduplicateByMessageId } from "./dedup.js";
 import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
 import { buildReadResult, formatReadResultText } from "./read-email.js";
+import { fetchInbox, formatInboxText } from "./inbox.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { detectMailbox } from "./mailbox-detect.js";
 import { parseDate } from "./parse-date.js";
@@ -722,6 +723,49 @@ program
       console.log(JSON.stringify({ ...stats, results }));
     } else {
       console.log(`\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped (dry-run)`);
+    }
+  }));
+
+program
+  .command("inbox")
+  .description("Quick overview of recent inbox messages across accounts")
+  .option("-l, --limit <n>", "max messages per account", "10")
+  .option("--unread", "only show unread messages", false)
+  .option("--since <date>", "only messages on or after this date (default: 7d)")
+  .action(withErrorHandling(async (opts) => {
+    const json = resolveJson(opts);
+    const account = resolveAccount(opts);
+    const accounts = requireAccounts();
+    const targetAccounts = filterAccountsByName(accounts, account);
+
+    if (account && targetAccounts.length === 0) {
+      throw new Error(`Account "${account}" not found.`);
+    }
+
+    const limit = parseInt(opts.limit, 10);
+    const since = opts.since ? parseDate(opts.since) : parseDate("7d");
+
+    /** @type {Map<string, Array>} */
+    const resultsByAccount = new Map();
+    const allResults = [];
+
+    await forEachAccount(targetAccounts, async (client, acct) => {
+      if (!json) console.error(`Checking ${acct.name}...`);
+
+      const messages = await fetchInbox(client, acct.name, {
+        limit,
+        since,
+        unreadOnly: opts.unread,
+      });
+
+      resultsByAccount.set(acct.name, messages);
+      allResults.push(...messages);
+    });
+
+    if (json) {
+      console.log(JSON.stringify(allResults));
+    } else {
+      console.log(formatInboxText(resultsByAccount));
     }
   }));
 
