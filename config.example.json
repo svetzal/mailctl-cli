@@ -1,0 +1,28 @@
+{
+  "accounts": [
+    {
+      "prefix": "ICLOUD",
+      "name": "iCloud",
+      "user": "you@icloud.com",
+      "keychainService": "newt-icloud-imap",
+      "host": "imap.mail.me.com",
+      "port": 993
+    },
+    {
+      "prefix": "GMAIL",
+      "name": "Gmail",
+      "user": "you@gmail.com",
+      "keychainService": "newt-gmail-imap",
+      "host": "imap.gmail.com",
+      "port": 993
+    },
+    {
+      "prefix": "M365",
+      "name": "Microsoft 365",
+      "user": "you@yourdomain.com",
+      "keychainService": "newt-m365",
+      "host": "outlook.office365.com",
+      "port": 993
+    }
+  ]
+}

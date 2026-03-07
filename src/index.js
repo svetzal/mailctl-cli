@@ -1,0 +1,26 @@
+// Public API
+export { connect, scanForReceipts, listMailboxes, filterScanMailboxes, filterSearchMailboxes, forEachAccount } from "./imap-client.js";
+export { loadAccounts, discoverAccountsFromEnv } from "./accounts.js";
+export { loadConfig, getConfigAccounts } from "./config.js";
+export { scanAllAccounts, aggregateBySender } from "./scanner.js";
+export { sortReceipts } from "./sorter.js";
+export { downloadReceipts, vendorName, buildFilename, VENDOR_NAMES } from "./downloader.js";
+export { downloadReceiptEmails } from "./download-receipts.js";
+
+// Shared utilities
+export { htmlToText } from "./html-to-text.js";
+export { sanitizeString, headerValueToString, collectValues } from "./cli-helpers.js";
+
+// Pure business logic
+export { classifyMessage, planMoves, BIZ_FOLDER, PERSONAL_FOLDER } from "./sort-logic.js";
+export {
+  titleCase, sanitizeFilename, vendorFromDomain, cleanVendorForFilename,
+  extractForwardedSender, formatDate, inferCurrency, isCanadianMerchant,
+  isValidInvoiceNumber, extractInvoiceNumber, extractAmount, extractTax,
+  extractService, extractMetadata,
+} from "./receipt-extraction.js";
+
+// Gateways
+export { ImapGateway } from "./gateways/imap-gateway.js";
+export { FileSystemGateway } from "./gateways/fs-gateway.js";
+export { SubprocessGateway } from "./gateways/subprocess-gateway.js";

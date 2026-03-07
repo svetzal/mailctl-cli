@@ -1,0 +1,211 @@
+---
+name: mailctl
+description: |
+  Personal email operations tool — receipt sorting, search, folder management, and more.
+  Connects to email accounts via macOS Keychain credentials, provides general IMAP
+  operations (search, read, folder listing), identifies receipt emails, classifies by
+  business/personal, sorts into IMAP folders, and downloads business receipt PDFs
+  for bookkeeping.
+
+  Bun ES module project using imapflow for IMAP operations and commander for CLI.
+  Secrets are managed via macOS Keychain — never stored in .env files or source.
+---
+
+# mailctl Agent Instructions
+
+## Quick Reference
+
+### Running Commands
+
+All commands go through the secure wrapper that injects keychain credentials.
+All commands support `--json` for machine-readable output.
+
+```bash
+# General email operations
+bin/run search "query"          # search all mailboxes across accounts
+bin/run search --mailbox INBOX "query"   # search specific mailbox only
+bin/run search --exclude-mailbox Trash "query"  # skip specific folders
+bin/run read <uid>              # read a specific email by UID
+bin/run list-folders            # list all IMAP folders per account
+bin/run list-folders --json     # JSON output for scripting
+bin/run extract-attachment <uid> --list           # list attachments
+bin/run extract-attachment <uid> [index]          # save attachment
+bin/run extract-attachment <uid> -o ~/Desktop     # save to directory
+
+# Receipt operations
+bin/run scan                    # discover receipt senders
+bin/run scan --json             # JSON output
+bin/run sort                    # move emails to Business/Personal folders
+bin/run sort --dry-run          # preview without moving
+bin/run download                # download business receipt PDFs
+bin/run download --dry-run
+bin/run classify                # output unclassified senders
+```
+
+### Project Structure
+
+```text
+bin/run                        — Secure credential wrapper (bash)
+src/cli.js                     — CLI entry point (commander)
+src/config.js                  — Loads ~/.config/mailctl/config.json (account metadata)
+src/accounts.js                — Builds IMAP account list from config.json + env var secrets
+src/imap-client.js             — IMAP connection, search, fetch, mailbox filtering, account iteration
+src/imap-orchestration.js      — Shared pure helpers: groupByMailbox(), forEachMailboxGroup()
+src/search.js                  — searchMailbox() — extracted from cli.js, testable
+src/dedup.js                   — deduplicateByMessageId() — shared by search and download-receipts
+src/move-logic.js              — parseUidArgs(), groupUidsByAccount() — pure UID parsing for move command
+src/read-email.js              — buildReadResult(), formatReadResultText() — pure email read formatting
+src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachmentIndex() — attachment helpers
+src/vendor-map.js              — Single source of truth for vendor address → display name mappings
+src/scanner.js                 — Scan orchestration, sender aggregation
+src/sorter.js                  — IMAP folder management, message moving
+src/downloader.js              — PDF attachment download with SHA-256 dedup
+src/download-receipts.js       — LLM-based receipt extraction: PDF → docling → LLM metadata
+src/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
+src/gateways/fs-gateway.js     — FileSystemGateway: thin fs/path wrapper (mockable)
+src/gateways/subprocess-gateway.js — SubprocessGateway: execFileSync wrapper (mockable)
+src/gateways/imap-gateway.js   — ImapGateway: imapflow wrapper (mockable)
+src/index.js                   — Public API re-exports
+data/                          — Runtime data (gitignored): scan results, classifications, manifest
+```
+
+### Key Design Decisions
+
+- **ES modules** (`"type": "module"` in package.json)
+- **imapflow** for IMAP — handles connection pooling, search, fetch, move
+- **UID range strings** for iCloud compatibility (not arrays)
+- **Content-hash dedup** (SHA-256) prevents duplicate PDF downloads
+- **Config-driven accounts** — account metadata (host, port, user) lives in `~/.config/mailctl/config.json`; only secrets come from env vars
+- **Wrapper pattern** for secrets — bin/run reads macOS Keychain, injects secret env vars (passwords, OAuth2 credentials), execs Node
+- **Shared helpers** — `forEachAccount()` handles connect/logout lifecycle, `filterScanMailboxes()` and `filterSearchMailboxes()` centralize mailbox exclusion logic
+- **Search dedup** — search deduplicates results by message-id header to avoid showing the same email found in multiple mailboxes (e.g. Gmail All Mail + INBOX)
+- **Consistent `--json`** — all commands support `--json` for machine-readable output; errors also output as JSON in that mode
+
+## Engineering Standards
+
+### Code Style
+
+- ES module imports, no CommonJS
+- Descriptive function and variable names — code is communication
+- JSDoc comments on public functions
+- Console output: `console.error` for progress/status, `console.log` for data output
+- No magic numbers — use named constants
+
+### Testing
+
+- Use `bun:test` (`describe`, `it`, `expect`) — not `node:test` / `node:assert`
+- Run tests: `bun test` — test files live in `test/`
+- Test behaviour, not implementation
+- One expectation per test
+- Small, safe increments — single-reason commits
+
+### Quality Gates (hone)
+
+All four must pass before shipping:
+
+- **lint**: `bunx tsc --noEmit` — JSDoc type checking via `checkJs` + `@types/node`
+- **test**: `bun test` — all tests green
+- **build**: `bun build src/cli.js --compile --outfile=build/mailctl`
+- **audit**: `bun audit` — no known dependency vulnerabilities
+
+### Security Rules — CRITICAL
+
+- **NEVER** store credentials in source files, .env files, or commit them
+- **NEVER** log, print, or expose secret values
+- Credentials come from macOS Keychain via bin/run wrapper
+- If adding a new secret, add it to the Newt keychain (`~/.newt/newt-keychain-db`) and update bin/run
+
+### Adding a New Email Account
+
+1. Add the account to `~/.config/mailctl/config.json`:
+
+   ```json
+   {
+     "prefix": "EXAMPLE",
+     "name": "Example Mail",
+     "user": "you@example.com",
+     "keychainService": "newt-example-imap",
+     "host": "imap.example.com",
+     "port": 993
+   }
+   ```
+
+2. Store the password in Newt keychain:
+
+   ```bash
+   security add-generic-password -a "you@example.com" -s "newt-example-imap" -l "Example IMAP" -w ~/.newt/newt-keychain-db
+   ```
+
+3. `bin/run` automatically reads the keychainService and exports the password as `EXAMPLE_PASS`
+4. Update README.md account table
+
+### LLM-Based Receipt Extraction
+
+The `download-receipts` command uses gpt-5-nano via mojentic for structured receipt data extraction. The extraction source depends on the email:
+
+1. **PDF attachment present** → extract the PDF, convert to markdown via `docling` (`~/.local/bin/docling --to md`), send the markdown to the LLM
+2. **No PDF attachment** (inline receipt like Apple, Anthropic emails) → send the email body text to the LLM
+
+This matters because real receipt details (line items, amounts, tax) are often in the attached PDF, while the email body just says "Your invoice is attached".
+
+To enable LLM extraction:
+
+1. Store your OpenAI API key in the Newt keychain:
+
+   ```bash
+   security add-generic-password -s "newt-openai-api" -a "openai" -l "OpenAI API Key" -w ~/.newt/newt-keychain-db
+   ```
+
+2. `bin/run` automatically reads it and sets `OPENAI_API_KEY`
+3. If the key isn't set, the command falls back to regex-based pattern matching
+4. `docling` must be installed at `~/.local/bin/docling` for PDF-to-markdown conversion; if missing, falls back to email body text
+
+### Vendor Name Mapping
+
+All vendor address → display name mappings are configured in `~/.config/mailctl/config.json` under `vendorAddressMap` and `vendorDomainMap`.
+`src/vendor-map.js` loads these from config; `downloader.js` and `receipt-extraction.js` both consume the maps.
+The address map drives both display names (with spaces) and filename-safe names (spaces → hyphens).
+
+### IMAP Gotchas
+
+- iCloud IMAP requires UID range strings (comma-separated), not arrays
+- Always release mailbox locks in `finally` blocks
+- Search results may vary by term — dedup UIDs with a Set before fetching
+- Large mailboxes (90k+ messages) are slow to search — be patient with timeouts
+- `messageMove` removes from source (IMAP MOVE, not copy)
+
+## Release Process
+
+Version is declared in two places — both must be updated:
+
+1. `package.json` → `"version": "X.Y.Z"`
+2. `src/cli.js` → `.version("X.Y.Z")`
+
+Steps to release:
+
+```bash
+# 1. Update version in both files
+# 2. Commit
+git add -A && git commit -m "Bump version to X.Y.Z"
+
+# 3. Tag and push
+git tag vX.Y.Z
+git push && git push --tags
+```
+
+The GitHub Actions release workflow (`.github/workflows/release.yml`) handles the rest:
+
+- Runs tests
+- Builds binaries for darwin-arm64, darwin-x64, linux-x64, windows-x64
+- Creates a GitHub release with tarballs
+- Updates the Homebrew formula in `svetzal/homebrew-tap` with computed SHA256s
+
+**Prerequisite**: The `HOMEBREW_TAP_TOKEN` secret must be set on this repo for the auto-update step. Without it, binaries are released on GitHub but the Homebrew formula isn't updated.
+
+After release, install/upgrade via: `brew install svetzal/tap/mailctl` or `brew upgrade mailctl`
+
+## Related
+
+- Classifications: `data/classifications.json` (business vs personal sender mapping)
+- Download manifest: `data/download-manifest.json` (tracks downloaded PDFs with content hashes)
+- Download output: Configured via `downloadDir` in config.json (defaults to `~/mailctl-receipts/`)

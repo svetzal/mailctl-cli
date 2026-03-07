@@ -1,0 +1,24 @@
+{
+  "gates": [
+    {
+      "name": "lint",
+      "command": "bunx tsc --noEmit",
+      "required": true
+    },
+    {
+      "name": "test",
+      "command": "bun test",
+      "required": true
+    },
+    {
+      "name": "build",
+      "command": "bun build src/cli.js --compile --outfile=build/mailctl",
+      "required": true
+    },
+    {
+      "name": "audit",
+      "command": "bun audit",
+      "required": true
+    }
+  ]
+}

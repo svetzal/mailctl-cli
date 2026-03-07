@@ -1,0 +1,196 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run tests
+        run: bun test
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: bun-darwin-arm64
+            artifact: mailctl-darwin-arm64
+          - os: macos-14
+            target: bun-darwin-x64
+            artifact: mailctl-darwin-x64
+          - os: ubuntu-latest
+            target: bun-linux-x64
+            artifact: mailctl-linux-x64
+          - os: windows-latest
+            target: bun-windows-x64
+            artifact: mailctl-windows-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build binary
+        run: bun build src/cli.js --compile --target=${{ matrix.target }} --outfile=${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create tarballs
+        run: |
+          cd dist
+          cd mailctl-darwin-arm64 && tar -czf ../mailctl-darwin-arm64.tar.gz mailctl-darwin-arm64 && cd ..
+          cd mailctl-darwin-x64 && tar -czf ../mailctl-darwin-x64.tar.gz mailctl-darwin-x64 && cd ..
+          cd mailctl-linux-x64 && tar -czf ../mailctl-linux-x64.tar.gz mailctl-linux-x64 && cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/mailctl-darwin-arm64.tar.gz
+            dist/mailctl-darwin-x64.tar.gz
+            dist/mailctl-linux-x64.tar.gz
+            dist/mailctl-windows-x64.exe/mailctl-windows-x64.exe
+          generate_release_notes: true
+
+  update-homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.ref, '-') }}
+
+    steps:
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download tarballs from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          gh release download "v${VERSION}" \
+            --repo svetzal/mailctl-cli \
+            --pattern "mailctl-darwin-arm64.tar.gz" \
+            --pattern "mailctl-darwin-x64.tar.gz" \
+            --pattern "mailctl-linux-x64.tar.gz"
+
+      - name: Calculate SHA256
+        id: sha
+        run: |
+          echo "arm64=$(sha256sum mailctl-darwin-arm64.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+          echo "x64=$(sha256sum mailctl-darwin-x64.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+          echo "linux=$(sha256sum mailctl-linux-x64.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: svetzal/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update formula
+        env:
+          RELEASE_BASE_URL: https://github.com/svetzal/mailctl-cli/releases/download
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          SHA_ARM64=${{ steps.sha.outputs.arm64 }}
+          SHA_X64=${{ steps.sha.outputs.x64 }}
+          SHA_LINUX=${{ steps.sha.outputs.linux }}
+
+          cat > homebrew-tap/Formula/mailctl.rb << FORMULA
+          # typed: false
+          # frozen_string_literal: true
+
+          class Mailctl < Formula
+            desc "Personal email operations CLI — search, read, receipts, inbox management"
+            homepage "https://github.com/svetzal/mailctl-cli"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "${RELEASE_BASE_URL}/v#{version}/mailctl-darwin-arm64.tar.gz"
+                sha256 "${SHA_ARM64}"
+
+                def install
+                  bin.install "mailctl-darwin-arm64" => "mailctl"
+                end
+              end
+
+              on_intel do
+                url "${RELEASE_BASE_URL}/v#{version}/mailctl-darwin-x64.tar.gz"
+                sha256 "${SHA_X64}"
+
+                def install
+                  bin.install "mailctl-darwin-x64" => "mailctl"
+                end
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "${RELEASE_BASE_URL}/v#{version}/mailctl-linux-x64.tar.gz"
+                sha256 "${SHA_LINUX}"
+
+                def install
+                  bin.install "mailctl-linux-x64" => "mailctl"
+                end
+              end
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/mailctl --version")
+            end
+          end
+          FORMULA
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/mailctl.rb
+          git commit -m "Update mailctl to ${{ steps.version.outputs.version }}"
+          git push

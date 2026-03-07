@@ -1,0 +1,75 @@
+#!/bin/bash
+# Secure wrapper for mailctl
+# Reads secrets from ~/.newt/newt-keychain-db at runtime
+# Non-secret config (host, port, user) comes from ~/.config/mailctl/config.json
+# Secrets never touch disk, never appear in output
+
+set -euo pipefail
+
+NEWT_KC="$HOME/.newt/newt-keychain-db"
+CONFIG_FILE="$HOME/.config/mailctl/config.json"
+
+# Unlock the newt keychain using password stored in login keychain
+NEWT_KC_PASS=$(security find-generic-password -a "newt" -s "newt-keychain-password" -w 2>/dev/null) || {
+  echo "❌ Could not read newt keychain password from login keychain" >&2
+  exit 1
+}
+security unlock-keychain -p "$NEWT_KC_PASS" "$NEWT_KC" 2>/dev/null || {
+  echo "❌ Could not unlock newt keychain" >&2
+  exit 1
+}
+unset NEWT_KC_PASS
+
+# Read secrets for each account defined in config.json
+if [ -f "$CONFIG_FILE" ]; then
+  ACCOUNT_COUNT=$(python3 -c "import json; print(len(json.load(open('$CONFIG_FILE'))['accounts']))")
+
+  for (( i=0; i<ACCOUNT_COUNT; i++ )); do
+    eval "$(python3 -c "
+import json, sys
+with open('$CONFIG_FILE') as f:
+    cfg = json.load(f)
+acct = cfg['accounts'][$i]
+print(f'_PREFIX=\"{acct[\"prefix\"]}\"')
+print(f'_SVC=\"{acct.get(\"keychainService\", \"\")}\"')
+")"
+
+    if [ -z "$_SVC" ]; then
+      continue
+    fi
+
+    # Try password-based auth first
+    _PASS=$(security find-generic-password -s "$_SVC" -w "$NEWT_KC" 2>/dev/null) && {
+      export "${_PREFIX}_PASS=$_PASS"
+    } || true
+    unset _PASS
+
+    # Try OAuth2 credentials (M365-style — separate keychain entries)
+    _CID=$(security find-generic-password -s "${_SVC}-client-id" -w "$NEWT_KC" 2>/dev/null) && {
+      export "${_PREFIX}_CLIENT_ID=$_CID"
+    } || true
+    unset _CID
+
+    _TID=$(security find-generic-password -s "${_SVC}-tenant-id" -w "$NEWT_KC" 2>/dev/null) && {
+      export "${_PREFIX}_TENANT_ID=$_TID"
+    } || true
+    unset _TID
+
+    _SEC=$(security find-generic-password -s "${_SVC}-client-secret" -w "$NEWT_KC" 2>/dev/null) && {
+      export "${_PREFIX}_CLIENT_SECRET=$_SEC"
+    } || true
+    unset _SEC
+
+    unset _PREFIX _SVC
+  done
+fi
+
+# OpenAI API key (optional — used for LLM-based receipt extraction)
+OPENAI_KEY=$(security find-generic-password -s "newt-openai-api" -w "$NEWT_KC" 2>/dev/null) && {
+  export OPENAI_API_KEY="$OPENAI_KEY"
+} || true
+unset OPENAI_KEY
+
+# Run the mailctl command
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec node "$SCRIPT_DIR/src/cli.js" "$@"

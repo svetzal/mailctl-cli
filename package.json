@@ -1,0 +1,44 @@
+{
+  "name": "mailctl-cli",
+  "version": "0.5.0",
+  "description": "Personal email operations tool — receipt sorting, search, folder management, and more",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "mailctl": "./src/cli.js"
+  },
+  "scripts": {
+    "scan": "bun src/cli.js scan",
+    "classify": "bun src/cli.js classify",
+    "sort": "bun src/cli.js sort",
+    "search": "bun src/cli.js search",
+    "read": "bun src/cli.js read",
+    "list-folders": "bun src/cli.js list-folders",
+    "extract-attachment": "bun src/cli.js extract-attachment",
+    "test": "bun test",
+    "build": "bun build src/cli.js --compile --outfile=build/mailctl",
+    "build:all": "bun run build:macos-arm64 && bun run build:macos-x64 && bun run build:linux-x64 && bun run build:windows-x64",
+    "build:macos-arm64": "bun build src/cli.js --compile --target=bun-darwin-arm64 --outfile=dist/mailctl-darwin-arm64",
+    "build:macos-x64": "bun build src/cli.js --compile --target=bun-darwin-x64 --outfile=dist/mailctl-darwin-x64",
+    "build:linux-x64": "bun build src/cli.js --compile --target=bun-linux-x64 --outfile=dist/mailctl-linux-x64",
+    "build:windows-x64": "bun build src/cli.js --compile --target=bun-windows-x64 --outfile=dist/mailctl-windows-x64.exe"
+  },
+  "keywords": [
+    "email",
+    "imap",
+    "mailctl",
+    "receipts",
+    "organizer"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.3",
+    "imapflow": "^1.2.12",
+    "mailparser": "^3.9.3",
+    "mojentic": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10",
+    "@types/node": "^25.3.5"
+  }
+}
