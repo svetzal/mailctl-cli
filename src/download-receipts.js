@@ -640,3 +640,158 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
 
   return { stats, records };
 }
+
+/**
+ * Scan the output directory tree for existing .json sidecar files.
+ * Returns an array of { jsonPath, sidecar } for each valid sidecar found.
+ * @param {string} outputDir
+ * @param {FileSystemGateway} fs
+ * @returns {Array<{ jsonPath: string, sidecar: object }>}
+ */
+export function collectSidecarFiles(outputDir, fs) {
+  const results = [];
+  if (!fs.exists(outputDir)) return results;
+
+  for (const yearDir of fs.readdir(outputDir)) {
+    if (!/^\d{4}$/.test(yearDir)) continue;
+    const yearPath = join(outputDir, yearDir);
+    try {
+      for (const monthDir of fs.readdir(yearPath)) {
+        const monthPath = join(yearPath, monthDir);
+        try {
+          for (const file of fs.readdir(monthPath)) {
+            if (!file.endsWith(".json")) continue;
+            try {
+              const jsonPath = join(monthPath, file);
+              const sidecar = /** @type {any} */ (fs.readJson(jsonPath));
+              results.push({ jsonPath, sidecar });
+            } catch {}
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  return results;
+}
+
+/**
+ * Reprocess existing receipt files — re-run LLM extraction on downloaded PDFs.
+ * @param {object} opts
+ * @param {string} opts.outputDir - directory containing receipts
+ * @param {string} [opts.vendor] - filter to specific vendor
+ * @param {Date} [opts.since] - only reprocess files newer than this date
+ * @param {boolean} [opts.dryRun]
+ * @param {object} [gateways] - injectable dependencies
+ * @returns {Promise<{reprocessed: number, skipped: number, errors: number, results: Array}>}
+ */
+export async function reprocessReceipts(opts, gateways = {}) {
+  const {
+    fs,
+    subprocess,
+    createLlmBroker: _createLlmBroker,
+  } = { ...defaultGateways, ...gateways };
+
+  const outputDir = resolve(opts.outputDir || ".");
+  const dryRun = opts.dryRun ?? false;
+  const vendorFilter = opts.vendor || null;
+  const sinceDate = opts.since || null;
+
+  const llm = _createLlmBroker();
+  if (!llm) {
+    throw new Error("OPENAI_API_KEY not set — LLM extraction is required for reprocessing.");
+  }
+
+  console.error(`Reprocessing receipts in ${outputDir}...`);
+
+  const sidecars = collectSidecarFiles(outputDir, fs);
+  const stats = { reprocessed: 0, skipped: 0, errors: 0 };
+  const results = [];
+
+  for (const { jsonPath, sidecar } of sidecars) {
+    const baseName = jsonPath.replace(/\.json$/, "");
+    const pdfPath = `${baseName}.pdf`;
+    const jsonFilename = jsonPath.split("/").pop();
+
+    // Filter by vendor
+    if (vendorFilter && sidecar.vendor) {
+      if (!sidecar.vendor.toLowerCase().includes(vendorFilter.toLowerCase())) {
+        continue;
+      }
+    }
+
+    // Filter by since date
+    if (sinceDate && sidecar.date) {
+      const sidecarDate = new Date(sidecar.date);
+      if (!isNaN(sidecarDate.getTime()) && sidecarDate < sinceDate) {
+        continue;
+      }
+    }
+
+    // Check if a corresponding PDF exists
+    const hasPdf = fs.exists(pdfPath);
+    if (!hasPdf) {
+      console.error(`  ⏭️  ${jsonFilename} — no PDF found, skipped`);
+      stats.skipped++;
+      results.push({ file: jsonFilename, status: "skipped", reason: "no PDF" });
+      continue;
+    }
+
+    if (dryRun) {
+      console.error(`  [DRY RUN] ${jsonFilename} — would reprocess`);
+      stats.reprocessed++;
+      results.push({ file: jsonFilename, status: "dry-run" });
+      continue;
+    }
+
+    // Re-run extraction on the PDF
+    try {
+      const pdfMarkdown = pdfToText(pdfPath, fs, subprocess);
+      if (!pdfMarkdown) {
+        console.error(`  ❌ ${jsonFilename} — docling conversion failed`);
+        stats.errors++;
+        results.push({ file: jsonFilename, status: "error", reason: "docling conversion failed" });
+        continue;
+      }
+
+      const metadata = await extractMetadataWithLLM(
+        llm.broker,
+        pdfMarkdown,
+        sidecar.subject || "",
+        sidecar.source_email || "",
+        sidecar.vendor || "",
+        sidecar.date ? new Date(sidecar.date) : new Date()
+      );
+
+      if (!metadata) {
+        console.error(`  ❌ ${jsonFilename} — LLM extraction returned no data`);
+        stats.errors++;
+        results.push({ file: jsonFilename, status: "error", reason: "LLM extraction failed" });
+        continue;
+      }
+
+      // Preserve fields from the original sidecar that aren't part of extraction
+      const updated = {
+        ...metadata,
+        source_account: sidecar.source_account || metadata.source_account,
+        email_uid: sidecar.email_uid || metadata.email_uid,
+        receipt_file: sidecar.receipt_file || metadata.receipt_file,
+        downloadedAt: sidecar.downloadedAt || null,
+        reprocessedAt: new Date().toISOString(),
+      };
+
+      fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
+      console.error(`  ✅ ${jsonFilename} — updated metadata`);
+      stats.reprocessed++;
+      results.push({ file: jsonFilename, status: "reprocessed" });
+    } catch (err) {
+      console.error(`  ❌ ${jsonFilename} — extraction failed: ${err.message}`);
+      stats.errors++;
+      results.push({ file: jsonFilename, status: "error", reason: err.message });
+    }
+  }
+
+  console.error(`\nReprocessed: ${stats.reprocessed}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`);
+
+  return { ...stats, results };
+}

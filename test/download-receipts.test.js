@@ -8,6 +8,8 @@ import {
   uniqueBaseName,
   searchMailboxForReceipts,
   downloadReceiptEmails,
+  collectSidecarFiles,
+  reprocessReceipts,
 } from "../src/download-receipts.js";
 import { FileSystemGateway } from "../src/gateways/fs-gateway.js";
 
@@ -512,5 +514,246 @@ describe("downloadReceiptEmails", () => {
 
     // Processed as unique=1 despite appearing in 2 mailboxes
     expect(stats.found).toBe(1);
+  });
+});
+
+// ── collectSidecarFiles ───────────────────────────────────────────────────────
+
+describe("collectSidecarFiles", () => {
+  it("returns an empty array when the output directory does not exist", () => {
+    const result = collectSidecarFiles("/does/not/exist", REAL_FS);
+    expect(result).toHaveLength(0);
+  });
+
+  it("finds JSON sidecars in year/month subdirectories", () => {
+    const monthDir = join(tmpDir, "2026", "01");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(join(monthDir, "Stripe-INV-123.json"), JSON.stringify({ vendor: "Stripe", date: "2026-01-15" }));
+
+    const result = collectSidecarFiles(tmpDir, REAL_FS);
+    expect(result).toHaveLength(1);
+    expect(result[0].sidecar.vendor).toBe("Stripe");
+  });
+});
+
+// ── reprocessReceipts ─────────────────────────────────────────────────────────
+
+/** Build a mock fs that simulates a receipt directory with sidecars and PDFs. */
+function makeReprocessFs(files = {}) {
+  const written = {};
+  const fileMap = { ...files };
+
+  return {
+    mockFs: {
+      exists: mock((p) => p in fileMap),
+      readdir: mock((p) => {
+        if (fileMap[p]?.isDir) return fileMap[p].entries;
+        // Simulate docling output — temp directories get a .md file
+        if (p.includes("mailctl-docling-")) return ["output.md"];
+        return [];
+      }),
+      readJson: mock((p) => {
+        if (fileMap[p]?.json) return fileMap[p].json;
+        throw new Error(`No JSON at ${p}`);
+      }),
+      readBuffer: mock((p) => fileMap[p]?.buffer ?? Buffer.alloc(0)),
+      readText: mock(() => "Invoice #123\nTotal: $49.00\nDate: 2026-01-15"),
+      writeFile: mock((p, data) => { written[p] = data; }),
+      mkdir: mock(() => {}),
+      rm: mock(() => {}),
+    },
+    written,
+  };
+}
+
+function makeReprocessGateways(mockFs, opts = {}) {
+  const {
+    llmFails = false,
+    doclingFails = false,
+  } = opts;
+
+  return {
+    fs: mockFs,
+    subprocess: {
+      execFileSync: mock(() => {
+        if (doclingFails) throw new Error("docling timeout");
+      }),
+    },
+    createLlmBroker: () => ({
+      broker: {
+        generateObject: mock(async () => {
+          if (llmFails) return { ok: false, error: "LLM error" };
+          return { ok: true, value: { vendor: "Stripe", amount: 49, date: "2026-01-15", invoice_number: "INV-123" } };
+        }),
+      },
+      gateway: {},
+    }),
+  };
+}
+
+describe("reprocessReceipts", () => {
+  it("scans directory for .json sidecars", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    const result = await reprocessReceipts({ outputDir }, gateways);
+
+    expect(result.reprocessed).toBe(1);
+  });
+
+  it("re-runs extraction on files with matching PDFs", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs, written } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    await reprocessReceipts({ outputDir }, gateways);
+
+    const jsonPath = `${outputDir}/2026/01/Stripe-INV-123.json`;
+    expect(written[jsonPath]).toBeDefined();
+    const updated = JSON.parse(written[jsonPath]);
+    expect(updated.reprocessedAt).toBeDefined();
+  });
+
+  it("skips files without PDFs", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["NoPdf-receipt.json"] },
+      [`${outputDir}/2026/01/NoPdf-receipt.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com" } },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    const result = await reprocessReceipts({ outputDir }, gateways);
+
+    expect(result.skipped).toBe(1);
+    expect(result.reprocessed).toBe(0);
+  });
+
+  it("adds reprocessedAt timestamp to updated sidecar", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs, written } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["02"] },
+      [`${outputDir}/2026/02`]: { isDir: true, entries: ["Anthropic-2655.json"] },
+      [`${outputDir}/2026/02/Anthropic-2655.json`]: { json: { vendor: "Anthropic", date: "2026-02-01", source_email: "billing@anthropic.com", receipt_file: "Anthropic-2655.pdf", downloadedAt: "2026-03-01T12:00:00Z" } },
+      [`${outputDir}/2026/02/Anthropic-2655.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    await reprocessReceipts({ outputDir }, gateways);
+
+    const jsonPath = `${outputDir}/2026/02/Anthropic-2655.json`;
+    const updated = JSON.parse(written[jsonPath]);
+    expect(updated.reprocessedAt).toBeTruthy();
+    expect(updated.downloadedAt).toBe("2026-03-01T12:00:00Z");
+  });
+
+  it("dry-run does not modify files", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs, written } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    const result = await reprocessReceipts({ outputDir, dryRun: true }, gateways);
+
+    expect(result.reprocessed).toBe(1);
+    expect(Object.keys(written)).toHaveLength(0);
+  });
+
+  it("filters by since date", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01", "03"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Old-receipt.json"] },
+      [`${outputDir}/2026/01/Old-receipt.json`]: { json: { vendor: "OldVendor", date: "2026-01-10", source_email: "old@vendor.com", receipt_file: "Old-receipt.pdf" } },
+      [`${outputDir}/2026/01/Old-receipt.pdf`]: { buffer: FAKE_PDF },
+      [`${outputDir}/2026/03`]: { isDir: true, entries: ["New-receipt.json"] },
+      [`${outputDir}/2026/03/New-receipt.json`]: { json: { vendor: "NewVendor", date: "2026-03-01", source_email: "new@vendor.com", receipt_file: "New-receipt.pdf" } },
+      [`${outputDir}/2026/03/New-receipt.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    const result = await reprocessReceipts({
+      outputDir,
+      since: new Date("2026-02-01"),
+    }, gateways);
+
+    expect(result.reprocessed).toBe(1);
+  });
+
+  it("handles extraction errors gracefully without overwriting sidecar", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs, written } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Fail-receipt.json"] },
+      [`${outputDir}/2026/01/Fail-receipt.json`]: { json: { vendor: "FailVendor", date: "2026-01-15", source_email: "fail@vendor.com", receipt_file: "Fail-receipt.pdf" } },
+      [`${outputDir}/2026/01/Fail-receipt.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs, { llmFails: true });
+    const result = await reprocessReceipts({ outputDir }, gateways);
+
+    expect(result.errors).toBe(1);
+    expect(result.reprocessed).toBe(0);
+    const jsonPath = `${outputDir}/2026/01/Fail-receipt.json`;
+    expect(written[jsonPath]).toBeUndefined();
+  });
+
+  it("filters by vendor name", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-1.json", "GitHub-GH-2.json"] },
+      [`${outputDir}/2026/01/Stripe-INV-1.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-1.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-1.pdf`]: { buffer: FAKE_PDF },
+      [`${outputDir}/2026/01/GitHub-GH-2.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "billing@github.com", receipt_file: "GitHub-GH-2.pdf" } },
+      [`${outputDir}/2026/01/GitHub-GH-2.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    const result = await reprocessReceipts({ outputDir, vendor: "stripe" }, gateways);
+
+    expect(result.reprocessed).toBe(1);
+  });
+
+  it("throws when OPENAI_API_KEY is not set (no LLM broker)", async () => {
+    const { mockFs } = makeReprocessFs({});
+    await expect(
+      reprocessReceipts({ outputDir: "/fake" }, {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        createLlmBroker: () => null,
+      })
+    ).rejects.toThrow("OPENAI_API_KEY not set");
   });
 });

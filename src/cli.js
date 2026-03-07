@@ -278,9 +278,34 @@ program
   .option("-m, --months <n>", "how far back to search", "12")
   .option("--since <date>", "search from this date instead of months")
   .option("-n, --dry-run", "show what would be downloaded without writing", false)
+  .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
+  .option("--vendor <name>", "filter to a specific vendor (substring match)")
   .action(withErrorHandling(async (opts) => {
     const json = resolveJson(opts);
     const account = resolveAccount(opts);
+
+    if (opts.reprocess) {
+      const { reprocessReceipts } = await import("./download-receipts.js");
+      const sinceDate = opts.since ? parseDate(opts.since) : null;
+      const result = await reprocessReceipts({
+        outputDir: opts.output,
+        vendor: opts.vendor || null,
+        since: sinceDate,
+        dryRun: opts.dryRun,
+      });
+
+      if (json) {
+        console.log(JSON.stringify(result));
+        return;
+      }
+
+      console.log("\n=== Reprocess Complete ===");
+      console.log(`Reprocessed:   ${result.reprocessed}`);
+      console.log(`Skipped:       ${result.skipped}`);
+      console.log(`Errors:        ${result.errors}`);
+      return;
+    }
+
     const { downloadReceiptEmails } = await import("./download-receipts.js");
     const { stats, records } = await downloadReceiptEmails({
       outputDir: opts.output,
