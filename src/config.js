@@ -31,7 +31,7 @@ export function resetConfigCache() {
 
 /**
  * Get the accounts array from config.json.
- * @returns {Array<{prefix: string, name: string, user?: string, keychainService?: string, host?: string, port?: number}>}
+ * @returns {Array<{prefix: string, name: string, user?: string, keychainService?: string, host?: string, port?: number, smtp?: {host: string, port: number, secure: boolean}}>}
  */
 export function getConfigAccounts() {
   const config = loadConfig();
@@ -72,6 +72,18 @@ export function getConfigVendorAddressMap() {
 export function getConfigVendorDomainMap() {
   const config = loadConfig();
   return config?.vendorDomainMap ?? {};
+}
+
+/**
+ * Get SMTP config for an account by name (case-insensitive match).
+ * @param {string} accountName - account name to look up
+ * @returns {{ host: string, port: number, secure: boolean } | null}
+ */
+export function getConfigSmtp(accountName) {
+  const accounts = getConfigAccounts();
+  const lower = accountName.toLowerCase();
+  const acct = accounts.find((a) => a.name?.toLowerCase() === lower || a.prefix?.toLowerCase() === lower);
+  return acct?.smtp ?? null;
 }
 
 /**

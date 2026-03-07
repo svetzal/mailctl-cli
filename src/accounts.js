@@ -31,15 +31,18 @@ export function loadAccounts() {
     const tenantId = process.env[`${acct.prefix}_TENANT_ID`];
     const clientSecret = process.env[`${acct.prefix}_CLIENT_SECRET`];
 
+    // Include SMTP config if present
+    const smtp = acct.smtp || null;
+
     if (clientId && tenantId && clientSecret) {
-      accounts.push({ name: acct.name, user, host, port, oauth2: { clientId, tenantId, clientSecret } });
+      accounts.push({ name: acct.name, user, host, port, oauth2: { clientId, tenantId, clientSecret }, smtp });
       continue;
     }
 
     // Password-based auth (secret from env)
     const pass = process.env[`${acct.prefix}_PASS`];
     if (pass) {
-      accounts.push({ name: acct.name, user, pass, host, port });
+      accounts.push({ name: acct.name, user, pass, host, port, smtp });
     }
   }
   return accounts;

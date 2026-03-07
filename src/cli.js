@@ -20,6 +20,8 @@ import { fetchInbox, formatInboxText } from "./inbox.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { detectMailbox } from "./mailbox-detect.js";
 import { parseDate } from "./parse-date.js";
+import { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorContent } from "./reply.js";
+import { SmtpGateway } from "./gateways/smtp-gateway.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -870,6 +872,161 @@ program
           lock.release();
         }
       });
+    }
+  }));
+
+program
+  .command("reply")
+  .description("Reply to an email by UID via SMTP")
+  .argument("<uid>", "message UID to reply to")
+  .option("--message <text>", "reply message text (inline)")
+  .option("--message-file <path>", "read reply text from a file")
+  .option("--edit", "open $EDITOR to compose the reply", false)
+  .option("--mailbox <path>", "mailbox containing the message (auto-detects if omitted)")
+  .option("--cc <addresses>", "CC recipients (comma-separated)")
+  .option("-n, --dry-run", "show composed email without sending", false)
+  .option("-y, --yes", "skip confirmation when using --edit", false)
+  .action(withErrorHandling(async (uid, opts) => {
+    const json = resolveJson(opts);
+    const account = resolveAccount(opts);
+    const accounts = requireAccounts();
+    const targetAccounts = filterAccountsByName(accounts, account);
+
+    if (account && targetAccounts.length === 0) {
+      throw new Error(`Account "${account}" not found.`);
+    }
+
+    if (!opts.message && !opts.messageFile && !opts.edit) {
+      throw new Error("Provide --message, --message-file, or --edit to compose a reply.");
+    }
+
+    // Find the account that has this UID and fetch the original message
+    /** @type {any} */
+    let originalParsed = null;
+    /** @type {any} */
+    let matchedAccount = null;
+
+    await forEachAccount(targetAccounts, async (client, acct) => {
+      if (originalParsed) return;
+
+      let mailbox = opts.mailbox;
+      if (!mailbox) {
+        const allBoxes = await listMailboxes(client);
+        const paths = filterSearchMailboxes(allBoxes);
+        mailbox = await detectMailbox(client, uid, paths);
+        if (!mailbox) return;
+        console.error(`Found UID ${uid} in ${mailbox}`);
+      }
+
+      let lock;
+      try {
+        lock = await client.getMailboxLock(mailbox);
+      } catch {
+        return;
+      }
+
+      try {
+        const raw = await client.download(uid, undefined, { uid: true });
+        const chunks = [];
+        for await (const chunk of raw.content) chunks.push(chunk);
+        const buf = Buffer.concat(chunks);
+        originalParsed = await simpleParser(buf);
+        matchedAccount = acct;
+      } catch {
+        // UID not found in this account
+      } finally {
+        lock.release();
+      }
+    });
+
+    if (!originalParsed || !matchedAccount) {
+      throw new Error(`Could not find UID ${uid} in any account.`);
+    }
+
+    if (!matchedAccount.smtp) {
+      throw new Error(`No SMTP configuration for account "${matchedAccount.name}". Add an smtp section to config.json.`);
+    }
+
+    // Build reply headers
+    const headers = buildReplyHeaders(originalParsed, matchedAccount.user);
+
+    // Get the reply message text
+    let userMessage;
+    if (opts.message) {
+      userMessage = opts.message;
+    } else if (opts.messageFile) {
+      userMessage = readFileSync(resolve(opts.messageFile), "utf-8").trim();
+    } else if (opts.edit) {
+      // Build template and open editor
+      const quotedBody = buildReplyBody("", originalParsed);
+      const template = buildEditorTemplate(headers, quotedBody);
+      const { tmpdir } = await import("os");
+      const tmpFile = join(tmpdir(), `mailctl-reply-${Date.now()}.txt`);
+      writeFileSync(tmpFile, template);
+
+      const editor = process.env.VISUAL || process.env.EDITOR || "vi";
+      const { execSync } = await import("child_process");
+      execSync(`${editor} "${tmpFile}"`, { stdio: "inherit" });
+
+      const edited = readFileSync(tmpFile, "utf-8");
+      const { unlinkSync } = await import("fs");
+      unlinkSync(tmpFile);
+
+      userMessage = parseEditorContent(edited);
+      if (!userMessage) {
+        throw new Error("Empty reply — aborting.");
+      }
+
+      // Confirm before sending (unless --yes)
+      if (!opts.yes && !opts.dryRun) {
+        const readline = await import("readline");
+        const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+        const answer = await new Promise((resolve) => rl.question("Send this reply? [y/N] ", resolve));
+        rl.close();
+        if (answer.toLowerCase() !== "y") {
+          console.error("Aborted.");
+          return;
+        }
+      }
+    }
+
+    // Build the full reply body with quoted original
+    const replyBody = buildReplyBody(userMessage, originalParsed);
+
+    const message = {
+      from: matchedAccount.user,
+      to: headers.to,
+      cc: opts.cc || undefined,
+      subject: headers.subject,
+      text: replyBody,
+      inReplyTo: headers.inReplyTo,
+      references: headers.references,
+    };
+
+    if (opts.dryRun) {
+      if (json) {
+        console.log(JSON.stringify({ dryRun: true, message }));
+      } else {
+        console.log("--- Dry Run: Composed Reply ---");
+        console.log(`From: ${message.from}`);
+        console.log(`To: ${message.to}`);
+        if (message.cc) console.log(`CC: ${message.cc}`);
+        console.log(`Subject: ${message.subject}`);
+        console.log(`In-Reply-To: ${message.inReplyTo}`);
+        console.log(`References: ${message.references}`);
+        console.log(`\n${message.text}`);
+      }
+      return;
+    }
+
+    // Send via SMTP
+    const gateway = new SmtpGateway();
+    const result = await gateway.send(matchedAccount, message);
+
+    if (json) {
+      console.log(JSON.stringify({ sent: true, messageId: result.messageId, accepted: result.accepted }));
+    } else {
+      console.log(`Reply sent to ${message.to} (Message-ID: ${result.messageId})`);
     }
   }));
 

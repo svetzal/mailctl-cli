@@ -20,7 +20,11 @@ export {
   extractService, extractMetadata,
 } from "./receipt-extraction.js";
 
+// Reply
+export { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorContent } from "./reply.js";
+
 // Gateways
 export { ImapGateway } from "./gateways/imap-gateway.js";
+export { SmtpGateway } from "./gateways/smtp-gateway.js";
 export { FileSystemGateway } from "./gateways/fs-gateway.js";
 export { SubprocessGateway } from "./gateways/subprocess-gateway.js";
