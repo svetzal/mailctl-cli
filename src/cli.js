@@ -22,6 +22,7 @@ import { detectMailbox } from "./mailbox-detect.js";
 import { parseDate } from "./parse-date.js";
 import { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorContent } from "./reply.js";
 import { SmtpGateway } from "./gateways/smtp-gateway.js";
+import { findThread, formatThreadText } from "./thread.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -1028,6 +1029,55 @@ program
     } else {
       console.log(`Reply sent to ${message.to} (Message-ID: ${result.messageId})`);
     }
+  }));
+
+program
+  .command("thread")
+  .description("Show the full conversation thread containing a message")
+  .argument("<uid>", "message UID to find the thread for")
+  .option("--mailbox <path>", "mailbox containing the message (auto-detects if omitted)")
+  .option("-l, --limit <n>", "max messages to show", "50")
+  .option("--full", "show full message bodies", false)
+  .action(withErrorHandling(async (uid, opts) => {
+    const json = resolveJson(opts);
+    const account = resolveAccount(opts);
+    const accounts = requireAccounts();
+    const targetAccounts = filterAccountsByName(accounts, account);
+    const limit = parseInt(opts.limit, 10);
+
+    if (account && targetAccounts.length === 0) {
+      throw new Error(`Account "${account}" not found.`);
+    }
+
+    await forEachAccount(targetAccounts, async (client, acct) => {
+      console.error(`\n=== ${acct.name} ===`);
+
+      let mailbox = opts.mailbox;
+      if (!mailbox) {
+        const allBoxes = await listMailboxes(client);
+        const paths = filterSearchMailboxes(allBoxes);
+        mailbox = await detectMailbox(client, uid, paths);
+        if (!mailbox) {
+          throw new Error(`UID ${uid} not found in any mailbox on ${acct.name}`);
+        }
+        console.error(`Found UID ${uid} in ${mailbox}`);
+      }
+
+      // Get searchable mailboxes for cross-mailbox thread discovery
+      const allBoxes = await listMailboxes(client);
+      const searchPaths = filterSearchMailboxes(allBoxes);
+
+      const { messages, fallback } = await findThread(client, acct.name, mailbox, uid, searchPaths, {
+        limit,
+        full: opts.full,
+      });
+
+      if (json) {
+        console.log(JSON.stringify({ account: acct.name, threadSize: messages.length, fallback, messages }));
+      } else {
+        console.log(formatThreadText(messages, { full: opts.full, fallback }));
+      }
+    });
   }));
 
 program.parse();
