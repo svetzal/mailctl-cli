@@ -33,3 +33,52 @@ export function getVendorFilenameNames() {
 export function getVendorDomainMap() {
   return getConfigVendorDomainMap();
 }
+
+/**
+ * Check if a message matches a vendor filter.
+ * Matches against: vendor display name, sender address, sender domain,
+ * and configured vendor names from vendorAddressMap/vendorDomainMap.
+ * Case-insensitive, substring match.
+ *
+ * @param {string} filter - user's vendor filter string
+ * @param {string} fromAddress - sender email address
+ * @param {string} [fromName] - sender display name
+ * @returns {boolean}
+ */
+export function matchesVendor(filter, fromAddress, fromName) {
+  const f = filter.toLowerCase();
+
+  // 1. Check sender display name
+  if (fromName && fromName.toLowerCase().includes(f)) return true;
+
+  // 2. Check sender email address
+  if (fromAddress && fromAddress.toLowerCase().includes(f)) return true;
+
+  // 3. Check configured vendor names (address map and domain map)
+  const addressMap = getConfigVendorAddressMap();
+  const domainMap = getConfigVendorDomainMap();
+
+  const addr = (fromAddress || "").toLowerCase();
+
+  // Check if sender address is in the address map and the vendor name matches
+  if (addressMap[addr] && addressMap[addr].toLowerCase().includes(f)) return true;
+
+  // Check if sender domain is in the domain map and the vendor name matches
+  const domain = addr.includes("@") ? addr.split("@").pop() : "";
+  if (domain) {
+    // Check exact domain match in domain map
+    if (domainMap[domain] && domainMap[domain].toLowerCase().includes(f)) return true;
+
+    // Check parent domains (e.g. mail.anthropic.com -> anthropic.com)
+    const parts = domain.split(".");
+    for (let i = 1; i < parts.length - 1; i++) {
+      const parent = parts.slice(i).join(".");
+      if (domainMap[parent] && domainMap[parent].toLowerCase().includes(f)) return true;
+    }
+  }
+
+  // 4. Check domain portion of the sender address
+  if (domain && domain.includes(f)) return true;
+
+  return false;
+}

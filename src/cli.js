@@ -280,9 +280,51 @@ program
   .option("-n, --dry-run", "show what would be downloaded without writing", false)
   .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
   .option("--vendor <name>", "filter to a specific vendor (substring match)")
+  .option("--list-vendors", "list vendors found in recent receipts", false)
   .action(withErrorHandling(async (opts) => {
     const json = resolveJson(opts);
     const account = resolveAccount(opts);
+
+    if (opts.listVendors) {
+      const { listReceiptVendors } = await import("./download-receipts.js");
+      const { getVendorDisplayNames, getVendorDomainMap } = await import("./vendor-map.js");
+      const sinceDate = opts.since ? parseDate(opts.since) : null;
+      const vendors = await listReceiptVendors({
+        months: parseInt(opts.months, 10),
+        since: sinceDate || undefined,
+        account: account || null,
+      });
+
+      if (json) {
+        const knownNames = getVendorDisplayNames();
+        const knownDomains = getVendorDomainMap();
+        const configVendors = [...new Set([...Object.values(knownNames), ...Object.values(knownDomains)])].sort();
+        console.log(JSON.stringify({ configVendors, recentVendors: vendors }));
+        return;
+      }
+
+      // Show known vendors from config
+      const knownNames = getVendorDisplayNames();
+      const knownDomains = getVendorDomainMap();
+      const configVendors = [...new Set([...Object.values(knownNames), ...Object.values(knownDomains)])].sort();
+      if (configVendors.length > 0) {
+        console.log("Known vendors (from config):");
+        console.log(`  ${configVendors.join(", ")}`);
+        console.log();
+      }
+
+      // Show recent vendors from scan
+      if (vendors.length > 0) {
+        const monthLabel = opts.since ? `since ${opts.since}` : `last ${opts.months} months`;
+        console.log(`Recent vendors (${monthLabel}):`);
+        for (const v of vendors) {
+          console.log(`  ${v.vendor} (${v.count} receipt${v.count === 1 ? "" : "s"})`);
+        }
+      } else {
+        console.log("No receipt vendors found in the search period.");
+      }
+      return;
+    }
 
     if (opts.reprocess) {
       const { reprocessReceipts } = await import("./download-receipts.js");
@@ -312,6 +354,7 @@ program
       months: parseInt(opts.months, 10),
       since: opts.since || null,
       account: account || null,
+      vendor: opts.vendor || null,
       dryRun: opts.dryRun,
     });
 

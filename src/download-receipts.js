@@ -16,6 +16,7 @@ import {
   formatDate,
   extractMetadata,
 } from "./receipt-extraction.js";
+import { matchesVendor } from "./vendor-map.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
 
@@ -395,6 +396,7 @@ const defaultGateways = {
  * @param {number}  [opts.months=12] - how far back to search
  * @param {string}  [opts.since] - search from this date instead of months
  * @param {string}  [opts.account] - only search this account
+ * @param {string}  [opts.vendor] - filter to a specific vendor (substring match)
  * @param {boolean} [opts.dryRun=false] - show what would be done
  * @param {object} [gateways] - injectable implementations for testing
  * @returns {Promise<{ stats: object, records: Array }>}
@@ -460,7 +462,14 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
     }
 
     // Deduplicate by message-id
-    const unique = deduplicateByMessageId(allResults);
+    let unique = deduplicateByMessageId(allResults);
+
+    // Apply vendor filter if specified
+    if (opts.vendor) {
+      const beforeCount = unique.length;
+      unique = unique.filter(msg => matchesVendor(opts.vendor, msg.fromAddress, msg.fromName));
+      console.error(`   Filtered to ${unique.length} of ${beforeCount} messages matching vendor "${opts.vendor}"`);
+    }
 
     console.error(`   ${unique.length} unique receipt emails`);
     stats.found += unique.length;
@@ -639,6 +648,77 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
   });
 
   return { stats, records };
+}
+
+/**
+ * List vendors found in receipt emails across accounts.
+ * Returns an array of { vendor, count } sorted by count descending.
+ * @param {object} [opts]
+ * @param {number}  [opts.months=3] - how far back to search
+ * @param {Date}    [opts.since] - search from this date instead of months
+ * @param {string}  [opts.account] - only search this account
+ * @param {object} [gateways] - injectable implementations for testing
+ * @returns {Promise<Array<{ vendor: string, address: string, count: number }>>}
+ */
+export async function listReceiptVendors(opts = {}, gateways = {}) {
+  const {
+    loadAccounts,
+    forEachAccount,
+    listMailboxes,
+  } = { ...defaultGateways, ...gateways };
+
+  const months = opts.months ?? 3;
+  const accountFilter = opts.account || null;
+
+  const since = opts.since
+    ? opts.since
+    : (() => { const d = new Date(); d.setMonth(d.getMonth() - months); return d; })();
+
+  const accounts = loadAccounts();
+  if (accounts.length === 0) {
+    throw new Error("No email accounts configured. Check keychain credentials and bin/run wrapper.");
+  }
+
+  const targetAccounts = accountFilter
+    ? accounts.filter((a) => a.name.toLowerCase() === accountFilter.toLowerCase())
+    : accounts;
+
+  if (targetAccounts.length === 0) {
+    throw new Error(`Account "${accountFilter}" not found.`);
+  }
+
+  /** @type {Map<string, { vendor: string, address: string, count: number }>} */
+  const vendorCounts = new Map();
+
+  await forEachAccount(targetAccounts, async (client, account) => {
+    console.error(`\nSearching ${account.name} (${account.user})...`);
+
+    const list = await listMailboxes(client);
+    const mailboxes = filterSearchMailboxes(list);
+
+    const allResults = [];
+    for (const mbPath of mailboxes) {
+      const results = await searchMailboxForReceipts(client, account.name, mbPath, since);
+      allResults.push(...results);
+    }
+
+    const unique = deduplicateByMessageId(allResults);
+
+    for (const msg of unique) {
+      const key = msg.fromAddress;
+      if (vendorCounts.has(key)) {
+        vendorCounts.get(key).count++;
+      } else {
+        vendorCounts.set(key, {
+          vendor: msg.fromName || msg.fromAddress,
+          address: msg.fromAddress,
+          count: 1,
+        });
+      }
+    }
+  });
+
+  return [...vendorCounts.values()].sort((a, b) => b.count - a.count);
 }
 
 /**
