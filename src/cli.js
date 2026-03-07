@@ -23,6 +23,8 @@ import { parseDate } from "./parse-date.js";
 import { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorContent } from "./reply.js";
 import { SmtpGateway } from "./gateways/smtp-gateway.js";
 import { findThread, formatThreadText } from "./thread.js";
+import { extractContacts, aggregateContacts, formatContactsText } from "./contacts.js";
+import { getConfigSelfAddresses } from "./config.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -1078,6 +1080,65 @@ program
         console.log(formatThreadText(messages, { full: opts.full, fallback }));
       }
     });
+  }));
+
+program
+  .command("contacts")
+  .description("Extract frequent email contacts from recent messages")
+  .option("-l, --limit <n>", "max contacts to show", "25")
+  .option("--since <date>", "only messages on or after this date (default: 6m)")
+  .option("--sent", "only show people you've sent TO", false)
+  .option("--received", "only show people you've received FROM", false)
+  .option("--search <text>", "filter contacts by name or address")
+  .action(withErrorHandling(async (opts) => {
+    const json = resolveJson(opts);
+    const account = resolveAccount(opts);
+    const accounts = requireAccounts();
+    const targetAccounts = filterAccountsByName(accounts, account);
+
+    if (account && targetAccounts.length === 0) {
+      throw new Error(`Account "${account}" not found.`);
+    }
+
+    const limit = parseInt(opts.limit, 10);
+    const since = opts.since ? parseDate(opts.since) : parseDate("6m");
+
+    const sinceLabel = opts.since
+      ? `since ${since.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}`
+      : "last 6 months";
+
+    const allEntries = [];
+
+    await forEachAccount(targetAccounts, async (client, acct) => {
+      if (!json) console.error(`Scanning ${acct.name}...`);
+
+      const entries = await extractContacts(client, acct.name, {
+        since,
+        limit,
+        sentOnly: opts.sent,
+        receivedOnly: opts.received,
+      });
+
+      allEntries.push(...entries);
+    });
+
+    // Collect self addresses: config selfAddresses + each account's user address
+    const selfAddresses = [...getConfigSelfAddresses()];
+    for (const acct of targetAccounts) {
+      if (acct.user) selfAddresses.push(acct.user);
+    }
+
+    const contacts = aggregateContacts(allEntries, {
+      search: opts.search,
+      limit,
+      selfAddresses,
+    });
+
+    if (json) {
+      console.log(JSON.stringify(contacts));
+    } else {
+      console.log(formatContactsText(contacts, { sinceLabel }));
+    }
   }));
 
 program.parse();
