@@ -14,6 +14,7 @@ import { collectValues, filterAccountsByName } from "./cli-helpers.js";
 import { searchMailbox } from "./search.js";
 import { deduplicateByMessageId } from "./dedup.js";
 import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
+import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
 import { buildReadResult, formatReadResultText } from "./read-email.js";
 import { fetchInbox, formatInboxText } from "./inbox.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
@@ -766,6 +767,109 @@ program
       console.log(JSON.stringify(allResults));
     } else {
       console.log(formatInboxText(resultsByAccount));
+    }
+  }));
+
+program
+  .command("flag")
+  .description("Set or clear flags on messages (read, unread, star, unstar)")
+  .argument("<uids...>", "message UIDs (space or comma-separated; prefix with account: if --account omitted)")
+  .option("--read", "mark as read (add \\Seen)")
+  .option("--unread", "mark as unread (remove \\Seen)")
+  .option("--star", "add star/flag (add \\Flagged)")
+  .option("--unstar", "remove star/flag (remove \\Flagged)")
+  .option("--mailbox <path>", "mailbox containing the messages (auto-detects if omitted)")
+  .option("-n, --dry-run", "show what would change without modifying", false)
+  .action(withErrorHandling(async (uids, opts) => {
+    const json = resolveJson(opts);
+    const account = resolveAccount(opts);
+    const accounts = requireAccounts();
+
+    const changes = computeFlagChanges({
+      read: opts.read,
+      unread: opts.unread,
+      star: opts.star,
+      unstar: opts.unstar,
+    });
+
+    const parsed = parseUidArgs(uids, account || null);
+
+    if (parsed.length === 0) {
+      throw new Error("No UIDs provided.");
+    }
+
+    const byAccount = groupUidsByAccount(parsed);
+
+    for (const [acctKey, acctUids] of byAccount) {
+      const targetAccounts = filterAccountsByName(accounts, acctKey);
+
+      if (targetAccounts.length === 0) {
+        throw new Error(`Account "${acctKey}" not found.`);
+      }
+
+      await forEachAccount(targetAccounts, async (client, acct) => {
+        const uidRange = acctUids.join(",");
+
+        let mailbox = opts.mailbox;
+        if (!mailbox) {
+          const allBoxes = await listMailboxes(client);
+          const paths = filterSearchMailboxes(allBoxes);
+          mailbox = await detectMailbox(client, acctUids[0], paths);
+          if (!mailbox) {
+            throw new Error(`UID ${acctUids[0]} not found in any mailbox on ${acct.name}`);
+          }
+          console.error(`Found UID ${acctUids[0]} in ${mailbox}`);
+        }
+
+        if (opts.dryRun) {
+          const parts = [];
+          for (const f of changes.add) parts.push(`+${f}`);
+          for (const f of changes.remove) parts.push(`-${f}`);
+          const label = acctUids.length === 1 ? `UID ${uidRange}` : `UIDs ${uidRange}`;
+          if (json) {
+            console.log(JSON.stringify({
+              dryRun: true,
+              uids: acctUids.map(Number),
+              added: changes.add,
+              removed: changes.remove,
+              account: acct.name,
+              mailbox,
+            }));
+          } else {
+            console.log(`[DRY RUN] Would flag ${label}: ${parts.join(" ")}`);
+          }
+          return;
+        }
+
+        let lock;
+        try {
+          lock = await client.getMailboxLock(mailbox);
+        } catch (err) {
+          throw new Error(`Could not open mailbox "${mailbox}" on ${acct.name}: ${err.message}`);
+        }
+
+        try {
+          const result = await applyFlagChanges(client, uidRange, changes);
+          const parts = [];
+          for (const f of result.added) parts.push(`+${f}`);
+          for (const f of result.removed) parts.push(`-${f}`);
+          const label = acctUids.length === 1 ? `UID ${uidRange}` : `UIDs ${uidRange}`;
+
+          if (json) {
+            console.log(JSON.stringify({
+              uids: acctUids.map(Number),
+              added: result.added,
+              removed: result.removed,
+              account: acct.name,
+              mailbox,
+            }));
+          } else {
+            console.log(`Flagged ${label}: ${parts.join(" ")}`);
+          }
+        } finally {
+          lock.release();
+        }
+      });
     }
   }));
 
