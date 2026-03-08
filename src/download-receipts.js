@@ -57,7 +57,7 @@ const BILLING_SENDER_PATTERNS = [
 
 
 /** JSON schema for LLM-based receipt data extraction. */
-const RECEIPT_EXTRACTION_SCHEMA = {
+export const RECEIPT_EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
     vendor: {
@@ -92,8 +92,16 @@ const RECEIPT_EXTRACTION_SCHEMA = {
       type: ["string", "null"],
       description: "The invoice number, receipt number, order number, or transaction reference. Use the most specific identifier available. Examples: 'INV-2024-0042', 'MNJ104XT91', '1669669', 'DLAENQQZ0009'. Do NOT include long base64 strings, URLs, or tracking numbers. Must be filesystem-safe (no slashes, backslashes, or special characters beyond hyphens and dots). Return null if no clear identifier exists."
     },
+    is_invoice: {
+      type: "boolean",
+      description: "Is this email an actual invoice, receipt, or payment confirmation that records a completed monetary transaction? Return true for: invoices, receipts, payment confirmations, billing statements, renewal charges. Return false for: payment reminders ('we will charge you on...'), credit-based orders with no dollar amount, trial conversion notices, subscription welcome emails, shipping notifications without prices, account notifications, marketing emails, pricing change announcements, or apology/correction emails. When in doubt, return false."
+    },
+    confidence: {
+      type: "number",
+      description: "Your confidence that this is a real invoice/receipt with accurate extracted data, from 0.0 (no confidence) to 1.0 (certain). Score 0.9+ when you see a clear invoice with amount, date, and vendor. Score 0.5-0.8 when some fields are ambiguous or missing. Score below 0.5 when the email doesn't appear to be an actual invoice/receipt."
+    },
   },
-  required: ["vendor"],
+  required: ["vendor", "is_invoice", "confidence"],
 };
 
 const LLM_SYSTEM_PROMPT = `You extract structured data from receipts, invoices, and payment confirmations. Your input is either an email body or a PDF converted to markdown.
@@ -107,6 +115,13 @@ Key situations you will encounter:
 - THERAPY/PROFESSIONAL INVOICES: Individual practitioners (therapists, consultants) send invoices. Use their business/practice name as vendor.
 - RETAIL RECEIPTS: Costco, Canadian Tire, Best Buy — these show line items. List the items purchased as the service field.
 - SaaS SUBSCRIPTIONS: GitHub, Anthropic, OpenAI, Zoom, Suno, JetBrains — always extract the specific plan name (e.g. "Copilot Business" not just "GitHub").
+
+CLASSIFICATION: Before extracting data, determine if this email is an actual invoice/receipt for a completed monetary transaction. Many emails from billing senders are NOT invoices — they're reminders, notifications, credit orders, or marketing. If in doubt, mark is_invoice as false. Examples of NON-invoices:
+- "Payment date for your subscription is approaching" (reminder, not a charge)
+- "Thanks, your order is complete" with "An Audible credit has been applied" (credit order, no money changed hands)
+- "Your free trial will convert to a paid subscription on..." (notice, not a charge)
+- "We're following up about the pricing update email you received... That message was sent to you in error" (correction email)
+- "Your Power Automate Premium trial will convert" with "$0.00" (zero-dollar trial notice)
 
 Be thorough — extract EVERY field you can. A receipt with a null amount is nearly useless. Look harder.`;
 
@@ -181,6 +196,8 @@ ${truncatedBody}`;
     tax,
     date: dateStr,
     invoice_number: data.invoice_number || null,
+    is_invoice: data.is_invoice ?? null,
+    confidence: typeof data.confidence === "number" ? data.confidence : null,
     source_email: fromAddress,
     source_account: null,
     email_uid: null,
@@ -453,7 +470,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
   const existingHashes = loadExistingHashes(outputDir, fs);
   const usedPaths = new Set();
 
-  const stats = { found: 0, downloaded: 0, noPdf: 0, alreadyHave: 0, errors: 0 };
+  const stats = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, alreadyHave: 0, errors: 0 };
   const records = [];
 
   // Initialize LLM broker for receipt data extraction (null if OPENAI_API_KEY not set)
@@ -577,6 +594,18 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
             // Store body snippet for future reprocessing (before any extraction)
             metadata.source_body_snippet = bodyText.length > 2000 ? bodyText.slice(0, 2000) : bodyText;
 
+            // Check LLM classification — skip non-invoices
+            if (metadata.is_invoice === false) {
+              console.error(`   Skipping ${metadata.vendor} — classified as non-invoice (confidence: ${(metadata.confidence || 0).toFixed(2)})`);
+              stats.skipped++;
+              continue;
+            }
+            if (metadata.confidence !== null && metadata.confidence < 0.4) {
+              console.error(`   Skipping ${metadata.vendor} — low confidence ${(metadata.confidence).toFixed(2)}`);
+              stats.skipped++;
+              continue;
+            }
+
             // Invoice number dedup
             if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
               console.error(`   Skipping ${metadata.vendor} ${metadata.invoice_number} — already exists`);
@@ -672,6 +701,14 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
       }
     }
   });
+
+  console.error(`\n=== Download Complete ===`);
+  console.error(`Found:       ${stats.found}`);
+  console.error(`Downloaded:  ${stats.downloaded}`);
+  console.error(`No PDF:      ${stats.noPdf}`);
+  console.error(`Skipped:     ${stats.skipped} (non-invoice or low confidence)`);
+  console.error(`Duplicates:  ${stats.alreadyHave}`);
+  console.error(`Errors:      ${stats.errors}`);
 
   return { stats, records };
 }

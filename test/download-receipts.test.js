@@ -751,7 +751,7 @@ function makeReprocessGateways(mockFs, opts = {}) {
       broker: {
         generateObject: mock(async () => {
           if (llmFails) return { ok: false, error: "LLM error" };
-          return { ok: true, value: { vendor: "Stripe", amount: 49, date: "2026-01-15", invoice_number: "INV-123" } };
+          return { ok: true, value: { vendor: "Stripe", amount: 49, date: "2026-01-15", invoice_number: "INV-123", is_invoice: true, confidence: 0.9 } };
         }),
       },
       gateway: {},
