@@ -572,6 +572,119 @@ describe("downloadReceiptEmails", () => {
   });
 });
 
+// ── source_body_snippet ───────────────────────────────────────────────────────
+
+/** Make an email client that yields a plain-text email (no PDF attachment). */
+function makeNoPdfEmailClient(bodyText = "Your payment of $9.99 has been processed.") {
+  const emailDate = new Date("2025-03-07");
+  const emailBody = [
+    `From: billing@acme.com`,
+    `Subject: Payment confirmation`,
+    `Date: ${emailDate.toUTCString()}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/plain`,
+    `Message-ID: <no-pdf-msg@acme.com>`,
+    ``,
+    bodyText,
+  ].join("\r\n");
+  const rawBuffer = Buffer.from(emailBody);
+
+  return {
+    getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+    search: mock(() => Promise.resolve([1])),
+    mailbox: { exists: 1 },
+    fetch: mock(() => {
+      async function* gen() {
+        yield {
+          uid: 1,
+          envelope: {
+            date: emailDate,
+            from: [{ address: "billing@acme.com", name: "Acme" }],
+            subject: "Payment confirmation",
+            messageId: "no-pdf-msg@acme.com",
+          },
+        };
+      }
+      return gen();
+    }),
+    download: mock(() => {
+      async function* gen() { yield rawBuffer; }
+      return Promise.resolve({ content: gen() });
+    }),
+  };
+}
+
+function standardGateways(client, mockFs) {
+  return {
+    fs: mockFs,
+    subprocess: { execFileSync: mock(() => {}) },
+    loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+    forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+    listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+    createLlmBroker: () => null,
+  };
+}
+
+describe("source_body_snippet", () => {
+  it("stores body snippet for no-PDF receipt", async () => {
+    const bodyText = "Your payment of $9.99 has been processed.";
+    const client = makeNoPdfEmailClient(bodyText);
+    const { mockFs, written } = makeMockFs();
+
+    await downloadReceiptEmails({ outputDir: tmpDir }, standardGateways(client, mockFs));
+
+    const jsonKey = Object.keys(written).find((k) => k.endsWith(".json"));
+    expect(jsonKey).toBeDefined();
+    const sidecar = JSON.parse(written[jsonKey]);
+    expect(sidecar.source_body_snippet).toBe(bodyText);
+  });
+
+  it("stores body snippet for PDF receipt", async () => {
+    const client = makeEmailClient();
+    const { mockFs, written } = makeMockFs();
+
+    await downloadReceiptEmails({ outputDir: tmpDir }, standardGateways(client, mockFs));
+
+    const jsonKey = Object.keys(written).find((k) => k.endsWith(".json"));
+    expect(jsonKey).toBeDefined();
+    const sidecar = JSON.parse(written[jsonKey]);
+    expect(sidecar.source_body_snippet).toBeDefined();
+    // Should contain the email body text, not the PDF content
+    expect(sidecar.source_body_snippet).toContain("Your invoice is attached");
+  });
+
+  it("truncates body snippet at 2000 characters", async () => {
+    const longBody = "A".repeat(3000);
+    const client = makeNoPdfEmailClient(longBody);
+    const { mockFs, written } = makeMockFs();
+
+    await downloadReceiptEmails({ outputDir: tmpDir }, standardGateways(client, mockFs));
+
+    const jsonKey = Object.keys(written).find((k) => k.endsWith(".json"));
+    const sidecar = JSON.parse(written[jsonKey]);
+    expect(sidecar.source_body_snippet.length).toBe(2000);
+  });
+
+  it("preserves existing snippet during reprocess", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs, written } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf", source_body_snippet: "old body text" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    await reprocessReceipts({ outputDir }, gateways);
+
+    const jsonPath = `${outputDir}/2026/01/Stripe-INV-123.json`;
+    const updated = JSON.parse(written[jsonPath]);
+    expect(updated.source_body_snippet).toBe("old body text");
+  });
+});
+
 // ── collectSidecarFiles ───────────────────────────────────────────────────────
 
 describe("collectSidecarFiles", () => {

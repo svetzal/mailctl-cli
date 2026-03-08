@@ -574,6 +574,9 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
             metadata.source_account = account.name.toLowerCase();
             metadata.email_uid = msg.uid;
 
+            // Store body snippet for future reprocessing (before any extraction)
+            metadata.source_body_snippet = bodyText.length > 2000 ? bodyText.slice(0, 2000) : bodyText;
+
             // Invoice number dedup
             if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
               console.error(`   Skipping ${metadata.vendor} ${metadata.invoice_number} — already exists`);
@@ -879,6 +882,7 @@ export async function reprocessReceipts(opts, gateways = {}) {
         source_account: sidecar.source_account || metadata.source_account,
         email_uid: sidecar.email_uid || metadata.email_uid,
         receipt_file: sidecar.receipt_file || metadata.receipt_file,
+        source_body_snippet: sidecar.source_body_snippet || null,
         downloadedAt: sidecar.downloadedAt || null,
         reprocessedAt: new Date().toISOString(),
       };
