@@ -797,7 +797,7 @@ describe("reprocessReceipts", () => {
     expect(updated.reprocessedAt).toBeDefined();
   });
 
-  it("skips files without PDFs", async () => {
+  it("skips files without PDFs and without body snippet", async () => {
     const outputDir = "/fake/receipts";
     const { mockFs } = makeReprocessFs({
       [outputDir]: { isDir: true, entries: ["2026"] },
@@ -912,6 +912,131 @@ describe("reprocessReceipts", () => {
     const result = await reprocessReceipts({ outputDir, vendor: "stripe" }, gateways);
 
     expect(result.reprocessed).toBe(1);
+  });
+
+  it("uses body snippet when no PDF exists", async () => {
+    const outputDir = "/fake/receipts";
+    const snippet = "Your payment of $9.99 for GitHub Copilot has been processed. Invoice #GH-2026-001.";
+    /** @type {any[]} */
+    let llmCalledWith = [];
+    const { mockFs, written } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["GitHub-receipt.json"] },
+      [`${outputDir}/2026/01/GitHub-receipt.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com", receipt_file: null, source_body_snippet: snippet } },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = {
+      fs: mockFs,
+      subprocess: { execFileSync: mock(() => {}) },
+      createLlmBroker: () => ({
+        broker: {
+          generateObject: mock(async (messages) => {
+            llmCalledWith = messages;
+            return { ok: true, value: { vendor: "GitHub", amount: 9.99, invoice_number: "GH-2026-001", is_invoice: true, confidence: 0.9 } };
+          }),
+        },
+        gateway: {},
+      }),
+    };
+    const result = await reprocessReceipts({ outputDir }, gateways);
+
+    expect(result.reprocessed).toBe(1);
+    expect(result.skipped).toBe(0);
+    const jsonPath = `${outputDir}/2026/01/GitHub-receipt.json`;
+    expect(written[jsonPath]).toBeDefined();
+    const updated = JSON.parse(written[jsonPath]);
+    expect(updated.reprocessedAt).toBeDefined();
+    // Verify the LLM was called with the body snippet
+    const userMsg = llmCalledWith.find(m => m.role === "user");
+    expect(userMsg.content).toContain(snippet);
+  });
+
+  it("skips when no PDF and no body snippet", async () => {
+    const outputDir = "/fake/receipts";
+    const { mockFs } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["NoPdf-receipt.json"] },
+      [`${outputDir}/2026/01/NoPdf-receipt.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com", receipt_file: null } },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = makeReprocessGateways(mockFs);
+    const result = await reprocessReceipts({ outputDir }, gateways);
+
+    expect(result.skipped).toBe(1);
+    expect(result.reprocessed).toBe(0);
+    const skipResult = result.results.find(r => r.file === "NoPdf-receipt.json");
+    expect(skipResult.reason).toBe("no PDF and no body snippet");
+  });
+
+  it("deletes sidecar when reclassified as non-invoice", async () => {
+    const outputDir = "/fake/receipts";
+    const snippet = "Your payment date is approaching...";
+    const { mockFs, written } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["NotInvoice.json"] },
+      [`${outputDir}/2026/01/NotInvoice.json`]: { json: { vendor: "SomeVendor", date: "2026-01-20", source_email: "billing@vendor.com", receipt_file: null, source_body_snippet: snippet } },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = {
+      fs: mockFs,
+      subprocess: { execFileSync: mock(() => {}) },
+      createLlmBroker: () => ({
+        broker: {
+          generateObject: mock(async () => {
+            return { ok: true, value: { vendor: "SomeVendor", is_invoice: false, confidence: 0.85 } };
+          }),
+        },
+        gateway: {},
+      }),
+    };
+    const result = await reprocessReceipts({ outputDir }, gateways);
+
+    expect(result.reclassified).toBe(1);
+    expect(result.reprocessed).toBe(0);
+    // Sidecar should be deleted via fs.rm
+    expect(mockFs.rm).toHaveBeenCalledWith(`${outputDir}/2026/01/NotInvoice.json`, { force: true });
+    // Should NOT have been rewritten
+    expect(written[`${outputDir}/2026/01/NotInvoice.json`]).toBeUndefined();
+  });
+
+  it("prefers PDF over body snippet when both exist", async () => {
+    const outputDir = "/fake/receipts";
+    /** @type {any[]} */
+    let llmCalledWith = [];
+    const { mockFs } = makeReprocessFs({
+      [outputDir]: { isDir: true, entries: ["2026"] },
+      [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
+      [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf", source_body_snippet: "email body text" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
+      [join(process.env.HOME, ".local/bin/docling")]: {},
+    });
+
+    const gateways = {
+      fs: mockFs,
+      subprocess: { execFileSync: mock(() => {}) },
+      createLlmBroker: () => ({
+        broker: {
+          generateObject: mock(async (messages) => {
+            llmCalledWith = messages;
+            return { ok: true, value: { vendor: "Stripe", amount: 49, date: "2026-01-15", invoice_number: "INV-123", is_invoice: true, confidence: 0.9 } };
+          }),
+        },
+        gateway: {},
+      }),
+    };
+    await reprocessReceipts({ outputDir }, gateways);
+
+    // The LLM should have been called with the docling output, not the body snippet
+    const userMsg = llmCalledWith.find(m => m.role === "user");
+    expect(userMsg.content).toContain("Invoice #123");  // from the mock readText (docling output)
+    expect(userMsg.content).not.toContain("email body text");
   });
 
   it("throws when OPENAI_API_KEY is not set (no LLM broker)", async () => {

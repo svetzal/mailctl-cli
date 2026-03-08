@@ -826,7 +826,7 @@ export function collectSidecarFiles(outputDir, fs) {
  * @param {Date} [opts.since] - only reprocess files newer than this date
  * @param {boolean} [opts.dryRun]
  * @param {object} [gateways] - injectable dependencies
- * @returns {Promise<{reprocessed: number, skipped: number, errors: number, results: Array}>}
+ * @returns {Promise<{reprocessed: number, skipped: number, errors: number, reclassified: number, results: Array}>}
  */
 export async function reprocessReceipts(opts, gateways = {}) {
   const {
@@ -848,7 +848,7 @@ export async function reprocessReceipts(opts, gateways = {}) {
   console.error(`Reprocessing receipts in ${outputDir}...`);
 
   const sidecars = collectSidecarFiles(outputDir, fs);
-  const stats = { reprocessed: 0, skipped: 0, errors: 0 };
+  const stats = { reprocessed: 0, skipped: 0, errors: 0, reclassified: 0 };
   const results = [];
 
   for (const { jsonPath, sidecar } of sidecars) {
@@ -873,33 +873,46 @@ export async function reprocessReceipts(opts, gateways = {}) {
 
     // Check if a corresponding PDF exists
     const hasPdf = fs.exists(pdfPath);
-    if (!hasPdf) {
-      console.error(`  ⏭️  ${jsonFilename} — no PDF found, skipped`);
-      stats.skipped++;
-      results.push({ file: jsonFilename, status: "skipped", reason: "no PDF" });
-      continue;
-    }
 
-    if (dryRun) {
-      console.error(`  [DRY RUN] ${jsonFilename} — would reprocess`);
-      stats.reprocessed++;
-      results.push({ file: jsonFilename, status: "dry-run" });
-      continue;
-    }
+    let extractionText = null;
 
-    // Re-run extraction on the PDF
-    try {
+    if (hasPdf) {
+      if (dryRun) {
+        console.error(`  [DRY RUN] ${jsonFilename} — would reprocess`);
+        stats.reprocessed++;
+        results.push({ file: jsonFilename, status: "dry-run" });
+        continue;
+      }
       const pdfMarkdown = pdfToText(pdfPath, fs, subprocess);
-      if (!pdfMarkdown) {
+      if (pdfMarkdown) {
+        extractionText = pdfMarkdown;
+      } else {
         console.error(`  ❌ ${jsonFilename} — docling conversion failed`);
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "docling conversion failed" });
         continue;
       }
+    } else if (sidecar.source_body_snippet) {
+      if (dryRun) {
+        console.error(`  [DRY RUN] ${jsonFilename} — would reprocess (body snippet)`);
+        stats.reprocessed++;
+        results.push({ file: jsonFilename, status: "dry-run" });
+        continue;
+      }
+      extractionText = sidecar.source_body_snippet;
+      console.error(`      Using stored body snippet for extraction (${jsonFilename})`);
+    } else {
+      console.error(`  ⏭️  ${jsonFilename} — no PDF and no body snippet, skipped`);
+      stats.skipped++;
+      results.push({ file: jsonFilename, status: "skipped", reason: "no PDF and no body snippet" });
+      continue;
+    }
 
+    // Re-run extraction
+    try {
       const metadata = await extractMetadataWithLLM(
         llm.broker,
-        pdfMarkdown,
+        extractionText,
         sidecar.subject || "",
         sidecar.source_email || "",
         sidecar.vendor || "",
@@ -910,6 +923,14 @@ export async function reprocessReceipts(opts, gateways = {}) {
         console.error(`  ❌ ${jsonFilename} — LLM extraction returned no data`);
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "LLM extraction failed" });
+        continue;
+      }
+
+      if (metadata.is_invoice === false) {
+        console.error(`  🗑️  ${jsonFilename} — reclassified as non-invoice, removing`);
+        fs.rm(jsonPath, { force: true });
+        stats.reclassified++;
+        results.push({ file: jsonFilename, status: "reclassified", reason: "non-invoice" });
         continue;
       }
 
@@ -935,7 +956,7 @@ export async function reprocessReceipts(opts, gateways = {}) {
     }
   }
 
-  console.error(`\nReprocessed: ${stats.reprocessed}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`);
+  console.error(`\nReprocessed: ${stats.reprocessed}, Skipped: ${stats.skipped}, Reclassified: ${stats.reclassified}, Errors: ${stats.errors}`);
 
   return { ...stats, results };
 }
