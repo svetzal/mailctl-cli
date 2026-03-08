@@ -10,6 +10,7 @@ import {
   downloadReceiptEmails,
   collectSidecarFiles,
   reprocessReceipts,
+  RECEIPT_SUBJECT_EXCLUSIONS,
 } from "../src/download-receipts.js";
 import { FileSystemGateway } from "../src/gateways/fs-gateway.js";
 
@@ -514,6 +515,60 @@ describe("downloadReceiptEmails", () => {
 
     // Processed as unique=1 despite appearing in 2 mailboxes
     expect(stats.found).toBe(1);
+  });
+
+  it("excludes messages with non-invoice subjects before processing", async () => {
+    const emailDate = new Date("2025-03-07");
+    const emailBody = [
+      `From: billing@acme.com`,
+      `Subject: Payment date approaching`,
+      `Date: ${emailDate.toUTCString()}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/plain`,
+      `Message-ID: <excluded-msg@acme.com>`,
+      ``,
+      `Your payment date is approaching.`,
+    ].join("\r\n");
+    const rawBuffer = Buffer.from(emailBody);
+
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1])),
+      mailbox: { exists: 1 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 1,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@acme.com", name: "Acme" }],
+              subject: "Payment date approaching",
+              messageId: "excluded-msg@acme.com",
+            },
+          };
+        }
+        return gen();
+      }),
+      download: mock(() => {
+        async function* gen() { yield rawBuffer; }
+        return Promise.resolve({ content: gen() });
+      }),
+    };
+
+    const { mockFs } = makeMockFs();
+    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, {
+      fs: mockFs,
+      subprocess: { execFileSync: mock(() => {}) },
+      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+      createLlmBroker: () => null,
+    });
+
+    // The message should be excluded, so found=0 and nothing processed
+    expect(stats.found).toBe(0);
+    expect(stats.downloaded).toBe(0);
+    expect(stats.noPdf).toBe(0);
   });
 });
 

@@ -30,6 +30,22 @@ const RECEIPT_SUBJECT_TERMS = [
   "subscription",
 ];
 
+/** Regex patterns for subjects that match receipt terms but aren't actual invoices. */
+export const RECEIPT_SUBJECT_EXCLUSIONS = [
+  /\bapproaching\b/i,
+  /\breminder\b/i,
+  /\byour credits?\b/i,
+  /\bpre-order\b/i,
+  /\btrial\b.*\bconvert\b/i,
+  /\bsent\b.*\bin error\b/i,
+  /\bfree trial\b/i,
+  /\bwill\s+(be\s+)?charg/i,
+  /\bpayment date\b.*\bapproaching\b/i,
+  /\bwelcome to\b/i,
+  /\bget started\b/i,
+  /\byou.ve got \d+ credits?\b/i,
+];
+
 /** Sender patterns indicating billing emails (substring match on from address). */
 const BILLING_SENDER_PATTERNS = [
   "stripe.com",
@@ -469,6 +485,13 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
       const beforeCount = unique.length;
       unique = unique.filter(msg => matchesVendor(opts.vendor, msg.fromAddress, msg.fromName));
       console.error(`   Filtered to ${unique.length} of ${beforeCount} messages matching vendor "${opts.vendor}"`);
+    }
+
+    // Filter out non-invoice subjects
+    const beforeExclusion = unique.length;
+    unique = unique.filter(msg => !RECEIPT_SUBJECT_EXCLUSIONS.some(re => re.test(msg.subject)));
+    if (unique.length < beforeExclusion) {
+      console.error(`   Excluded ${beforeExclusion - unique.length} non-invoice subjects`);
     }
 
     console.error(`   ${unique.length} unique receipt emails`);
