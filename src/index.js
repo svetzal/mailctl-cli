@@ -4,7 +4,7 @@ export { loadAccounts, discoverAccountsFromEnv } from "./accounts.js";
 export { loadConfig, getConfigAccounts } from "./config.js";
 export { scanAllAccounts, aggregateBySender } from "./scanner.js";
 export { sortReceipts } from "./sorter.js";
-export { downloadReceipts, vendorName, buildFilename, VENDOR_NAMES } from "./downloader.js";
+export { downloadReceipts, vendorName, buildFilename, getVendorNames } from "./downloader.js";
 export { downloadReceiptEmails } from "./download-receipts.js";
 
 // Shared utilities
