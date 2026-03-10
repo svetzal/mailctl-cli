@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { sanitizeString, headerValueToString, collectValues, filterAccountsByName } from "../src/cli-helpers.js";
+import { sanitizeString, headerValueToString, collectValues, filterAccountsByName, resolveCommandContext } from "../src/cli-helpers.js";
 
 // ── sanitizeString ────────────────────────────────────────────────────────────
 
@@ -117,5 +117,52 @@ describe("filterAccountsByName", () => {
 
   it("returns an empty array when no account matches", () => {
     expect(filterAccountsByName(accounts, "nonexistent")).toEqual([]);
+  });
+});
+
+// ── resolveCommandContext ──────────────────────────────────────────────────────
+
+describe("resolveCommandContext", () => {
+  const allAccounts = [
+    { name: "iCloud" },
+    { name: "Gmail" },
+  ];
+
+  const deps = {
+    resolveJson: (/** @type {any} */ opts) => !!opts.json,
+    resolveAccount: (/** @type {any} */ opts) => opts.account,
+    requireAccounts: () => allAccounts,
+    filterAccountsByName,
+  };
+
+  it("returns all accounts when no account filter is specified", () => {
+    const ctx = resolveCommandContext({ json: false, account: undefined }, deps);
+
+    expect(ctx.targetAccounts).toEqual(allAccounts);
+  });
+
+  it("filters to the matching account when account name is given", () => {
+    const ctx = resolveCommandContext({ json: false, account: "iCloud" }, deps);
+
+    expect(ctx.targetAccounts).toHaveLength(1);
+    expect(ctx.targetAccounts[0].name).toBe("iCloud");
+  });
+
+  it("throws when the account name matches no configured account", () => {
+    expect(() =>
+      resolveCommandContext({ json: false, account: "NoSuchAccount" }, deps)
+    ).toThrow('Account "NoSuchAccount" not found.');
+  });
+
+  it("resolves the json flag from opts", () => {
+    const ctx = resolveCommandContext({ json: true, account: undefined }, deps);
+
+    expect(ctx.json).toBe(true);
+  });
+
+  it("returns json false when --json is not set", () => {
+    const ctx = resolveCommandContext({ json: false, account: undefined }, deps);
+
+    expect(ctx.json).toBe(false);
   });
 });

@@ -57,3 +57,41 @@ export function filterAccountsByName(accounts, name) {
   const lower = name.toLowerCase();
   return accounts.filter((a) => a.name.toLowerCase() === lower);
 }
+
+/**
+ * @typedef {object} CommandContextDeps
+ * @property {(opts: object) => boolean} resolveJson
+ * @property {(opts: object) => string|undefined} resolveAccount
+ * @property {() => object[]} requireAccounts
+ * @property {(accounts: object[], name: string|undefined) => object[]} filterAccountsByName
+ */
+
+/**
+ * @typedef {object} CommandContext
+ * @property {boolean} json - whether --json flag is active
+ * @property {string|undefined} account - resolved account name filter
+ * @property {object[]} accounts - all configured accounts
+ * @property {object[]} targetAccounts - accounts after applying the account filter
+ */
+
+/**
+ * Resolve the common command context present in most CLI handlers:
+ * json flag, account filter, full account list, and filtered account list.
+ * Throws when an explicit account name matches no configured accounts.
+ *
+ * @param {object} opts - Commander option object
+ * @param {CommandContextDeps} deps - injected resolver functions (for testability)
+ * @returns {CommandContext}
+ */
+export function resolveCommandContext(opts, { resolveJson, resolveAccount, requireAccounts, filterAccountsByName: filterAccounts }) {
+  const json = resolveJson(opts);
+  const account = resolveAccount(opts);
+  const accounts = requireAccounts();
+  const targetAccounts = filterAccounts(accounts, account);
+
+  if (account && targetAccounts.length === 0) {
+    throw new Error(`Account "${account}" not found.`);
+  }
+
+  return { json, account, accounts, targetAccounts };
+}

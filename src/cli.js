@@ -6,16 +6,22 @@ import { downloadReceipts } from "./downloader.js";
 import { loadAccounts } from "./accounts.js";
 import { listMailboxes, filterSearchMailboxes, forEachAccount } from "./imap-client.js";
 import { findAttachmentParts } from "./attachment-parts.js";
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
+import { writeFileSync, readFileSync } from "fs";
+import { FileSystemGateway } from "./gateways/fs-gateway.js";
+import { ensureDataDir, saveScanResults, loadSenders, loadClassificationsData, saveClassifications } from "./scan-data.js";
 import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import { simpleParser } from "mailparser";
-import { collectValues, filterAccountsByName } from "./cli-helpers.js";
+import { collectValues, filterAccountsByName, resolveCommandContext } from "./cli-helpers.js";
+import { resolveDateFilters } from "./date-filters.js";
 import { searchMailbox } from "./search.js";
 import { deduplicateByMessageId } from "./dedup.js";
 import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
 import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
 import { buildReadResult, formatReadResultText } from "./read-email.js";
+import { formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
+import { formatSearchResultsText } from "./format-search.js";
+import { formatMoveResultText } from "./format-move.js";
 import { fetchInbox, formatInboxText } from "./inbox.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { detectMailbox } from "./mailbox-detect.js";
@@ -79,6 +85,9 @@ function requireAccounts() {
   return accounts;
 }
 
+/** Shared dependency object for resolveCommandContext calls throughout this file. */
+const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccountsByName };
+
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
@@ -104,19 +113,17 @@ program
       account: account || null,
     });
 
-    // Ensure data dir exists
-    const { mkdirSync } = await import("fs");
-    mkdirSync(DATA_DIR, { recursive: true });
-
-    // Always save raw results
-    const rawPath = opts.output || join(DATA_DIR, "scan-results.json");
-    writeFileSync(rawPath, JSON.stringify(results, null, 2));
-    console.error(`Saved raw results to ${rawPath}`);
-
-    // Output sender summary
     const senders = aggregateBySender(results);
-    const summaryPath = join(DATA_DIR, "senders.json");
-    writeFileSync(summaryPath, JSON.stringify(senders, null, 2));
+    const fsGateway = new FileSystemGateway();
+
+    // Ensure data dir exists and save results
+    ensureDataDir(DATA_DIR, fsGateway);
+    const { rawPath, summaryPath } = saveScanResults(DATA_DIR, {
+      scanResults: results,
+      senders,
+      rawPath: opts.output || undefined,
+    }, fsGateway);
+    console.error(`Saved raw results to ${rawPath}`);
     console.error(`Saved sender summary to ${summaryPath}`);
 
     if (json) {
@@ -124,18 +131,7 @@ program
       return;
     }
 
-    // Print human-readable summary to stdout
-    console.log("\n=== Receipt Senders Found ===\n");
-    console.log(`Total: ${results.length} receipt emails from ${senders.length} unique senders\n`);
-
-    for (const s of senders) {
-      const accts = s.accounts.join(", ");
-      console.log(`${s.name || s.address} (${s.count} emails)`);
-      console.log(`   Address:  ${s.address}`);
-      console.log(`   Accounts: ${accts}`);
-      console.log(`   Example:  ${s.sampleSubjects[0] || "N/A"}`);
-      console.log();
-    }
+    console.log(formatScanSummaryText(senders, results.length));
   }));
 
 program
@@ -145,29 +141,22 @@ program
   .option("-o, --output <file>", "classification output", join(DATA_DIR, "classifications.json"))
   .action(withErrorHandling(async (opts) => {
     const json = resolveJson(opts);
-    if (!existsSync(opts.input)) {
+    const fsGateway = new FileSystemGateway();
+
+    if (!fsGateway.exists(opts.input)) {
       throw new Error("Run 'scan' first to generate sender data.");
     }
 
-    const senders = JSON.parse(readFileSync(opts.input, "utf-8"));
+    const senders = /** @type {any[]} */ (fsGateway.readJson(opts.input));
 
     // Load existing classifications if any
-    let classifications = {};
-    if (existsSync(opts.output)) {
-      classifications = JSON.parse(readFileSync(opts.output, "utf-8"));
+    let classifications = /** @type {Record<string, string>} */ ({});
+    if (fsGateway.exists(opts.output)) {
+      classifications = /** @type {Record<string, string>} */ (fsGateway.readJson(opts.output));
     }
 
     // Output unclassified senders as a JSON list for external classification
     const unclassified = senders.filter((s) => !classifications[s.address]);
-
-    if (unclassified.length === 0) {
-      if (json) {
-        console.log(JSON.stringify({ unclassified: [] }));
-      } else {
-        console.log("All senders are classified!");
-      }
-      return;
-    }
 
     const unclassifiedList = unclassified.map((s) => ({
       address: s.address,
@@ -175,16 +164,13 @@ program
       count: s.count,
       accounts: s.accounts,
       example: s.sampleSubjects[0] || "",
-      classification: null, // fill in: "business" or "personal"
+      classification: /** @type {null} */ (null), // fill in: "business" or "personal"
     }));
 
     if (json) {
       console.log(JSON.stringify({ unclassified: unclassifiedList }));
     } else {
-      console.log(JSON.stringify(unclassifiedList, null, 2));
-      console.error(`\n${unclassified.length} senders need classification.`);
-      console.error(`   Edit the output and set "classification" to "business" or "personal".`);
-      console.error(`   Then import with: mailctl import-classifications <file>`);
+      console.log(formatUnclassifiedText(unclassifiedList));
     }
   }));
 
@@ -195,10 +181,11 @@ program
   .option("-o, --output <file>", "classification store", join(DATA_DIR, "classifications.json"))
   .action(withErrorHandling(async (file, opts) => {
     const json = resolveJson(opts);
-    const entries = JSON.parse(readFileSync(file, "utf-8"));
-    let store = {};
-    if (existsSync(opts.output)) {
-      store = JSON.parse(readFileSync(opts.output, "utf-8"));
+    const fsGateway = new FileSystemGateway();
+    const entries = /** @type {any[]} */ (fsGateway.readJson(file));
+    let store = /** @type {Record<string, string>} */ ({});
+    if (fsGateway.exists(opts.output)) {
+      store = /** @type {Record<string, string>} */ (fsGateway.readJson(opts.output));
     }
 
     let count = 0;
@@ -209,7 +196,7 @@ program
       }
     }
 
-    writeFileSync(opts.output, JSON.stringify(store, null, 2));
+    fsGateway.writeJson(opts.output, store);
 
     if (json) {
       console.log(JSON.stringify({ imported: count, path: opts.output }));
@@ -390,36 +377,17 @@ program
     if (!query && !opts.from && !opts.subject && !opts.body) {
       throw new Error("Provide a search query or use --from, --subject, or --body to filter.");
     }
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
-    const targetAccounts = filterAccountsByName(accounts, account);
-
-    if (account && targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
+    const { json, account, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
     const limit = parseInt(opts.limit, 10);
 
     // Resolve date filters
-    let since, before;
-    if (opts.months && !opts.since) {
-      since = new Date();
-      since.setMonth(since.getMonth() - parseInt(opts.months, 10));
-      since = new Date(since.getFullYear(), since.getMonth(), since.getDate());
-    }
-    if (opts.since) {
-      since = parseDate(opts.since);
-      if (opts.months) {
-        console.error("Note: --since takes precedence over --months");
-      }
-    }
-    if (opts.before) {
-      before = parseDate(opts.before);
-    }
-    if (since && before && since >= before) {
-      throw new Error("--since date must be before --before date");
-    }
+    const { since, before, warnings: dateWarnings } = resolveDateFilters({
+      months: opts.months,
+      since: opts.since,
+      before: opts.before,
+    });
+    dateWarnings.forEach((w) => console.error(w));
 
     // Show date context
     const dateParts = [];
@@ -458,11 +426,10 @@ program
       }
 
       // Deduplicate by message-id before adding to global results
-      for (const r of deduplicateByMessageId(accountResults)) {
-        allResults.push(r);
-        if (!json) {
-          console.log(`  [${r.mailbox}] UID:${r.uid} ${r.date} | ${r.fromName || ""} <${r.from}> | ${r.subject}`);
-        }
+      const dedupedResults = deduplicateByMessageId(accountResults);
+      allResults.push(...dedupedResults);
+      if (!json && dedupedResults.length > 0) {
+        console.log(formatSearchResultsText(dedupedResults));
       }
     });
 
@@ -482,19 +449,11 @@ program
   .option("--raw", "output original HTML without stripping (for HTML emails)")
   .option("--headers", "include raw email headers in output")
   .action(withErrorHandling(async (uid, opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
+    const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
     const maxBodyExplicit = opts.maxBody !== undefined;
     const maxBody = maxBodyExplicit ? parseInt(opts.maxBody, 10) : 3000;
     // In JSON mode, include full body unless --max-body was explicitly set
     const effectiveMaxBody = json && !maxBodyExplicit ? Infinity : maxBody;
-
-    const targetAccounts = filterAccountsByName(accounts, account);
-
-    if (targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
 
     await forEachAccount(targetAccounts, async (client, acct) => {
       console.error(`\n=== ${acct.name} ===`);
@@ -550,14 +509,7 @@ program
   .command("list-folders")
   .description("List all IMAP folders for each configured account")
   .action(withErrorHandling(async (opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
-    const targetAccounts = filterAccountsByName(accounts, account);
-
-    if (account && targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
+    const { json, account, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
     const allFolders = [];
 
@@ -592,16 +544,8 @@ program
   .option("-o, --output <dir>", "output directory", ".")
   .option("--list", "list attachments without downloading")
   .action(withErrorHandling(async (uid, index, opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
+    const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
     const attachmentIndex = parseInt(index, 10);
-
-    const targetAccounts = filterAccountsByName(accounts, account);
-
-    if (targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
 
     let found = false;
 
@@ -667,9 +611,10 @@ program
         const buffer = Buffer.concat(chunks);
 
         const outputDir = resolve(opts.output);
-        mkdirSync(outputDir, { recursive: true });
+        const fsGateway = new FileSystemGateway();
+        fsGateway.mkdir(outputDir);
         const outPath = join(outputDir, filename);
-        writeFileSync(outPath, buffer);
+        fsGateway.writeFile(outPath, buffer);
 
         if (json) {
           console.log(JSON.stringify({ path: outPath, filename, size: buffer.length, contentType: att.contentType }));
@@ -694,9 +639,7 @@ program
   .option("--mailbox <source>", "source mailbox to move from", "INBOX")
   .option("-n, --dry-run", "show what would be moved without executing", false)
   .action(withErrorHandling(async (uids, opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
+    const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
     const destination = opts.to;
     const sourceMailbox = opts.mailbox;
     const dryRun = opts.dryRun;
@@ -796,7 +739,7 @@ program
     if (json) {
       console.log(JSON.stringify({ ...stats, results }));
     } else {
-      console.log(`\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped (dry-run)`);
+      console.log(formatMoveResultText(stats));
     }
   }));
 
@@ -807,14 +750,7 @@ program
   .option("--unread", "only show unread messages", false)
   .option("--since <date>", "only messages on or after this date (default: 7d)")
   .action(withErrorHandling(async (opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
-    const targetAccounts = filterAccountsByName(accounts, account);
-
-    if (account && targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
+    const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
     const limit = parseInt(opts.limit, 10);
     const since = opts.since ? parseDate(opts.since) : parseDate("7d");
@@ -854,9 +790,7 @@ program
   .option("--mailbox <path>", "mailbox containing the messages (auto-detects if omitted)")
   .option("-n, --dry-run", "show what would change without modifying", false)
   .action(withErrorHandling(async (uids, opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
+    const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
 
     const changes = computeFlagChanges({
       read: opts.read,
@@ -958,14 +892,7 @@ program
   .option("-n, --dry-run", "show composed email without sending", false)
   .option("-y, --yes", "skip confirmation when using --edit", false)
   .action(withErrorHandling(async (uid, opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
-    const targetAccounts = filterAccountsByName(accounts, account);
-
-    if (account && targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
+    const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
     if (!opts.message && !opts.messageFile && !opts.edit) {
       throw new Error("Provide --message, --message-file, or --edit to compose a reply.");
@@ -1029,6 +956,7 @@ program
       userMessage = readFileSync(resolve(opts.messageFile), "utf-8").trim();
     } else if (opts.edit) {
       // Build template and open editor
+      // TODO: consider gateway extraction for temp file handling
       const quotedBody = buildReplyBody("", originalParsed);
       const template = buildEditorTemplate(headers, quotedBody);
       const { tmpdir } = await import("os");
@@ -1109,15 +1037,8 @@ program
   .option("-l, --limit <n>", "max messages to show", "50")
   .option("--full", "show full message bodies", false)
   .action(withErrorHandling(async (uid, opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
-    const targetAccounts = filterAccountsByName(accounts, account);
+    const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
     const limit = parseInt(opts.limit, 10);
-
-    if (account && targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
 
     await forEachAccount(targetAccounts, async (client, acct) => {
       console.error(`\n=== ${acct.name} ===`);
@@ -1159,14 +1080,7 @@ program
   .option("--received", "only show people you've received FROM", false)
   .option("--search <text>", "filter contacts by name or address")
   .action(withErrorHandling(async (opts) => {
-    const json = resolveJson(opts);
-    const account = resolveAccount(opts);
-    const accounts = requireAccounts();
-    const targetAccounts = filterAccountsByName(accounts, account);
-
-    if (account && targetAccounts.length === 0) {
-      throw new Error(`Account "${account}" not found.`);
-    }
+    const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
     const limit = parseInt(opts.limit, 10);
     const since = opts.since ? parseDate(opts.since) : parseDate("6m");

@@ -56,6 +56,11 @@ src/dedup.js                   — deduplicateByMessageId() — shared by search
 src/move-logic.js              — parseUidArgs(), groupUidsByAccount() — pure UID parsing for move command
 src/read-email.js              — buildReadResult(), formatReadResultText() — pure email read formatting
 src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachmentIndex() — attachment helpers
+src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
+src/format-scan.js             — formatScanSummaryText(), formatUnclassifiedText() — pure scan output formatters
+src/format-search.js           — formatSearchResultsText() — pure search result formatter
+src/format-move.js             — formatMoveResultText() — pure move summary formatter
+src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/vendor-map.js              — Single source of truth for vendor address → display name mappings
 src/scanner.js                 — Scan orchestration, sender aggregation
 src/sorter.js                  — IMAP folder management, message moving
