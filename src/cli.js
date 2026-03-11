@@ -91,7 +91,7 @@ const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccoun
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-  .version("0.6.0")
+  .version("0.7.0")
   .option("--account <name>", "email account to use (searches all if omitted)")
   .option("--json", "output results as JSON");
 
@@ -363,8 +363,9 @@ program
 program
   .command("search")
   .description("Search for emails across configured accounts (all mailboxes by default)")
-  .argument("[query]", "search term (optional when --from, --subject, or --body is specified)")
+  .argument("[query]", "search term (optional when --from, --to, --subject, or --body is specified)")
   .option("-f, --from <name>", "search by sender name or address")
+  .option("-t, --to <address>", "search by recipient name or address")
   .option("-s, --subject <text>", "search by subject text")
   .option("-b, --body <text>", "search by body text")
   .option("--since <date>", "only messages on or after this date")
@@ -374,8 +375,8 @@ program
   .option("--exclude-mailbox <path>", "mailbox(es) to exclude (repeatable or comma-separated)", collectValues, [])
   .option("-l, --limit <n>", "max results per mailbox per account", "20")
   .action(withErrorHandling(async (query, opts) => {
-    if (!query && !opts.from && !opts.subject && !opts.body) {
-      throw new Error("Provide a search query or use --from, --subject, or --body to filter.");
+    if (!query && !opts.from && !opts.to && !opts.subject && !opts.body) {
+      throw new Error("Provide a search query or use --from, --to, --subject, or --body to filter.");
     }
     const { json, account, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
@@ -416,6 +417,7 @@ program
         console.error(`  Searching ${mbPath}${dateLabel}...`);
         const results = await searchMailbox(client, acct.name, mbPath, query, {
           from: opts.from,
+          to: opts.to,
           subject: opts.subject,
           body: opts.body,
           since,
@@ -498,7 +500,7 @@ program
           }));
         }
       } catch (err) {
-        console.error(`  Could not fetch UID ${uid}: ${err.message}`);
+        throw new Error(`Could not fetch UID ${uid}: ${err.message}`);
       } finally {
         lock.release();
       }

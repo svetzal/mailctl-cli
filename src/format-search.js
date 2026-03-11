@@ -10,6 +10,8 @@
  * @property {string|Date} [date] - message date
  * @property {string} [fromName] - sender display name
  * @property {string} [from] - sender email address
+ * @property {string} [to] - recipient email address
+ * @property {string} [toName] - recipient display name
  * @property {string} [subject] - message subject
  */
 
@@ -25,9 +27,11 @@ export function formatSearchResultsText(results) {
     return "";
   }
 
-  const lines = results.map((r) =>
-    `  [${r.mailbox}] UID:${r.uid} ${r.date ?? ""} | ${r.fromName || ""} <${r.from ?? ""}> | ${r.subject ?? ""}`
-  );
+  const lines = results.map((r) => {
+    const fromPart = `${r.fromName || ""} <${r.from ?? ""}>`;
+    const toPart = r.to ? ` → ${r.toName || ""} <${r.to}>` : "";
+    return `  [${r.mailbox}] UID:${r.uid} ${r.date ?? ""} | ${fromPart}${toPart} | ${r.subject ?? ""}`;
+  });
 
   return lines.join("\n");
 }

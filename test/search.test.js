@@ -284,6 +284,86 @@ describe("searchMailbox", () => {
     );
   });
 
+  // ── --to filter tests ───────────────────────────────────────────────────
+
+  it("searches by to criteria when opts.to is provided", async () => {
+    const client = makeClient({ searchUids: [], envelopes: [] });
+    client.search = mock(() => Promise.resolve([]));
+
+    await searchMailbox(client, "Account", "INBOX", null, { to: "bob@example.com" });
+
+    expect(client.search).toHaveBeenCalledTimes(1);
+    expect(client.search).toHaveBeenCalledWith(
+      { to: "bob@example.com" }, { uid: true }
+    );
+  });
+
+  it("combines --from and --to criteria in a single search", async () => {
+    const client = makeClient({ searchUids: [], envelopes: [] });
+    client.search = mock(() => Promise.resolve([]));
+
+    await searchMailbox(client, "Account", "INBOX", null, {
+      from: "alice@example.com",
+      to: "bob@example.com",
+    });
+
+    expect(client.search).toHaveBeenCalledTimes(1);
+    expect(client.search).toHaveBeenCalledWith(
+      { from: "alice@example.com", to: "bob@example.com" }, { uid: true }
+    );
+  });
+
+  it("includes to and toName fields in result objects", async () => {
+    const date = makeDate("2026-03-01");
+    const client = makeClient({
+      searchUids: [15],
+      envelopes: [{
+        uid: 15,
+        envelope: {
+          date,
+          from: [{ address: "alice@example.com", name: "Alice" }],
+          to: [{ address: "bob@example.com", name: "Bob" }],
+          subject: "Test",
+          messageId: "msg-15",
+        },
+      }],
+    });
+
+    const [result] = await searchMailbox(client, "Account", "INBOX", "Test");
+
+    expect(result.to).toBe("bob@example.com");
+    expect(result.toName).toBe("Bob");
+  });
+
+  it("uses field criteria path when query and --to are both provided", async () => {
+    const client = makeClient({ searchUids: [], envelopes: [] });
+    client.search = mock(() => Promise.resolve([]));
+
+    await searchMailbox(client, "Account", "INBOX", "keyword", { to: "bob@example.com" });
+
+    expect(client.search).toHaveBeenCalledTimes(1);
+    expect(client.search).toHaveBeenCalledWith(
+      { to: "bob@example.com" }, { uid: true }
+    );
+  });
+
+  it("combines --to with date filtering", async () => {
+    const client = makeClient({ searchUids: [], envelopes: [] });
+    client.search = mock(() => Promise.resolve([]));
+
+    const since = new Date(2026, 2, 1);
+
+    await searchMailbox(client, "Account", "INBOX", null, {
+      to: "bob@example.com",
+      since,
+    });
+
+    expect(client.search).toHaveBeenCalledTimes(1);
+    expect(client.search).toHaveBeenCalledWith(
+      { to: "bob@example.com", since }, { uid: true }
+    );
+  });
+
   it("releases the mailbox lock after completing the search", async () => {
     const lock = makeLock();
     const client = {

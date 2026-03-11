@@ -16,6 +16,7 @@
  * @param {string|null|undefined} query
  * @param {object} [opts]
  * @param {string} [opts.from]    - search by sender
+ * @param {string} [opts.to]      - search by recipient
  * @param {string} [opts.subject] - search by subject
  * @param {string} [opts.body]    - search by body
  * @param {Date}   [opts.since]   - IMAP SINCE (on or after this date)
@@ -35,7 +36,7 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
   try {
     let uidsToFetch;
 
-    const hasFieldCriteria = !!(opts.from || opts.subject || opts.body);
+    const hasFieldCriteria = !!(opts.from || opts.to || opts.subject || opts.body);
 
     // Date criteria apply to all search paths
     /** @type {Record<string, any>} */
@@ -51,6 +52,7 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
       /** @type {Record<string, any>} */
       const criteria = { ...dateCriteria };
       if (opts.from)    criteria.from    = opts.from;
+      if (opts.to)      criteria.to      = opts.to;
       if (opts.subject) criteria.subject = opts.subject;
       if (opts.body)    criteria.body    = opts.body;
       uidsToFetch = await client.search(criteria, { uid: true });
@@ -67,6 +69,7 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
       /** @type {Record<string, any>} */
       const criteria = { ...dateCriteria };
       if (opts.from)    criteria.from    = opts.from;
+      if (opts.to)      criteria.to      = opts.to;
       if (opts.subject) criteria.subject = opts.subject;
       if (opts.body)    criteria.body    = opts.body;
       uidsToFetch = await client.search(criteria, { uid: true });
@@ -81,6 +84,7 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
     for await (const msg of client.fetch(uidRange, { envelope: true, headers: ["message-id"], uid: true }, { uid: true })) {
       const env = msg.envelope;
       const from = env.from?.[0];
+      const to = env.to?.[0];
       const messageId = env.messageId || "";
       results.push({
         account:  acctName,
@@ -90,6 +94,8 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
         date:     env.date,
         from:     from?.address || "",
         fromName: from?.name    || "",
+        to:       to?.address   || "",
+        toName:   to?.name      || "",
         subject:  env.subject   || "",
       });
     }
