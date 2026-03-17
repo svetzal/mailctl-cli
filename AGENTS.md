@@ -179,6 +179,36 @@ The address map drives both display names (with spaces) and filename-safe names 
 - Large mailboxes (90k+ messages) are slow to search — be patient with timeouts
 - `messageMove` removes from source (IMAP MOVE, not copy)
 
+## Skill Distribution
+
+The `skills/mailctl/` directory is the source of truth for the mailctl Claude Code skill.
+
+### Installing the skill
+
+```bash
+mailctl init              # install to .claude/skills/mailctl/ in CWD
+mailctl init --global     # install to ~/.claude/skills/mailctl/
+mailctl init --force      # overwrite even if installed version is newer
+```
+
+### Version stamping
+
+`mailctl init` stamps `mailctl-version: X.Y.Z` into the installed SKILL.md frontmatter from the running binary's version. This allows the version guard to detect stale or newer installations.
+
+### Version guard
+
+Before overwriting an existing SKILL.md, `init` compares the installed `mailctl-version` with the running binary version:
+
+- **No version field or no existing file** → always install
+- **Installed version ≤ running version** → update normally
+- **Installed version > running version** → refuse with warning, unless `--force` is used
+
+This prevents an older binary from accidentally downgrading a skill installed by a newer version.
+
+### Release checklist note
+
+When releasing a new version, the embedded skill content is automatically compiled into the binary via Bun text imports — no extra steps needed. Just ensure `skills/mailctl/SKILL.md` is up to date before building.
+
 ## Release Process
 
 Version is declared in two places — both must be updated:

@@ -31,6 +31,7 @@ import { SmtpGateway } from "./gateways/smtp-gateway.js";
 import { findThread, formatThreadText } from "./thread.js";
 import { extractContacts, aggregateContacts, formatContactsText } from "./contacts.js";
 import { getConfigSelfAddresses } from "./config.js";
+import { initCommand } from "./init.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -1123,6 +1124,18 @@ program
     } else {
       console.log(formatContactsText(contacts, { sinceLabel }));
     }
+  }));
+
+// --- Skill distribution ---
+
+program
+  .command("init")
+  .description("Install mailctl skill files for Claude Code")
+  .option("-g, --global", "install to ~/.claude (global) instead of .claude/ in CWD")
+  .option("--force", "overwrite even if installed skill is from a newer version")
+  .action(withErrorHandling(async (opts) => {
+    const json = resolveJson(opts);
+    await initCommand(program.version(), { json, global: !!opts.global, force: !!opts.force });
   }));
 
 program.parse();
