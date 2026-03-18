@@ -35,7 +35,7 @@
     "commander": "^14.0.3",
     "imapflow": "^1.2.15",
     "mailparser": "^3.9.4",
-    "mojentic": "^1.2.0",
+    "mojentic": "^1.2.4",
     "nodemailer": "^8.0.2"
   },
   "devDependencies": {
