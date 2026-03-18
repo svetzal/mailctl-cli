@@ -92,7 +92,7 @@ const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccoun
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-  .version("0.7.1")
+  .version("0.7.2")
   .option("--account <name>", "email account to use (searches all if omitted)")
   .option("--json", "output results as JSON");
 
