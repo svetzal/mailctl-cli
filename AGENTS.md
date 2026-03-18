@@ -209,6 +209,15 @@ This prevents an older binary from accidentally downgrading a skill installed by
 
 When releasing a new version, the embedded skill content is automatically compiled into the binary via Bun text imports — no extra steps needed. Just ensure `skills/mailctl/SKILL.md` is up to date before building.
 
+## Local Installation
+
+```bash
+brew tap svetzal/tap
+brew install mailctl
+```
+
+To upgrade: `brew upgrade mailctl`
+
 ## Release Process
 
 Version is declared in two places — both must be updated:
