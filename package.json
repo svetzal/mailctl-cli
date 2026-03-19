@@ -36,10 +36,10 @@
     "imapflow": "^1.2.15",
     "mailparser": "^3.9.4",
     "mojentic": "^1.2.4",
-    "nodemailer": "^8.0.2"
+    "nodemailer": "^8.0.3"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.10",
+    "@types/bun": "^1.3.11",
     "@types/node": "^25.5.0"
   }
 }
