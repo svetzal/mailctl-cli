@@ -48,12 +48,30 @@ bin/run classify                # output unclassified senders
 
 ```text
 bin/run                        — Secure credential wrapper (bash)
-src/cli.js                     — CLI entry point (commander)
+src/cli.js                     — CLI entry point: thin dispatcher (~635 lines), each .action() is 5–20 lines
+
+Command orchestrators (testable, injected deps):
+src/search-command.js          — Search orchestration (cross-account, date filters, dedup)
+src/read-command.js            — Read orchestration (fetch, parse, account detection)
+src/reply-command.js           — Reply orchestration (fetch original, compose, send via SMTP)
+src/move-command.js            — Move orchestration (multi-account, folder validation, dry-run)
+src/flag-command.js            — Flag orchestration (detect mailbox, apply IMAP flags)
+src/extract-attachment-command.js — Attachment extraction orchestration (BODYSTRUCTURE, download)
+src/thread-command.js          — Thread orchestration (detect mailbox, cross-mailbox discovery)
+src/inbox-command.js           — Inbox overview orchestration
+src/contacts-command.js        — Contact extraction and aggregation orchestration
+src/scan-command.js            — Receipt scan orchestration (scanAllAccounts + save results)
+src/classify-command.js        — Classify orchestration (load senders, filter unclassified)
+src/import-classifications-command.js — Import classifications orchestration (merge + write)
+src/download-receipts-command.js — Download-receipts orchestration (list/reprocess/download routing)
+src/find-message.js            — Shared withMessage() helper: cross-account UID lookup lifecycle
+
+Pure logic modules:
 src/config.js                  — Loads ~/.config/mailctl/config.json (account metadata)
 src/accounts.js                — Builds IMAP account list from config.json + env var secrets
 src/imap-client.js             — IMAP connection, search, fetch, mailbox filtering, account iteration
 src/imap-orchestration.js      — Shared pure helpers: groupByMailbox(), forEachMailboxGroup()
-src/search.js                  — searchMailbox() — extracted from cli.js, testable
+src/search.js                  — searchMailbox() — single-mailbox search with field/date filters
 src/dedup.js                   — deduplicateByMessageId() — shared by search and download-receipts
 src/move-logic.js              — parseUidArgs(), groupUidsByAccount() — pure UID parsing for move command
 src/read-email.js              — buildReadResult(), formatReadResultText() — pure email read formatting
@@ -69,9 +87,25 @@ src/sorter.js                  — IMAP folder management, message moving
 src/downloader.js              — PDF attachment download with SHA-256 dedup
 src/download-receipts.js       — LLM-based receipt extraction: PDF → docling → LLM metadata
 src/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
-src/gateways/fs-gateway.js     — FileSystemGateway: thin fs/path wrapper (mockable)
-src/gateways/subprocess-gateway.js — SubprocessGateway: execFileSync wrapper (mockable)
-src/gateways/imap-gateway.js   — ImapGateway: imapflow wrapper (mockable)
+src/mailbox-detect.js          — detectMailbox() — finds which mailbox contains a given UID
+src/reply.js                   — Pure reply builders: headers, body, editor template, parser
+src/thread.js                  — Thread finding and formatting (header search + subject fallback)
+src/inbox.js                   — fetchInbox(), formatInboxText() — inbox overview
+src/contacts.js                — extractContacts(), aggregateContacts(), formatContactsText()
+src/flag-messages.js           — computeFlagChanges() (pure), applyFlagChanges() (IMAP)
+src/attachment-parts.js        — findAttachmentParts(), findPdfParts() — BODYSTRUCTURE parsing
+src/html-to-text.js            — Convert HTML to plain text
+src/unsubscribe.js             — Extract unsubscribe links from email
+src/parse-date.js              — Parse relative dates like "7d", "6m"
+
+Gateways (thin I/O wrappers, mockable in tests):
+src/gateways/fs-gateway.js     — FileSystemGateway: thin fs/path wrapper
+src/gateways/subprocess-gateway.js — SubprocessGateway: execFileSync wrapper
+src/gateways/imap-gateway.js   — ImapGateway: imapflow wrapper
+src/gateways/smtp-gateway.js   — SmtpGateway: nodemailer wrapper
+src/gateways/editor-gateway.js — EditorGateway: temp file + $EDITOR + read-back workflow
+src/gateways/confirm-gateway.js — ConfirmGateway: readline yes/no prompt wrapper
+
 src/index.js                   — Public API re-exports
 data/                          — Runtime data (gitignored): scan results, classifications, manifest
 ```
