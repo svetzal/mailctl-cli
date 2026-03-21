@@ -18,6 +18,10 @@ import { deduplicateByMessageId } from "./dedup.js";
 import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
 import { readCommand } from "./read-command.js";
 import { flagCommand } from "./flag-command.js";
+import { searchCommand } from "./search-command.js";
+import { threadCommand } from "./thread-command.js";
+import { inboxCommand } from "./inbox-command.js";
+import { contactsCommand } from "./contacts-command.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { moveCommand } from "./move-command.js";
 import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
@@ -381,70 +385,22 @@ program
   .option("--exclude-mailbox <path>", "mailbox(es) to exclude (repeatable or comma-separated)", collectValues, [])
   .option("-l, --limit <n>", "max results per mailbox per account", "20")
   .action(withErrorHandling(async (query, opts) => {
-    if (!query && !opts.from && !opts.to && !opts.subject && !opts.body) {
-      throw new Error("Provide a search query or use --from, --to, --subject, or --body to filter.");
-    }
-    const { json, account, targetAccounts } = resolveCommandContext(opts, contextDeps);
+    const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-    const limit = parseInt(opts.limit, 10);
-
-    // Resolve date filters
-    const { since, before, warnings: dateWarnings } = resolveDateFilters({
-      months: opts.months,
-      since: opts.since,
-      before: opts.before,
+    const { allResults, warnings } = await searchCommand(query, opts, {
+      targetAccounts,
+      forEachAccount,
+      listMailboxes,
     });
-    dateWarnings.forEach((w) => console.error(w));
 
-    // Show date context
-    const dateParts = [];
-    if (since)  dateParts.push(`since: ${since.toISOString().slice(0, 10)}`);
-    if (before) dateParts.push(`before: ${before.toISOString().slice(0, 10)}`);
-    const dateLabel = dateParts.length > 0 ? ` (${dateParts.join(", ")})` : "";
-
-    const allResults = [];
-
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      console.error(`\n=== ${acct.name} ===`);
-
-      let mailboxPaths;
-      if (opts.mailbox.length > 0) {
-        mailboxPaths = opts.mailbox;
-      } else {
-        const allBoxes = await listMailboxes(client);
-        mailboxPaths = filterSearchMailboxes(allBoxes, {
-          excludePaths: opts.excludeMailbox,
-        });
-      }
-
-      // Search mailboxes sequentially (IMAP requires one mailbox lock at a time)
-      const accountResults = [];
-      for (const mbPath of mailboxPaths) {
-        console.error(`  Searching ${mbPath}${dateLabel}...`);
-        const results = await searchMailbox(client, acct.name, mbPath, query, {
-          from: opts.from,
-          to: opts.to,
-          subject: opts.subject,
-          body: opts.body,
-          since,
-          before,
-          limit,
-        });
-        accountResults.push(...results);
-      }
-
-      // Deduplicate by message-id before adding to global results
-      const dedupedResults = deduplicateByMessageId(accountResults);
-      allResults.push(...dedupedResults);
-      if (!json && dedupedResults.length > 0) {
-        console.log(formatSearchResultsText(dedupedResults));
-      }
-    });
+    warnings.forEach((w) => console.error(w));
 
     if (json) {
       // Strip internal messageId from JSON output
       const output = allResults.map(({ messageId, ...rest }) => rest);
       console.log(JSON.stringify(output));
+    } else if (allResults.length > 0) {
+      console.log(formatSearchResultsText(allResults));
     }
   }));
 
@@ -598,24 +554,9 @@ program
   .action(withErrorHandling(async (opts) => {
     const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-    const limit = parseInt(opts.limit, 10);
-    const since = opts.since ? parseDate(opts.since) : parseDate("7d");
-
-    /** @type {Map<string, Array>} */
-    const resultsByAccount = new Map();
-    const allResults = [];
-
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      if (!json) console.error(`Checking ${acct.name}...`);
-
-      const messages = await fetchInbox(client, acct.name, {
-        limit,
-        since,
-        unreadOnly: opts.unread,
-      });
-
-      resultsByAccount.set(acct.name, messages);
-      allResults.push(...messages);
+    const { resultsByAccount, allResults } = await inboxCommand(opts, {
+      targetAccounts,
+      forEachAccount,
     });
 
     if (json) {
@@ -727,37 +668,21 @@ program
   .option("--full", "show full message bodies", false)
   .action(withErrorHandling(async (uid, opts) => {
     const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
-    const limit = parseInt(opts.limit, 10);
 
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      console.error(`\n=== ${acct.name} ===`);
+    const results = await threadCommand(uid, opts, {
+      targetAccounts,
+      forEachAccount,
+      listMailboxes,
+    });
 
-      let mailbox = opts.mailbox;
-      if (!mailbox) {
-        const allBoxes = await listMailboxes(client);
-        const paths = filterSearchMailboxes(allBoxes);
-        mailbox = await detectMailbox(client, uid, paths);
-        if (!mailbox) {
-          throw new Error(`UID ${uid} not found in any mailbox on ${acct.name}`);
-        }
-        console.error(`Found UID ${uid} in ${mailbox}`);
-      }
-
-      // Get searchable mailboxes for cross-mailbox thread discovery
-      const allBoxes = await listMailboxes(client);
-      const searchPaths = filterSearchMailboxes(allBoxes);
-
-      const { messages, fallback } = await findThread(client, acct.name, mailbox, uid, searchPaths, {
-        limit,
-        full: opts.full,
-      });
-
+    for (const { account: acctName, threadSize, fallback, messages } of results) {
+      console.error(`\n=== ${acctName} ===`);
       if (json) {
-        console.log(JSON.stringify({ account: acct.name, threadSize: messages.length, fallback, messages }));
+        console.log(JSON.stringify({ account: acctName, threadSize, fallback, messages }));
       } else {
         console.log(formatThreadText(messages, { full: opts.full, fallback }));
       }
-    });
+    }
   }));
 
 program
@@ -771,38 +696,9 @@ program
   .action(withErrorHandling(async (opts) => {
     const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-    const limit = parseInt(opts.limit, 10);
-    const since = opts.since ? parseDate(opts.since) : parseDate("6m");
-
-    const sinceLabel = opts.since
-      ? `since ${since.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}`
-      : "last 6 months";
-
-    const allEntries = [];
-
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      if (!json) console.error(`Scanning ${acct.name}...`);
-
-      const entries = await extractContacts(client, acct.name, {
-        since,
-        limit,
-        sentOnly: opts.sent,
-        receivedOnly: opts.received,
-      });
-
-      allEntries.push(...entries);
-    });
-
-    // Collect self addresses: config selfAddresses + each account's user address
-    const selfAddresses = [...getConfigSelfAddresses()];
-    for (const acct of targetAccounts) {
-      if (acct.user) selfAddresses.push(acct.user);
-    }
-
-    const contacts = aggregateContacts(allEntries, {
-      search: opts.search,
-      limit,
-      selfAddresses,
+    const { contacts, sinceLabel } = await contactsCommand(opts, {
+      targetAccounts,
+      forEachAccount,
     });
 
     if (json) {
