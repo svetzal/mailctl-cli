@@ -16,6 +16,7 @@ import { resolveDateFilters } from "./date-filters.js";
 import { searchMailbox } from "./search.js";
 import { deduplicateByMessageId } from "./dedup.js";
 import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
+import { readCommand } from "./read-command.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { moveCommand } from "./move-command.js";
 import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
@@ -461,54 +462,28 @@ program
     // In JSON mode, include full body unless --max-body was explicitly set
     const effectiveMaxBody = json && !maxBodyExplicit ? Infinity : maxBody;
 
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      console.error(`\n=== ${acct.name} ===`);
-
-      let mailbox = opts.mailbox;
-      if (!mailbox) {
-        const allBoxes = await listMailboxes(client);
-        const paths = filterSearchMailboxes(allBoxes);
-        mailbox = await detectMailbox(client, uid, paths);
-        if (!mailbox) {
-          throw new Error(`UID ${uid} not found in any mailbox on ${acct.name}`);
-        }
-        console.error(`Found UID ${uid} in ${mailbox}`);
-      }
-
-      let lock;
-      try {
-        lock = await client.getMailboxLock(mailbox);
-      } catch {
-        console.error(`  Could not open ${mailbox}`);
-        return;
-      }
-
-      try {
-        const raw = await client.download(uid, undefined, { uid: true });
-        const chunks = [];
-        for await (const chunk of raw.content) chunks.push(chunk);
-        const buf = Buffer.concat(chunks);
-        const parsed = await simpleParser(buf);
-
-        if (json) {
-          const result = buildReadResult(parsed, acct.name, uid, {
-            maxBody: effectiveMaxBody,
-            includeHeaders: !!opts.headers,
-          });
-          console.log(JSON.stringify(result));
-        } else {
-          console.log(formatReadResultText(parsed, {
-            maxBody,
-            showHeaders: !!opts.headers,
-            showRaw: !!opts.raw,
-          }));
-        }
-      } catch (err) {
-        throw new Error(`Could not fetch UID ${uid}: ${err.message}`);
-      } finally {
-        lock.release();
-      }
+    const { account: acct, parsed } = await readCommand(uid, opts, {
+      targetAccounts,
+      forEachAccount,
+      listMailboxes,
+      simpleParser,
     });
+
+    console.error(`\n=== ${acct.name} ===`);
+
+    if (json) {
+      const result = buildReadResult(parsed, acct.name, uid, {
+        maxBody: effectiveMaxBody,
+        includeHeaders: !!opts.headers,
+      });
+      console.log(JSON.stringify(result));
+    } else {
+      console.log(formatReadResultText(parsed, {
+        maxBody,
+        showHeaders: !!opts.headers,
+        showRaw: !!opts.raw,
+      }));
+    }
   }));
 
 program
