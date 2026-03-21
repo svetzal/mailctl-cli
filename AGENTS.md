@@ -1,7 +1,4 @@
 ---
-
-Why this project exists and what problem does it solve: @CHARTER.md
-
 name: mailctl
 description: |
   Personal email operations tool — receipt sorting, search, folder management, and more.
@@ -13,6 +10,8 @@ description: |
   Bun ES module project using imapflow for IMAP operations and commander for CLI.
   Secrets are managed via macOS Keychain — never stored in .env files or source.
 ---
+
+Why this project exists and what problem does it solve: @CHARTER.md
 
 # mailctl Agent Instructions
 
