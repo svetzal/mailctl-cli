@@ -16,6 +16,7 @@ import { resolveDateFilters } from "./date-filters.js";
 import { searchMailbox } from "./search.js";
 import { deduplicateByMessageId } from "./dedup.js";
 import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
+import { moveCommand } from "./move-command.js";
 import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
 import { buildReadResult, formatReadResultText } from "./read-email.js";
 import { formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
@@ -644,101 +645,13 @@ program
   .option("-n, --dry-run", "show what would be moved without executing", false)
   .action(withErrorHandling(async (uids, opts) => {
     const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
-    const destination = opts.to;
-    const sourceMailbox = opts.mailbox;
-    const dryRun = opts.dryRun;
 
-    const parsed = parseUidArgs(uids, account || null);
-
-    if (parsed.length === 0) {
-      throw new Error("No UIDs provided.");
-    }
-
-    const byAccount = groupUidsByAccount(parsed);
-
-    const stats = { moved: 0, failed: 0, skipped: 0 };
-    const results = [];
-
-    for (const [acctKey, acctUids] of byAccount) {
-      const targetAccounts = filterAccountsByName(accounts, acctKey);
-
-      if (targetAccounts.length === 0) {
-        const msg = `Account "${acctKey}" not found.`;
-        if (!json) console.error(`Error: ${msg}`);
-        for (const uid of acctUids) {
-          stats.failed++;
-          results.push({ account: acctKey, uid, status: "failed", error: msg });
-        }
-        continue;
-      }
-
-      await forEachAccount(targetAccounts, async (client, acct) => {
-        if (!json) console.error(`\n=== ${acct.name} ===`);
-
-        // Validate destination folder exists
-        const folders = await listMailboxes(client);
-        const folderExists = folders.some((f) => f.path === destination);
-        if (!folderExists) {
-          const available = folders.map((f) => f.path).join(", ");
-          throw new Error(
-            `Destination folder "${destination}" does not exist on ${acct.name}. Available: ${available}`
-          );
-        }
-
-        // Lock source mailbox
-        let lock;
-        try {
-          lock = await client.getMailboxLock(sourceMailbox);
-        } catch (err) {
-          const msg = `Could not open source mailbox "${sourceMailbox}" on ${acct.name}: ${err.message}`;
-          if (!json) console.error(`  ${msg}`);
-          for (const uid of acctUids) {
-            stats.failed++;
-            results.push({ account: acct.name, uid, status: "failed", error: msg });
-          }
-          return;
-        }
-
-        try {
-          const uidRange = acctUids.join(",");
-
-          if (dryRun) {
-            if (!json) {
-              console.log(
-                `[DRY RUN] Would move ${acctUids.length} message(s) on ${acct.name}: ${sourceMailbox} → ${destination} (UIDs: ${uidRange})`
-              );
-            }
-            stats.skipped += acctUids.length;
-            for (const uid of acctUids) {
-              results.push({ account: acct.name, uid, status: "skipped", reason: "dry-run" });
-            }
-          } else {
-            try {
-              await client.messageMove(uidRange, destination, { uid: true });
-              if (!json) {
-                console.error(
-                  `  Moved ${acctUids.length} message(s): ${sourceMailbox} → ${destination} (UIDs: ${uidRange})`
-                );
-              }
-              stats.moved += acctUids.length;
-              for (const uid of acctUids) {
-                results.push({ account: acct.name, uid, status: "moved" });
-              }
-            } catch (err) {
-              if (!json) {
-                console.error(`  Move failed (UIDs: ${uidRange}): ${err.message}`);
-              }
-              stats.failed += acctUids.length;
-              for (const uid of acctUids) {
-                results.push({ account: acct.name, uid, status: "failed", error: err.message });
-              }
-            }
-          }
-        } finally {
-          lock.release();
-        }
-      });
-    }
+    const { stats, results } = await moveCommand(uids, opts, {
+      accounts,
+      account: account || null,
+      forEachAccount,
+      listMailboxes,
+    });
 
     if (json) {
       console.log(JSON.stringify({ ...stats, results }));
