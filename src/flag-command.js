@@ -1,0 +1,115 @@
+/**
+ * Flag command orchestrator.
+ *
+ * Extracts the orchestration logic from the cli.js flag handler so it can
+ * be tested independently. All IMAP I/O is injected via deps.
+ */
+import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
+import { filterAccountsByName } from "./cli-helpers.js";
+import { filterSearchMailboxes } from "./imap-client.js";
+import { detectMailbox } from "./mailbox-detect.js";
+import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
+
+/**
+ * @typedef {object} FlagCommandDeps
+ * @property {object[]} accounts - all configured accounts
+ * @property {string|null} account - value of --account flag (or null)
+ * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
+ * @property {Function} listMailboxes - (client) → Promise<Array>
+ */
+
+/**
+ * @typedef {object} FlagResult
+ * @property {boolean} dryRun
+ * @property {number[]} uids
+ * @property {string[]} added
+ * @property {string[]} removed
+ * @property {string} account
+ * @property {string} mailbox
+ */
+
+/**
+ * Orchestrate setting or clearing flags on messages by UID.
+ *
+ * @param {string[]} uids - raw UID arguments from the CLI
+ * @param {object} opts - CLI options (read, unread, star, unstar, mailbox, dryRun)
+ * @param {FlagCommandDeps} deps - injected dependencies
+ * @returns {Promise<FlagResult[]>} array of per-account flag results
+ */
+export async function flagCommand(uids, opts, deps) {
+  const { accounts, account, forEachAccount, listMailboxes } = deps;
+
+  const changes = computeFlagChanges({
+    read: opts.read,
+    unread: opts.unread,
+    star: opts.star,
+    unstar: opts.unstar,
+  });
+
+  const parsed = parseUidArgs(uids, account || null);
+
+  if (parsed.length === 0) {
+    throw new Error("No UIDs provided.");
+  }
+
+  const byAccount = groupUidsByAccount(parsed);
+  /** @type {FlagResult[]} */
+  const results = [];
+
+  for (const [acctKey, acctUids] of byAccount) {
+    const targetAccounts = filterAccountsByName(accounts, acctKey);
+
+    if (targetAccounts.length === 0) {
+      throw new Error(`Account "${acctKey}" not found.`);
+    }
+
+    await forEachAccount(targetAccounts, async (client, acct) => {
+      const uidRange = acctUids.join(",");
+
+      let mailbox = opts.mailbox;
+      if (!mailbox) {
+        const allBoxes = await listMailboxes(client);
+        const paths = filterSearchMailboxes(allBoxes);
+        mailbox = await detectMailbox(client, acctUids[0], paths);
+        if (!mailbox) {
+          throw new Error(`UID ${acctUids[0]} not found in any mailbox on ${acct.name}`);
+        }
+      }
+
+      if (opts.dryRun) {
+        results.push({
+          dryRun: true,
+          uids: acctUids.map(Number),
+          added: changes.add,
+          removed: changes.remove,
+          account: acct.name,
+          mailbox,
+        });
+        return;
+      }
+
+      let lock;
+      try {
+        lock = await client.getMailboxLock(mailbox);
+      } catch (err) {
+        throw new Error(`Could not open mailbox "${mailbox}" on ${acct.name}: ${err.message}`);
+      }
+
+      try {
+        const flagResult = await applyFlagChanges(client, uidRange, changes);
+        results.push({
+          dryRun: false,
+          uids: acctUids.map(Number),
+          added: flagResult.added,
+          removed: flagResult.removed,
+          account: acct.name,
+          mailbox,
+        });
+      } finally {
+        lock.release();
+      }
+    });
+  }
+
+  return results;
+}
