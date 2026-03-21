@@ -16,6 +16,7 @@ import { resolveDateFilters } from "./date-filters.js";
 import { searchMailbox } from "./search.js";
 import { deduplicateByMessageId } from "./dedup.js";
 import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
+import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { moveCommand } from "./move-command.js";
 import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
 import { buildReadResult, formatReadResultText } from "./read-email.js";
@@ -552,87 +553,39 @@ program
     const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
     const attachmentIndex = parseInt(index, 10);
 
-    let found = false;
-
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      if (found) return;
-
-      let mailbox = opts.mailbox;
-      if (!mailbox) {
-        const allBoxes = await listMailboxes(client);
-        const paths = filterSearchMailboxes(allBoxes);
-        mailbox = await detectMailbox(client, uid, paths);
-        if (!mailbox) return;
-        console.error(`Found UID ${uid} in ${mailbox}`);
-      }
-
-      let lock;
-      try {
-        lock = await client.getMailboxLock(mailbox);
-      } catch {
-        return;
-      }
-
-      try {
-        // Use BODYSTRUCTURE to enumerate attachments without downloading the full message
-        let bodyStructure;
-        try {
-          for await (const fetched of client.fetch(String(uid), { bodyStructure: true }, { uid: true })) {
-            bodyStructure = fetched.bodyStructure;
-          }
-        } catch {
-          return;
-        }
-
-        if (!bodyStructure) return;
-
-        const listing = buildAttachmentListing(findAttachmentParts(bodyStructure));
-
-        if (opts.list) {
-          found = true;
-          if (json) {
-            console.log(JSON.stringify({ account: acct.name, uid: parseInt(uid, 10), attachments: listing }));
-          } else {
-            if (listing.length === 0) {
-              console.log("No attachments.");
-              return;
-            }
-            for (const entry of listing) {
-              console.log(`[${entry.index}] ${entry.filename}  ${entry.contentType}  ${entry.size} bytes`);
-            }
-          }
-          return;
-        }
-
-        // Save mode — validateAttachmentIndex throws on invalid index
-        found = true;
-        const att = validateAttachmentIndex(listing, attachmentIndex, uid);
-        const filename = att.filename !== "(unnamed)" ? att.filename : `attachment_${attachmentIndex}`;
-
-        // Download just the specific MIME part, not the entire message
-        const { content } = await client.download(String(uid), att.part, { uid: true });
-        const chunks = [];
-        for await (const chunk of content) chunks.push(chunk);
-        const buffer = Buffer.concat(chunks);
-
-        const outputDir = resolve(opts.output);
-        const fsGateway = new FileSystemGateway();
-        fsGateway.mkdir(outputDir);
-        const outPath = join(outputDir, filename);
-        fsGateway.writeFile(outPath, buffer);
-
-        if (json) {
-          console.log(JSON.stringify({ path: outPath, filename, size: buffer.length, contentType: att.contentType }));
-        } else {
-          console.log(outPath);
-        }
-      } finally {
-        lock.release();
-      }
+    const result = await extractAttachmentCommand(uid, attachmentIndex, opts, {
+      targetAccounts,
+      forEachAccount,
+      listMailboxes,
+      fsGateway: new FileSystemGateway(),
     });
 
-    if (!found && !opts.list) {
-      throw new Error(`Could not find UID ${uid} in any account.`);
+    if (!result.found) {
+      if (!opts.list) throw new Error(`Could not find UID ${uid} in any account.`);
+      return;
+    }
+
+    if (result.list) {
+      if (json) {
+        console.log(JSON.stringify({ account: result.account, uid: result.uid, attachments: result.attachments }));
+      } else {
+        if (result.attachments.length === 0) {
+          console.log("No attachments.");
+          return;
+        }
+        for (const entry of result.attachments) {
+          console.log(`[${entry.index}] ${entry.filename}  ${entry.contentType}  ${entry.size} bytes`);
+        }
+      }
+      return;
+    }
+
+    if ("path" in result) {
+      if (json) {
+        console.log(JSON.stringify({ path: result.path, filename: result.filename, size: result.size, contentType: result.contentType }));
+      } else {
+        console.log(result.path);
+      }
     }
   }));
 
