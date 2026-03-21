@@ -22,6 +22,10 @@ import { searchCommand } from "./search-command.js";
 import { threadCommand } from "./thread-command.js";
 import { inboxCommand } from "./inbox-command.js";
 import { contactsCommand } from "./contacts-command.js";
+import { scanCommand } from "./scan-command.js";
+import { classifyCommand } from "./classify-command.js";
+import { importClassificationsCommand } from "./import-classifications-command.js";
+import { downloadReceiptsCommand } from "./download-receipts-command.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { moveCommand } from "./move-command.js";
 import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
@@ -117,31 +121,22 @@ program
   .action(withErrorHandling(async (opts) => {
     const json = resolveJson(opts);
     const account = resolveAccount(opts);
-    const results = await scanAllAccounts({
-      months: parseInt(opts.months, 10),
-      allMailboxes: opts.allMailboxes,
+
+    const { total, senders, rawPath, summaryPath } = await scanCommand(opts, {
       account: account || null,
+      dataDir: DATA_DIR,
+      fsGateway: new FileSystemGateway(),
     });
 
-    const senders = aggregateBySender(results);
-    const fsGateway = new FileSystemGateway();
-
-    // Ensure data dir exists and save results
-    ensureDataDir(DATA_DIR, fsGateway);
-    const { rawPath, summaryPath } = saveScanResults(DATA_DIR, {
-      scanResults: results,
-      senders,
-      rawPath: opts.output || undefined,
-    }, fsGateway);
     console.error(`Saved raw results to ${rawPath}`);
     console.error(`Saved sender summary to ${summaryPath}`);
 
     if (json) {
-      console.log(JSON.stringify({ total: results.length, senders }));
+      console.log(JSON.stringify({ total, senders }));
       return;
     }
 
-    console.log(formatScanSummaryText(senders, results.length));
+    console.log(formatScanSummaryText(senders, total));
   }));
 
 program
@@ -151,31 +146,10 @@ program
   .option("-o, --output <file>", "classification output", join(DATA_DIR, "classifications.json"))
   .action(withErrorHandling(async (opts) => {
     const json = resolveJson(opts);
-    const fsGateway = new FileSystemGateway();
 
-    if (!fsGateway.exists(opts.input)) {
-      throw new Error("Run 'scan' first to generate sender data.");
-    }
-
-    const senders = /** @type {any[]} */ (fsGateway.readJson(opts.input));
-
-    // Load existing classifications if any
-    let classifications = /** @type {Record<string, string>} */ ({});
-    if (fsGateway.exists(opts.output)) {
-      classifications = /** @type {Record<string, string>} */ (fsGateway.readJson(opts.output));
-    }
-
-    // Output unclassified senders as a JSON list for external classification
-    const unclassified = senders.filter((s) => !classifications[s.address]);
-
-    const unclassifiedList = unclassified.map((s) => ({
-      address: s.address,
-      name: s.name,
-      count: s.count,
-      accounts: s.accounts,
-      example: s.sampleSubjects[0] || "",
-      classification: /** @type {null} */ (null), // fill in: "business" or "personal"
-    }));
+    const { unclassifiedList } = classifyCommand(opts.input, opts.output, {
+      fsGateway: new FileSystemGateway(),
+    });
 
     if (json) {
       console.log(JSON.stringify({ unclassified: unclassifiedList }));
@@ -191,27 +165,15 @@ program
   .option("-o, --output <file>", "classification store", join(DATA_DIR, "classifications.json"))
   .action(withErrorHandling(async (file, opts) => {
     const json = resolveJson(opts);
-    const fsGateway = new FileSystemGateway();
-    const entries = /** @type {any[]} */ (fsGateway.readJson(file));
-    let store = /** @type {Record<string, string>} */ ({});
-    if (fsGateway.exists(opts.output)) {
-      store = /** @type {Record<string, string>} */ (fsGateway.readJson(opts.output));
-    }
 
-    let count = 0;
-    for (const entry of entries) {
-      if (entry.classification && entry.address) {
-        store[entry.address] = entry.classification;
-        count++;
-      }
-    }
-
-    fsGateway.writeJson(opts.output, store);
+    const { imported, path } = importClassificationsCommand(file, opts.output, {
+      fsGateway: new FileSystemGateway(),
+    });
 
     if (json) {
-      console.log(JSON.stringify({ imported: count, path: opts.output }));
+      console.log(JSON.stringify({ imported, path }));
     } else {
-      console.log(`Imported ${count} classifications to ${opts.output}`);
+      console.log(`Imported ${imported} classifications to ${path}`);
     }
   }));
 
@@ -282,90 +244,52 @@ program
     const json = resolveJson(opts);
     const account = resolveAccount(opts);
 
-    if (opts.listVendors) {
-      const { listReceiptVendors } = await import("./download-receipts.js");
-      const { getVendorDisplayNames, getVendorDomainMap } = await import("./vendor-map.js");
-      const sinceDate = opts.since ? parseDate(opts.since) : null;
-      const vendors = await listReceiptVendors({
-        months: parseInt(opts.months, 10),
-        since: sinceDate || undefined,
-        account: account || null,
-      });
+    const result = await downloadReceiptsCommand(opts, {
+      account: account || null,
+      importDownloadReceipts: () => import("./download-receipts.js"),
+      importVendorMap: () => import("./vendor-map.js"),
+    });
 
-      if (json) {
-        const knownNames = getVendorDisplayNames();
-        const knownDomains = getVendorDomainMap();
-        const configVendors = [...new Set([...Object.values(knownNames), ...Object.values(knownDomains)])].sort();
-        console.log(JSON.stringify({ configVendors, recentVendors: vendors }));
-        return;
+    if (json) {
+      if (result.mode === "listVendors") {
+        console.log(JSON.stringify({ configVendors: result.configVendors, recentVendors: result.recentVendors }));
+      } else if (result.mode === "reprocess") {
+        const { mode, ...rest } = result;
+        console.log(JSON.stringify(rest));
+      } else {
+        console.log(JSON.stringify({ stats: result.stats, records: result.records }));
       }
+      return;
+    }
 
-      // Show known vendors from config
-      const knownNames = getVendorDisplayNames();
-      const knownDomains = getVendorDomainMap();
-      const configVendors = [...new Set([...Object.values(knownNames), ...Object.values(knownDomains)])].sort();
-      if (configVendors.length > 0) {
+    if (result.mode === "listVendors") {
+      if (result.configVendors.length > 0) {
         console.log("Known vendors (from config):");
-        console.log(`  ${configVendors.join(", ")}`);
+        console.log(`  ${result.configVendors.join(", ")}`);
         console.log();
       }
-
-      // Show recent vendors from scan
-      if (vendors.length > 0) {
+      if (result.recentVendors.length > 0) {
         const monthLabel = opts.since ? `since ${opts.since}` : `last ${opts.months} months`;
         console.log(`Recent vendors (${monthLabel}):`);
-        for (const v of vendors) {
+        for (const v of result.recentVendors) {
           console.log(`  ${v.vendor} (${v.count} receipt${v.count === 1 ? "" : "s"})`);
         }
       } else {
         console.log("No receipt vendors found in the search period.");
       }
-      return;
-    }
-
-    if (opts.reprocess) {
-      const { reprocessReceipts } = await import("./download-receipts.js");
-      const sinceDate = opts.since ? parseDate(opts.since) : null;
-      const result = await reprocessReceipts({
-        outputDir: opts.output,
-        vendor: opts.vendor || null,
-        since: sinceDate,
-        dryRun: opts.dryRun,
-      });
-
-      if (json) {
-        console.log(JSON.stringify(result));
-        return;
-      }
-
+    } else if (result.mode === "reprocess") {
       console.log("\n=== Reprocess Complete ===");
       console.log(`Reprocessed:   ${result.reprocessed}`);
       console.log(`Skipped:       ${result.skipped}`);
       console.log(`Errors:        ${result.errors}`);
-      return;
+    } else {
+      console.log("\n=== Download Receipts Complete ===");
+      console.log(`Found:         ${result.stats.found}`);
+      console.log(`Downloaded:    ${result.stats.downloaded}`);
+      console.log(`No PDF:        ${result.stats.noPdf}`);
+      console.log(`Already have:  ${result.stats.alreadyHave}`);
+      console.log(`Errors:        ${result.stats.errors}`);
     }
-
-    const { downloadReceiptEmails } = await import("./download-receipts.js");
-    const { stats, records } = await downloadReceiptEmails({
-      outputDir: opts.output,
-      months: parseInt(opts.months, 10),
-      since: opts.since || null,
-      account: account || null,
-      vendor: opts.vendor || null,
-      dryRun: opts.dryRun,
-    });
-
-    if (json) {
-      console.log(JSON.stringify({ stats, records }));
-      return;
-    }
-
-    console.log("\n=== Download Receipts Complete ===");
-    console.log(`Found:         ${stats.found}`);
-    console.log(`Downloaded:    ${stats.downloaded}`);
-    console.log(`No PDF:        ${stats.noPdf}`);
-    console.log(`Already have:  ${stats.alreadyHave}`);
-    console.log(`Errors:        ${stats.errors}`);
   }));
 
 // --- General email operations ---
