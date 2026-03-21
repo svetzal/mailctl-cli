@@ -1,4 +1,7 @@
 ---
+
+Why this project exists and what problem does it solve: @CHARTER.md
+
 name: mailctl
 description: |
   Personal email operations tool — receipt sorting, search, folder management, and more.
