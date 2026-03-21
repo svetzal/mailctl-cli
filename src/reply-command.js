@@ -5,8 +5,7 @@
  * be tested independently. All I/O is injected via deps.
  */
 import { resolve } from "path";
-import { filterSearchMailboxes } from "./imap-client.js";
-import { detectMailbox } from "./mailbox-detect.js";
+import { withMessage } from "./find-message.js";
 import { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorContent } from "./reply.js";
 
 /**
@@ -31,48 +30,17 @@ import { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorCont
  * @returns {Promise<{ parsed: object, account: object }>}
  */
 async function fetchOriginalMessage(uid, opts, deps) {
-  const { targetAccounts, forEachAccount, listMailboxes, simpleParser } = deps;
+  const { simpleParser } = deps;
 
-  let originalParsed = null;
-  let matchedAccount = null;
-
-  await forEachAccount(targetAccounts, async (client, acct) => {
-    if (originalParsed) return;
-
-    let mailbox = opts.mailbox;
-    if (!mailbox) {
-      const allBoxes = await listMailboxes(client);
-      const paths = filterSearchMailboxes(allBoxes);
-      mailbox = await detectMailbox(client, uid, paths);
-      if (!mailbox) return;
-    }
-
-    let lock;
-    try {
-      lock = await client.getMailboxLock(mailbox);
-    } catch {
-      return;
-    }
-
-    try {
-      const raw = await client.download(uid, undefined, { uid: true });
-      const chunks = [];
-      for await (const chunk of raw.content) chunks.push(chunk);
-      const buf = Buffer.concat(chunks);
-      originalParsed = await simpleParser(buf);
-      matchedAccount = acct;
-    } catch {
-      // UID not found in this account, continue
-    } finally {
-      lock.release();
-    }
+  const { result: parsed, account } = await withMessage(uid, opts, deps, async (client) => {
+    const raw = await client.download(uid, undefined, { uid: true });
+    const chunks = [];
+    for await (const chunk of raw.content) chunks.push(chunk);
+    const buf = Buffer.concat(chunks);
+    return simpleParser(buf);
   });
 
-  if (!originalParsed || !matchedAccount) {
-    throw new Error(`Could not find UID ${uid} in any account.`);
-  }
-
-  return { parsed: originalParsed, account: matchedAccount };
+  return { parsed, account };
 }
 
 /**

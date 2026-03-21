@@ -4,8 +4,7 @@
  * Extracts the orchestration logic from the cli.js read handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
-import { filterSearchMailboxes } from "./imap-client.js";
-import { detectMailbox } from "./mailbox-detect.js";
+import { withMessage } from "./find-message.js";
 
 /**
  * @typedef {object} ReadCommandDeps
@@ -28,46 +27,19 @@ import { detectMailbox } from "./mailbox-detect.js";
  * @throws {Error} when the UID is not found in any account
  */
 export async function readCommand(uid, opts, deps) {
-  const { targetAccounts, forEachAccount, listMailboxes, simpleParser } = deps;
+  const { simpleParser } = deps;
 
-  /** @type {{ account: object, uid: string, mailbox: string, parsed: object } | null} */
-  let found = null;
-
-  await forEachAccount(targetAccounts, async (client, acct) => {
-    if (found) return;
-
-    let mailbox = opts.mailbox;
-    if (!mailbox) {
-      const allBoxes = await listMailboxes(client);
-      const paths = filterSearchMailboxes(allBoxes);
-      mailbox = await detectMailbox(client, uid, paths);
-      if (!mailbox) return;
-    }
-
-    let lock;
-    try {
-      lock = await client.getMailboxLock(mailbox);
-    } catch {
-      return;
-    }
-
+  const { result: parsed, account, mailbox } = await withMessage(uid, opts, deps, async (client) => {
     try {
       const raw = await client.download(uid, undefined, { uid: true });
       const chunks = [];
       for await (const chunk of raw.content) chunks.push(chunk);
       const buf = Buffer.concat(chunks);
-      const parsed = await simpleParser(buf);
-      found = { account: acct, uid, mailbox, parsed };
+      return simpleParser(buf);
     } catch (err) {
       throw new Error(`Could not fetch UID ${uid}: ${err.message}`);
-    } finally {
-      lock.release();
     }
   });
 
-  if (!found) {
-    throw new Error(`UID ${uid} not found in any mailbox.`);
-  }
-
-  return found;
+  return { account, uid, mailbox, parsed };
 }

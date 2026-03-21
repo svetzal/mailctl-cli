@@ -99,7 +99,7 @@ describe("readCommand", () => {
       }),
     });
     await expect(readCommand("99", {}, deps)).rejects.toThrow(
-      "UID 99 not found in any mailbox."
+      "Could not find UID 99 in any account."
     );
   });
 
