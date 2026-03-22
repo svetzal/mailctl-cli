@@ -1,6 +1,7 @@
 import { ImapFlow } from "imapflow";
 import { getM365AccessToken } from "./m365-auth.js";
 import { RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
+import { buildScanResult } from "./scan-helpers.js";
 
 /**
  * Connect to an IMAP server and return the client.
@@ -40,9 +41,10 @@ export async function connect(account) {
  * @param {string[]} mailboxes - mailbox paths to search (e.g. ["INBOX", "Archive"])
  * @param {object} [opts]
  * @param {Date}   [opts.since] - only messages after this date
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<Array>}
  */
-export async function scanForReceipts(client, accountName, mailboxes, opts = {}) {
+export async function scanForReceipts(client, accountName, mailboxes, opts = {}, onProgress = () => {}) {
   const results = [];
 
   // Deduplicate UIDs per mailbox to avoid fetching the same message twice
@@ -56,7 +58,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {})
     }
 
     try {
-      console.error(`   📂 ${mailbox} (${client.mailbox && client.mailbox.exists} messages)`);
+      onProgress({ type: "mailbox-start", mailbox, count: client.mailbox && client.mailbox.exists });
       const allUids = new Set();
 
       for (const term of RECEIPT_SUBJECT_TERMS) {
@@ -71,7 +73,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {})
         try {
           uids = await client.search(searchCriteria, { uid: true });
         } catch (err) {
-          console.error(`      ⚠️  Search for "${term}" failed: ${err.message}`);
+          onProgress({ type: "search-error", term, error: err });
           continue;
         }
 
@@ -80,33 +82,20 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {})
       }
 
       if (allUids.size === 0) {
-        console.error(`      (no matches)`);
+        onProgress({ type: "mailbox-empty", mailbox });
         continue;
       }
 
-      console.error(`      🎯 ${allUids.size} unique messages to fetch`);
+      onProgress({ type: "mailbox-matches", mailbox, count: allUids.size });
 
       // Fetch envelopes for all unique UIDs (as comma-separated range string)
       const uidRange = [...allUids].join(",");
       try {
         for await (const msg of client.fetch(uidRange, { envelope: true, uid: true }, { uid: true })) {
-          const env = msg.envelope;
-          const from = env.from?.[0];
-          const fromAddr = from ? `${from.name || ""} <${from.address}>`.trim() : "unknown";
-
-          results.push({
-            account: accountName,
-            from: fromAddr,
-            address: from?.address?.toLowerCase() || "unknown",
-            name: from?.name || "",
-            subject: env.subject || "",
-            date: env.date,
-            mailbox,
-            uid: msg.uid,
-          });
+          results.push(buildScanResult(accountName, mailbox, msg));
         }
       } catch (err) {
-        console.error(`      ⚠️  Fetch failed: ${err.message}`);
+        onProgress({ type: "fetch-error", error: err });
       }
     } finally {
       lock.release();
@@ -129,60 +118,7 @@ export async function listMailboxes(client) {
   }));
 }
 
-/** Special-use flags for mailboxes that should be excluded from scanning. */
-const EXCLUDED_SPECIAL_USE = new Set(["\\Junk", "\\Trash", "\\Drafts"]);
-
-/** Special-use flags excluded from search by default (less restrictive than scan). */
-const SEARCH_EXCLUDED_SPECIAL_USE = new Set(["\\Junk", "\\Drafts"]);
-
-/**
- * Filter mailboxes to those suitable for scanning.
- * Excludes Junk, Trash, Drafts, Apple Mail internal folders, and Notes.
- * @param {Array} mailboxes - from listMailboxes()
- * @param {object} [opts]
- * @param {string[]} [opts.excludePaths] - additional path prefixes to exclude
- * @param {boolean} [opts.excludeSent] - also exclude Sent folders
- * @returns {string[]} filtered mailbox paths
- */
-export function filterScanMailboxes(mailboxes, opts = {}) {
-  const excludePaths = opts.excludePaths || [];
-  return mailboxes
-    .filter((mb) => {
-      if (mb.specialUse && EXCLUDED_SPECIAL_USE.has(mb.specialUse)) return false;
-      if (opts.excludeSent && mb.specialUse === "\\Sent") return false;
-      if (mb.path.startsWith("_")) return false;
-      if (mb.path === "Notes") return false;
-      for (const prefix of excludePaths) {
-        if (mb.path.startsWith(prefix)) return false;
-      }
-      return true;
-    })
-    .map((mb) => mb.path);
-}
-
-/**
- * Filter mailboxes suitable for searching.
- * Less restrictive than scan — includes Trash, Sent, Archive, and custom folders.
- * Excludes only Junk, Drafts, Apple Mail internal folders, and Notes by default.
- * @param {Array} mailboxes - from listMailboxes()
- * @param {object} [opts]
- * @param {string[]} [opts.excludePaths] - additional path prefixes to exclude
- * @returns {string[]} filtered mailbox paths
- */
-export function filterSearchMailboxes(mailboxes, opts = {}) {
-  const excludePaths = opts.excludePaths || [];
-  return mailboxes
-    .filter((mb) => {
-      if (mb.specialUse && SEARCH_EXCLUDED_SPECIAL_USE.has(mb.specialUse)) return false;
-      if (mb.path.startsWith("_")) return false;
-      if (mb.path === "Notes") return false;
-      for (const prefix of excludePaths) {
-        if (mb.path === prefix || mb.path.startsWith(prefix + "/")) return false;
-      }
-      return true;
-    })
-    .map((mb) => mb.path);
-}
+export { filterScanMailboxes, filterSearchMailboxes } from "./mailbox-filters.js";
 
 /**
  * Run an async callback for each configured account with a connected IMAP client.

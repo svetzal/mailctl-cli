@@ -73,3 +73,18 @@ export function loadClassificationsData(dataDir, fs = new FileSystemGateway()) {
 export function saveClassifications(dataDir, classifications, fs = new FileSystemGateway()) {
   fs.writeJson(join(dataDir, CLASSIFICATIONS_FILE), classifications);
 }
+
+/**
+ * Load existing classifications or throw if the file does not exist.
+ *
+ * @param {string} dataDir
+ * @param {FileSystemGateway} [fs]
+ * @returns {Record<string, string>}
+ */
+export function requireClassificationsData(dataDir, fs = new FileSystemGateway()) {
+  const path = join(dataDir, CLASSIFICATIONS_FILE);
+  if (!fs.exists(path)) {
+    throw new Error("No classifications.json found. Run scan + classify first.");
+  }
+  return /** @type {Record<string, string>} */ (fs.readJson(path));
+}

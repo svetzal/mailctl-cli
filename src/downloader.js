@@ -6,23 +6,19 @@ import {
 } from "./imap-client.js";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { findPdfParts } from "./attachment-parts.js";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createHash } from "crypto";
 import { getVendorDisplayNames } from "./vendor-map.js";
 import { groupByMailbox, forEachMailboxGroup } from "./imap-orchestration.js";
+import { FileSystemGateway } from "./gateways/fs-gateway.js";
+import { requireClassificationsData } from "./scan-data.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
 import { getConfigDownloadDir } from "./config.js";
 
-/**
- * Vendor name mappings for clean filenames.
- * Re-exported from vendor-map.js for backward compatibility.
- * @type {Record<string, string>}
- */
 /**
  * Vendor name mappings for clean filenames.
  * Loaded from config via vendor-map.js.
@@ -88,20 +84,19 @@ export function buildFilename(vendor, date, attachmentName, existingFiles) {
   return filename;
 }
 
+const _defaultFs = new FileSystemGateway();
+
 /**
  * Load the download manifest (tracks what we've already downloaded).
  */
 function loadManifest() {
   const path = join(DATA_DIR, "download-manifest.json");
-  if (existsSync(path)) {
-    return JSON.parse(readFileSync(path, "utf-8"));
-  }
-  return {};
+  return _defaultFs.exists(path) ? /** @type {Record<string, object>} */ (_defaultFs.readJson(path)) : {};
 }
 
 function saveManifest(manifest) {
-  mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(join(DATA_DIR, "download-manifest.json"), JSON.stringify(manifest, null, 2));
+  _defaultFs.mkdir(DATA_DIR);
+  _defaultFs.writeJson(join(DATA_DIR, "download-manifest.json"), manifest);
 }
 
 /**
@@ -113,19 +108,10 @@ const defaultGateways = {
   listMailboxes:       _listMailboxes,
   filterScanMailboxes: _filterScanMailboxes,
   scanForReceipts:     _scanForReceipts,
-  loadClassifications() {
-    const classPath = join(DATA_DIR, "classifications.json");
-    if (!existsSync(classPath)) {
-      throw new Error("No classifications.json found. Run scan + classify first.");
-    }
-    return JSON.parse(readFileSync(classPath, "utf-8"));
-  },
+  loadClassifications: () => requireClassificationsData(DATA_DIR, new FileSystemGateway()),
   loadManifest,
   saveManifest,
-  readOutputDir:   null,    // null → use real readdirSync in downloadReceipts
-  ensureOutputDir: (dir) => mkdirSync(dir, { recursive: true }),
-  writeFile:       (path, data) => writeFileSync(path, data),
-  readFileForHash: (path) => readFileSync(path),
+  fs: _defaultFs,
 };
 
 /**
@@ -147,10 +133,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
     loadClassifications,
     loadManifest,
     saveManifest,
-    readOutputDir,
-    ensureOutputDir,
-    writeFile,
-    readFileForHash,
+    fs,
   } = { ...defaultGateways, ...gateways };
 
   const dryRun = opts.dryRun ?? false;
@@ -163,7 +146,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
 
   // Ensure output directory exists
   if (!dryRun) {
-    ensureOutputDir(outputDir);
+    fs.mkdir(outputDir);
   }
 
   const manifest = loadManifest();
@@ -186,16 +169,14 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
   // Track existing files and content hashes for dedup
   const existingFiles = new Set();
   const existingHashes = new Set();
-  const fileListing = readOutputDir
-    ? readOutputDir(outputDir)
-    : (existsSync(outputDir) ? readdirSync(outputDir) : []);
+  const fileListing = fs.exists(outputDir) ? fs.readdir(outputDir) : [];
 
   for (const f of fileListing) {
     existingFiles.add(f.toLowerCase());
     // Hash existing PDFs for content-level dedup
     if (f.toLowerCase().endsWith(".pdf")) {
       try {
-        const buf = readFileForHash(join(outputDir, f));
+        const buf = fs.readBuffer(join(outputDir, f));
         existingHashes.add(createHash("sha256").update(buf).digest("hex"));
       } catch {}
     }
@@ -283,7 +264,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
               existingHashes.add(contentHash);
 
               const outPath = join(outputDir, filename);
-              writeFile(outPath, buffer);
+              fs.writeFile(outPath, buffer);
               existingFiles.add(filename.toLowerCase());
               console.error(`   📄 Downloaded: ${filename} (${(buffer.length / 1024).toFixed(0)} KB)`);
               stats.downloaded++;
@@ -313,4 +294,3 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
 
   return stats;
 }
-

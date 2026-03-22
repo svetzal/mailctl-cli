@@ -48,10 +48,13 @@ function makeBaseDeps(client, overrides = {}) {
     loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
     loadManifest: () => manifest,
     saveManifest: mock((m) => { Object.assign(manifest, m); }),
-    readOutputDir: (_dir) => [],
-    readFileForHash: (_path) => Buffer.alloc(0),
-    ensureOutputDir: mock(() => {}),
-    writeFile: mock((path, data) => { written.push({ path, data }); }),
+    fs: {
+      exists: mock(() => false),
+      readdir: mock(() => []),
+      readBuffer: mock(() => Buffer.alloc(0)),
+      mkdir: mock(() => {}),
+      writeFile: mock((path, data) => { written.push({ path, data }); }),
+    },
     forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
     listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
     filterScanMailboxes: () => ["INBOX"],
@@ -70,7 +73,7 @@ describe("downloadReceipts", () => {
     const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
 
     expect(stats.downloaded).toBe(1);
-    expect(deps.writeFile).toHaveBeenCalledTimes(1);
+    expect(deps.fs.writeFile).toHaveBeenCalledTimes(1);
   });
 
   it("does NOT download PDF for a personal-classified receipt", async () => {
@@ -82,7 +85,7 @@ describe("downloadReceipts", () => {
     const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
 
     expect(stats.downloaded).toBe(0);
-    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.fs.writeFile).not.toHaveBeenCalled();
   });
 
   it("does NOT download PDF for an unclassified receipt", async () => {
@@ -94,7 +97,7 @@ describe("downloadReceipts", () => {
     const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
 
     expect(stats.downloaded).toBe(0);
-    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.fs.writeFile).not.toHaveBeenCalled();
   });
 
   it("skips message already recorded in the manifest", async () => {
@@ -107,24 +110,21 @@ describe("downloadReceipts", () => {
     const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
 
     expect(stats.alreadyHave).toBe(1);
-    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.fs.writeFile).not.toHaveBeenCalled();
   });
 
   it("skips file that has duplicate content hash", async () => {
     const client = makeMockClient();
-    const { createHash } = await import("crypto");
-    const existingHash = createHash("sha256").update(PDF_BYTES).digest("hex");
 
-    const deps = makeBaseDeps(client, {
-      // Simulate existing file with same content
-      readOutputDir: () => ["existing.pdf"],
-      readFileForHash: () => PDF_BYTES,
-    });
+    const deps = makeBaseDeps(client);
+    deps.fs.exists = mock(() => true);
+    deps.fs.readdir = mock(() => ["existing.pdf"]);
+    deps.fs.readBuffer = mock(() => PDF_BYTES);
 
     const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
 
     expect(stats.alreadyHave).toBe(1);
-    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.fs.writeFile).not.toHaveBeenCalled();
   });
 
   it("increments noPdf when email has no PDF attachment", async () => {
@@ -149,7 +149,7 @@ describe("downloadReceipts", () => {
     const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
 
     expect(stats.noPdf).toBe(1);
-    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.fs.writeFile).not.toHaveBeenCalled();
   });
 
   it("does not write files in dry-run mode", async () => {
@@ -160,7 +160,7 @@ describe("downloadReceipts", () => {
 
     // Dry-run counts downloads but doesn't write
     expect(stats.downloaded).toBe(1);
-    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.fs.writeFile).not.toHaveBeenCalled();
     expect(deps.saveManifest).not.toHaveBeenCalled();
   });
 
@@ -170,7 +170,7 @@ describe("downloadReceipts", () => {
 
     const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
 
-    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.fs.writeFile).not.toHaveBeenCalled();
     expect(stats.downloaded).toBe(0);
   });
 

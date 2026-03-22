@@ -5,11 +5,12 @@ import {
   forEachAccount as _forEachAccount,
 } from "./imap-client.js";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
-import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { BIZ_FOLDER, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
 import { groupByMailbox, forEachMailboxGroup } from "./imap-orchestration.js";
+import { requireClassificationsData } from "./scan-data.js";
+import { FileSystemGateway } from "./gateways/fs-gateway.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -17,41 +18,30 @@ const DATA_DIR = join(__dirname, "..", "data");
 /**
  * Ensure IMAP folders exist, creating them if needed.
  * @param {import("imapflow").ImapFlow} client
+ * @param {function(object): void} onProgress
  */
-async function ensureFolders(client) {
+async function ensureFolders(client, onProgress) {
   for (const folder of [BIZ_FOLDER, PERSONAL_FOLDER]) {
     try {
       await client.mailboxOpen(folder);
       await client.mailboxClose();
-      console.error(`   ✅ Folder exists: ${folder}`);
+      onProgress({ type: "folder-exists", folder });
     } catch {
       try {
         await client.mailboxCreate(folder);
-        console.error(`   📁 Created folder: ${folder}`);
+        onProgress({ type: "folder-created", folder });
       } catch (err) {
-        console.error(`   ❌ Failed to create ${folder}: ${err.message}`);
+        onProgress({ type: "folder-error", folder, error: err });
       }
     }
   }
 }
 
 /**
- * Load classifications from disk.
- * @returns {Record<string, string>}
- */
-function loadClassifications() {
-  const path = join(DATA_DIR, "classifications.json");
-  if (!existsSync(path)) {
-    throw new Error("No classifications.json found. Run scan + classify first.");
-  }
-  return JSON.parse(readFileSync(path, "utf-8"));
-}
-
-/**
  * Real implementations used in production. Tests override individual keys.
  */
 const defaultGateways = {
-  loadClassifications,
+  loadClassifications: () => requireClassificationsData(DATA_DIR, new FileSystemGateway()),
   loadAccounts:        _loadAccounts,
   forEachAccount:      _forEachAccount,
   listMailboxes:       _listMailboxes,
@@ -66,8 +56,9 @@ const defaultGateways = {
  * @param {number}  [opts.months=24]     - how far back to scan
  * @param {string}  [opts.account]       - only sort this account (case-insensitive)
  * @param {object} [gateways] - injectable implementations for testing
+ * @param {function(object): void} [onProgress] - receives structured progress events
  */
-export async function sortReceipts(opts = {}, gateways = {}) {
+export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => {}) {
   const {
     loadClassifications,
     loadAccounts,
@@ -101,9 +92,9 @@ export async function sortReceipts(opts = {}, gateways = {}) {
   const stats = { moved: 0, skipped: 0, alreadySorted: 0, unclassified: 0 };
 
   await forEachAccount(accounts, async (client, account) => {
-    console.error(`\n📬 Sorting ${account.name} (${account.user})...`);
+    onProgress({ type: "account-start", name: account.name, user: account.user });
 
-    await ensureFolders(client);
+    await ensureFolders(client, onProgress);
 
     const list = await listMailboxes(client);
     const mailboxes = filterScanMailboxes(list, {
@@ -112,7 +103,7 @@ export async function sortReceipts(opts = {}, gateways = {}) {
     });
 
     const results = await scanForReceipts(client, account.name, mailboxes, { since });
-    console.error(`   🔍 Found ${results.length} receipt messages to sort`);
+    onProgress({ type: "scan-complete", count: results.length });
 
     await forEachMailboxGroup(client, groupByMailbox(results), async (mailbox, messages) => {
       const { business: bizUids, personal: personalUids } = planMoves(messages, classifications);
@@ -125,14 +116,14 @@ export async function sortReceipts(opts = {}, gateways = {}) {
       if (bizUids.length > 0) {
         const label = `${mailbox} → ${BIZ_FOLDER}`;
         if (dryRun) {
-          console.error(`   🏢 [DRY RUN] Would move ${bizUids.length} messages: ${label}`);
+          onProgress({ type: "move-dry-run", icon: "🏢", count: bizUids.length, label });
         } else {
           try {
             await client.messageMove(bizUids.join(","), BIZ_FOLDER, { uid: true });
-            console.error(`   🏢 Moved ${bizUids.length} messages: ${label}`);
+            onProgress({ type: "moved", icon: "🏢", count: bizUids.length, label });
             stats.moved += bizUids.length;
           } catch (err) {
-            console.error(`   ⚠️  Move failed (${label}): ${err.message}`);
+            onProgress({ type: "move-error", label, error: err });
             stats.skipped += bizUids.length;
           }
         }
@@ -141,14 +132,14 @@ export async function sortReceipts(opts = {}, gateways = {}) {
       if (personalUids.length > 0) {
         const label = `${mailbox} → ${PERSONAL_FOLDER}`;
         if (dryRun) {
-          console.error(`   🏠 [DRY RUN] Would move ${personalUids.length} messages: ${label}`);
+          onProgress({ type: "move-dry-run", icon: "🏠", count: personalUids.length, label });
         } else {
           try {
             await client.messageMove(personalUids.join(","), PERSONAL_FOLDER, { uid: true });
-            console.error(`   🏠 Moved ${personalUids.length} messages: ${label}`);
+            onProgress({ type: "moved", icon: "🏠", count: personalUids.length, label });
             stats.moved += personalUids.length;
           } catch (err) {
-            console.error(`   ⚠️  Move failed (${label}): ${err.message}`);
+            onProgress({ type: "move-error", label, error: err });
             stats.skipped += personalUids.length;
           }
         }

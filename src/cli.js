@@ -173,11 +173,42 @@ program
   .action(withErrorHandling(async (opts) => {
     const json = resolveJson(opts);
     const account = resolveAccount(opts);
-    const stats = await sortReceipts({
-      months: parseInt(opts.months, 10),
-      dryRun: opts.dryRun,
-      account: account || null,
-    });
+    const stats = await sortReceipts(
+      {
+        months: parseInt(opts.months, 10),
+        dryRun: opts.dryRun,
+        account: account || null,
+      },
+      {},
+      (event) => {
+        switch (event.type) {
+          case "account-start":
+            console.error(`\n📬 Sorting ${event.name} (${event.user})...`);
+            break;
+          case "folder-exists":
+            console.error(`   ✅ Folder exists: ${event.folder}`);
+            break;
+          case "folder-created":
+            console.error(`   📁 Created folder: ${event.folder}`);
+            break;
+          case "folder-error":
+            console.error(`   ❌ Failed to create ${event.folder}: ${event.error.message}`);
+            break;
+          case "scan-complete":
+            console.error(`   🔍 Found ${event.count} receipt messages to sort`);
+            break;
+          case "move-dry-run":
+            console.error(`   ${event.icon} [DRY RUN] Would move ${event.count} messages: ${event.label}`);
+            break;
+          case "moved":
+            console.error(`   ${event.icon} Moved ${event.count} messages: ${event.label}`);
+            break;
+          case "move-error":
+            console.error(`   ⚠️  Move failed (${event.label}): ${event.error.message}`);
+            break;
+        }
+      }
+    );
 
     if (json) {
       console.log(JSON.stringify(stats));

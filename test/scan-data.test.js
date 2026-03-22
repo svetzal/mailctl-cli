@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from "bun:test";
-import { ensureDataDir, saveScanResults, loadSenders, loadClassificationsData, saveClassifications } from "../src/scan-data.js";
+import { ensureDataDir, saveScanResults, loadSenders, loadClassificationsData, saveClassifications, requireClassificationsData } from "../src/scan-data.js";
 
 /** @returns {import("../src/gateways/fs-gateway.js").FileSystemGateway} */
 function makeMockFs(overrides = {}) {
@@ -95,5 +95,28 @@ describe("saveClassifications", () => {
     saveClassifications("/data", data, fs);
 
     expect(fs.writeJson).toHaveBeenCalledWith("/data/classifications.json", data);
+  });
+});
+
+describe("requireClassificationsData", () => {
+  it("throws when the classifications file does not exist", () => {
+    const fs = makeMockFs({ exists: mock(() => false) });
+
+    expect(() => requireClassificationsData("/data", fs)).toThrow(
+      "No classifications.json found. Run scan + classify first."
+    );
+  });
+
+  it("reads and returns classifications when the file exists", () => {
+    const data = { "billing@example.com": "business" };
+    const fs = makeMockFs({
+      exists: mock(() => true),
+      readJson: mock(() => data),
+    });
+
+    const result = requireClassificationsData("/data", fs);
+
+    expect(fs.readJson).toHaveBeenCalledWith("/data/classifications.json");
+    expect(result).toEqual(data);
   });
 });
