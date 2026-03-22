@@ -81,6 +81,7 @@ src/format-scan.js             — formatScanSummaryText(), formatUnclassifiedTe
 src/format-search.js           — formatSearchResultsText() — pure search result formatter
 src/format-move.js             — formatMoveResultText() — pure move summary formatter
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
+src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
 src/vendor-map.js              — Single source of truth for vendor address → display name mappings
 src/scanner.js                 — Scan orchestration, sender aggregation
 src/sorter.js                  — IMAP folder management, message moving

@@ -1,5 +1,6 @@
 import { ImapFlow } from "imapflow";
 import { getM365AccessToken } from "./m365-auth.js";
+import { RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 
 /**
  * Connect to an IMAP server and return the client.
@@ -44,23 +45,6 @@ export async function connect(account) {
 export async function scanForReceipts(client, accountName, mailboxes, opts = {}) {
   const results = [];
 
-  const RECEIPT_SUBJECTS = [
-    "receipt",
-    "order confirmation",
-    "payment confirmation",
-    "your order",
-    "invoice",
-    "purchase confirmation",
-    "billing statement",
-    "transaction",
-    "payment received",
-    "subscription confirmation",
-    "renewal confirmation",
-    "thank you for your purchase",
-    "your payment",
-    "order shipped",        // often contains order total
-  ];
-
   // Deduplicate UIDs per mailbox to avoid fetching the same message twice
   for (const mailbox of mailboxes) {
     let lock;
@@ -75,7 +59,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {})
       console.error(`   📂 ${mailbox} (${client.mailbox && client.mailbox.exists} messages)`);
       const allUids = new Set();
 
-      for (const term of RECEIPT_SUBJECTS) {
+      for (const term of RECEIPT_SUBJECT_TERMS) {
         const searchCriteria = {
           subject: term,
         };

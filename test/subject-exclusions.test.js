@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { RECEIPT_SUBJECT_EXCLUSIONS } from "../src/download-receipts.js";
+import { RECEIPT_SUBJECT_EXCLUSIONS } from "../src/receipt-terms.js";
 
 function isExcluded(subject) {
   return RECEIPT_SUBJECT_EXCLUSIONS.some(re => re.test(subject));

@@ -19,41 +19,13 @@ import {
 import { matchesVendor } from "./vendor-map.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
+import {
+  RECEIPT_SUBJECT_TERMS,
+  RECEIPT_SUBJECT_EXCLUSIONS,
+  BILLING_SENDER_PATTERNS,
+} from "./receipt-terms.js";
 
-/** Subject keywords indicating receipt/invoice emails. */
-const RECEIPT_SUBJECT_TERMS = [
-  "receipt",
-  "invoice",
-  "payment processed",
-  "payment confirmation",
-  "your order",
-  "subscription",
-];
-
-/** Regex patterns for subjects that match receipt terms but aren't actual invoices. */
-export const RECEIPT_SUBJECT_EXCLUSIONS = [
-  /\bapproaching\b/i,
-  /\breminder\b/i,
-  /\byour credits?\b/i,
-  /\bpre-order\b/i,
-  /\btrial\b.*\bconvert\b/i,
-  /\bsent\b.*\bin error\b/i,
-  /\bfree trial\b/i,
-  /\bwill\s+(be\s+)?charg/i,
-  /\bpayment date\b.*\bapproaching\b/i,
-  /\bwelcome to\b/i,
-  /\bget started\b/i,
-  /\byou.ve got \d+ credits?\b/i,
-];
-
-/** Sender patterns indicating billing emails (substring match on from address). */
-const BILLING_SENDER_PATTERNS = [
-  "stripe.com",
-  "paddle.com",
-  "billing@",
-  "invoice@",
-  "noreply@orders.",
-];
+export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 
 
 /** JSON schema for LLM-based receipt data extraction. */

@@ -13,6 +13,7 @@ export { sanitizeString, headerValueToString, collectValues } from "./cli-helper
 
 // Pure business logic
 export { classifyMessage, planMoves, BIZ_FOLDER, PERSONAL_FOLDER } from "./sort-logic.js";
+export { RECEIPT_SUBJECT_TERMS, RECEIPT_SUBJECT_EXCLUSIONS, BILLING_SENDER_PATTERNS } from "./receipt-terms.js";
 export {
   titleCase, sanitizeFilename, vendorFromDomain, cleanVendorForFilename,
   extractForwardedSender, formatDate, inferCurrency, isCanadianMerchant,

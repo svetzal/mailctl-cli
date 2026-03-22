@@ -10,8 +10,8 @@ import {
   downloadReceiptEmails,
   collectSidecarFiles,
   reprocessReceipts,
-  RECEIPT_SUBJECT_EXCLUSIONS,
 } from "../src/download-receipts.js";
+import { RECEIPT_SUBJECT_EXCLUSIONS } from "../src/receipt-terms.js";
 import { FileSystemGateway } from "../src/gateways/fs-gateway.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
