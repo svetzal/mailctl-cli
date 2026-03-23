@@ -71,5 +71,7 @@ OPENAI_KEY=$(security find-generic-password -s "newt-openai-api" -w "$NEWT_KC" 2
 unset OPENAI_KEY
 
 # Run the mailctl command
+# The repo version uses Bun-specific text imports for embedded skill files,
+# so it must be executed with Bun rather than plain Node.
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-exec node "$SCRIPT_DIR/src/cli.js" "$@"
+exec bun "$SCRIPT_DIR/src/cli.js" "$@"

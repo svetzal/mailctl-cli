@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
 import {
+  walkOutputTree,
   loadExistingInvoiceNumbers,
   loadExistingHashes,
   uniqueBaseName,
@@ -29,6 +30,73 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true });
+});
+
+// ── walkOutputTree ────────────────────────────────────────────────────────────
+
+describe("walkOutputTree", () => {
+  it("does nothing when the output directory does not exist", () => {
+    const visitor = mock(() => {});
+    walkOutputTree("/does/not/exist", REAL_FS, visitor);
+    expect(visitor).not.toHaveBeenCalled();
+  });
+
+  it("visits files in year/month subdirectories", () => {
+    const monthDir = join(tmpDir, "2025", "03");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(join(monthDir, "receipt.json"), "{}");
+
+    const visited = [];
+    walkOutputTree(tmpDir, REAL_FS, (filePath, fileName) => {
+      visited.push({ filePath, fileName });
+    });
+
+    expect(visited).toHaveLength(1);
+    expect(visited[0].fileName).toBe("receipt.json");
+    expect(visited[0].filePath).toBe(join(monthDir, "receipt.json"));
+  });
+
+  it("skips non-year top-level directories", () => {
+    const badDir = join(tmpDir, "not-a-year");
+    mkdirSync(badDir, { recursive: true });
+    writeFileSync(join(badDir, "file.txt"), "data");
+
+    const visitor = mock(() => {});
+    walkOutputTree(tmpDir, REAL_FS, visitor);
+    expect(visitor).not.toHaveBeenCalled();
+  });
+
+  it("visits files across multiple years and months", () => {
+    mkdirSync(join(tmpDir, "2024", "12"), { recursive: true });
+    mkdirSync(join(tmpDir, "2025", "01"), { recursive: true });
+    writeFileSync(join(tmpDir, "2024", "12", "a.pdf"), "pdf1");
+    writeFileSync(join(tmpDir, "2025", "01", "b.json"), "{}");
+
+    const fileNames = [];
+    walkOutputTree(tmpDir, REAL_FS, (_filePath, fileName) => {
+      fileNames.push(fileName);
+    });
+
+    expect(fileNames).toHaveLength(2);
+    expect(fileNames).toContain("a.pdf");
+    expect(fileNames).toContain("b.json");
+  });
+
+  it("silently skips files that cause visitor errors", () => {
+    const monthDir = join(tmpDir, "2025", "03");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(join(monthDir, "good.json"), "{}");
+    writeFileSync(join(monthDir, "bad.json"), "{}");
+
+    const visited = [];
+    walkOutputTree(tmpDir, REAL_FS, (filePath, fileName) => {
+      if (fileName === "bad.json") throw new Error("intentional");
+      visited.push(fileName);
+    });
+
+    expect(visited).toContain("good.json");
+    expect(visited).not.toContain("bad.json");
+  });
 });
 
 // ── loadExistingInvoiceNumbers ────────────────────────────────────────────────

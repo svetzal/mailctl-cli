@@ -283,15 +283,14 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
 }
 
 /**
- * Scan the output directory tree for existing receipt JSON files.
- * Returns a Set of invoice numbers that already have sidecars.
+ * Walk the year/month output directory tree, invoking visitor for each file.
+ * Encapsulates the <root>/<YYYY>/<MM>/<file> directory convention.
  * @param {string} outputDir
- * @param {FileSystemGateway} fs
- * @returns {Set<string>}
+ * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {(filePath: string, fileName: string) => void} visitor
  */
-export function loadExistingInvoiceNumbers(outputDir, fs) {
-  const numbers = new Set();
-  if (!fs.exists(outputDir)) return numbers;
+export function walkOutputTree(outputDir, fs, visitor) {
+  if (!fs.exists(outputDir)) return;
 
   try {
     for (const yearDir of fs.readdir(outputDir)) {
@@ -302,10 +301,8 @@ export function loadExistingInvoiceNumbers(outputDir, fs) {
           const monthPath = join(yearPath, monthDir);
           try {
             for (const file of fs.readdir(monthPath)) {
-              if (!file.endsWith(".json")) continue;
               try {
-                const data = /** @type {any} */ (fs.readJson(join(monthPath, file)));
-                if (data.invoice_number) numbers.add(data.invoice_number);
+                visitor(join(monthPath, file), file);
               } catch {}
             }
           } catch {}
@@ -313,7 +310,22 @@ export function loadExistingInvoiceNumbers(outputDir, fs) {
       } catch {}
     }
   } catch {}
+}
 
+/**
+ * Scan the output directory tree for existing receipt JSON files.
+ * Returns a Set of invoice numbers that already have sidecars.
+ * @param {string} outputDir
+ * @param {FileSystemGateway} fs
+ * @returns {Set<string>}
+ */
+export function loadExistingInvoiceNumbers(outputDir, fs) {
+  const numbers = new Set();
+  walkOutputTree(outputDir, fs, (filePath, fileName) => {
+    if (!fileName.endsWith(".json")) return;
+    const data = /** @type {any} */ (fs.readJson(filePath));
+    if (data.invoice_number) numbers.add(data.invoice_number);
+  });
   return numbers;
 }
 
@@ -325,29 +337,11 @@ export function loadExistingInvoiceNumbers(outputDir, fs) {
  */
 export function loadExistingHashes(outputDir, fs) {
   const hashes = new Set();
-  if (!fs.exists(outputDir)) return hashes;
-
-  try {
-    for (const yearDir of fs.readdir(outputDir)) {
-      if (!/^\d{4}$/.test(yearDir)) continue;
-      const yearPath = join(outputDir, yearDir);
-      try {
-        for (const monthDir of fs.readdir(yearPath)) {
-          const monthPath = join(yearPath, monthDir);
-          try {
-            for (const file of fs.readdir(monthPath)) {
-              if (!file.toLowerCase().endsWith(".pdf")) continue;
-              try {
-                const buf = fs.readBuffer(join(monthPath, file));
-                hashes.add(createHash("sha256").update(buf).digest("hex"));
-              } catch {}
-            }
-          } catch {}
-        }
-      } catch {}
-    }
-  } catch {}
-
+  walkOutputTree(outputDir, fs, (filePath, fileName) => {
+    if (!fileName.toLowerCase().endsWith(".pdf")) return;
+    const buf = fs.readBuffer(filePath);
+    hashes.add(createHash("sha256").update(buf).digest("hex"));
+  });
   return hashes;
 }
 
@@ -376,6 +370,29 @@ export function uniqueBaseName(dir, base, usedPaths, fs) {
 
   usedPaths.add(`${dir}/${name}`.toLowerCase());
   return name;
+}
+
+/**
+ * Load and filter accounts for receipt operations.
+ * @param {string|null} accountFilter - account name to filter to, or null for all
+ * @param {() => Array<any>} loadAccountsFn - account loader function
+ * @returns {Array<any>} filtered accounts
+ */
+function resolveReceiptAccounts(accountFilter, loadAccountsFn) {
+  const accounts = loadAccountsFn();
+  if (accounts.length === 0) {
+    throw new Error("No email accounts configured. Check keychain credentials and bin/run wrapper.");
+  }
+
+  const targetAccounts = accountFilter
+    ? accounts.filter((a) => a.name.toLowerCase() === accountFilter.toLowerCase())
+    : accounts;
+
+  if (targetAccounts.length === 0) {
+    throw new Error(`Account "${accountFilter}" not found.`);
+  }
+
+  return targetAccounts;
 }
 
 /** Singleton gateway instances used in production. */
@@ -425,18 +442,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
     ? new Date(opts.since)
     : (() => { const d = new Date(); d.setMonth(d.getMonth() - months); return d; })();
 
-  const accounts = loadAccounts();
-  if (accounts.length === 0) {
-    throw new Error("No email accounts configured. Check keychain credentials and bin/run wrapper.");
-  }
-
-  const targetAccounts = accountFilter
-    ? accounts.filter((a) => a.name.toLowerCase() === accountFilter.toLowerCase())
-    : accounts;
-
-  if (targetAccounts.length === 0) {
-    throw new Error(`Account "${accountFilter}" not found.`);
-  }
+  const targetAccounts = resolveReceiptAccounts(accountFilter, loadAccounts);
 
   const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs);
   const existingHashes = loadExistingHashes(outputDir, fs);
@@ -709,18 +715,7 @@ export async function listReceiptVendors(opts = {}, gateways = {}) {
     ? opts.since
     : (() => { const d = new Date(); d.setMonth(d.getMonth() - months); return d; })();
 
-  const accounts = loadAccounts();
-  if (accounts.length === 0) {
-    throw new Error("No email accounts configured. Check keychain credentials and bin/run wrapper.");
-  }
-
-  const targetAccounts = accountFilter
-    ? accounts.filter((a) => a.name.toLowerCase() === accountFilter.toLowerCase())
-    : accounts;
-
-  if (targetAccounts.length === 0) {
-    throw new Error(`Account "${accountFilter}" not found.`);
-  }
+  const targetAccounts = resolveReceiptAccounts(accountFilter, loadAccounts);
 
   /** @type {Map<string, { vendor: string, address: string, count: number }>} */
   const vendorCounts = new Map();
@@ -765,28 +760,11 @@ export async function listReceiptVendors(opts = {}, gateways = {}) {
  */
 export function collectSidecarFiles(outputDir, fs) {
   const results = [];
-  if (!fs.exists(outputDir)) return results;
-
-  for (const yearDir of fs.readdir(outputDir)) {
-    if (!/^\d{4}$/.test(yearDir)) continue;
-    const yearPath = join(outputDir, yearDir);
-    try {
-      for (const monthDir of fs.readdir(yearPath)) {
-        const monthPath = join(yearPath, monthDir);
-        try {
-          for (const file of fs.readdir(monthPath)) {
-            if (!file.endsWith(".json")) continue;
-            try {
-              const jsonPath = join(monthPath, file);
-              const sidecar = /** @type {any} */ (fs.readJson(jsonPath));
-              results.push({ jsonPath, sidecar });
-            } catch {}
-          }
-        } catch {}
-      }
-    } catch {}
-  }
-
+  walkOutputTree(outputDir, fs, (filePath, fileName) => {
+    if (!fileName.endsWith(".json")) return;
+    const sidecar = /** @type {any} */ (fs.readJson(filePath));
+    results.push({ jsonPath: filePath, sidecar });
+  });
   return results;
 }
 
