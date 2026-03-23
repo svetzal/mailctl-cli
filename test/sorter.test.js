@@ -1,5 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
 import { sortReceipts } from "../src/sorter.js";
+import { makeLock } from "./helpers.js";
 
 /** Minimal mock IMAP client for sorter tests. */
 function makeMockClient() {
@@ -7,7 +8,7 @@ function makeMockClient() {
     mailboxOpen:    mock(() => Promise.resolve()),
     mailboxClose:   mock(() => Promise.resolve()),
     mailboxCreate:  mock(() => Promise.reject(new Error("already exists"))),
-    getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+    getMailboxLock: mock(() => Promise.resolve(makeLock())),
     messageMove:    mock(() => Promise.resolve()),
     mailbox:        { exists: 0 },
   };

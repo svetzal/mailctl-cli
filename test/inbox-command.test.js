@@ -1,11 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
 import { inboxCommand } from "../src/inbox-command.js";
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeAccount(name = "Test Account") {
-  return { name, user: "user@test.com" };
-}
+import { makeAccount } from "./helpers.js";
 
 function makeMessage(uid = 1) {
   return {
@@ -68,8 +63,8 @@ describe("inboxCommand", () => {
   });
 
   it("aggregates messages into allResults across accounts", async () => {
-    const account1 = makeAccount("Account 1");
-    const account2 = makeAccount("Account 2");
+    const account1 = makeAccount({ name: "Account 1" });
+    const account2 = makeAccount({ name: "Account 2" });
 
     const deps = makeDeps({
       targetAccounts: [account1, account2],

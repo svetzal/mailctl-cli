@@ -1,15 +1,8 @@
 import { describe, it, expect, mock } from "bun:test";
 import { searchCommand } from "../src/search-command.js";
+import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
-
-function makeAccount(name = "Test Account") {
-  return { name, user: "user@test.com" };
-}
 
 function makeSearchResult(uid = 42, account = "Test Account") {
   return {
@@ -44,13 +37,8 @@ function makeDeps(overrides = {}) {
   const account = makeAccount();
   const client = makeClient();
 
-  const forEachAccount = mock(async (accounts, fn) => {
-    await fn(client, account);
-  });
-
-  const listMailboxes = mock(() =>
-    Promise.resolve([{ path: "INBOX" }, { path: "Sent" }])
-  );
+  const forEachAccount = makeForEachAccount(client, account);
+  const listMailboxes = makeListMailboxes();
 
   return {
     targetAccounts: [account],

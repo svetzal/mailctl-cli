@@ -1,5 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
 import { groupByMailbox, forEachMailboxGroup } from "../src/imap-orchestration.js";
+import { makeLock } from "./helpers.js";
 
 // ── groupByMailbox ────────────────────────────────────────────────────────────
 
@@ -46,10 +47,6 @@ describe("groupByMailbox", () => {
 });
 
 // ── forEachMailboxGroup ───────────────────────────────────────────────────────
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
 
 describe("forEachMailboxGroup", () => {
   it("calls fn once per mailbox with correct arguments", async () => {

@@ -1,11 +1,8 @@
 import { describe, it, expect, mock } from "bun:test";
 import { contactsCommand } from "../src/contacts-command.js";
+import { makeAccount } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeAccount(overrides = {}) {
-  return { name: "Test Account", user: "self@test.com", ...overrides };
-}
 
 function makeContactEntry(address, name = "Unknown") {
   return {
@@ -85,7 +82,9 @@ describe("contactsCommand", () => {
 
   it("excludes self addresses from contacts", async () => {
     // Account user is "self@test.com"
+    const selfAccount = makeAccount({ user: "self@test.com" });
     const deps = makeDeps({
+      targetAccounts: [selfAccount],
       forEachAccount: mock(async (accounts, fn) => {
         const client = {
           list: mock(() => Promise.resolve([{ path: "INBOX", specialUse: "\\Inbox" }, { path: "Sent", specialUse: "\\Sent" }])),
@@ -102,7 +101,7 @@ describe("contactsCommand", () => {
             };
           }),
         };
-        await fn(client, makeAccount());
+        await fn(client, selfAccount);
       }),
     });
 

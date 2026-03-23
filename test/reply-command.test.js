@@ -1,11 +1,8 @@
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { replyCommand } from "../src/reply-command.js";
+import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
 
 function makeParsedEmail(overrides = {}) {
   return {
@@ -17,15 +14,6 @@ function makeParsedEmail(overrides = {}) {
     text: "Original body text.",
     html: null,
     date: new Date("2025-01-15"),
-    ...overrides,
-  };
-}
-
-function makeAccount(overrides = {}) {
-  return {
-    name: "Test Account",
-    user: "user@test.com",
-    smtp: { host: "smtp.test.com", port: 587, secure: false },
     ...overrides,
   };
 }
@@ -47,18 +35,16 @@ function makeImapClient({ downloadContent = Buffer.from("raw email"), findMailbo
  * Build a deps object with all mocks.
  */
 function makeDeps(overrides = {}) {
-  const account = makeAccount();
+  const account = makeAccount({ smtp: { host: "smtp.test.com", port: 587, secure: false } });
   const parsed = makeParsedEmail();
   const client = makeImapClient();
 
-  const forEachAccount = mock(async (accounts, fn) => {
-    await fn(client, account);
-  });
+  const forEachAccount = makeForEachAccount(client, account);
 
-  const listMailboxes = mock(() => Promise.resolve([
+  const listMailboxes = makeListMailboxes([
     { path: "INBOX", specialUse: "\\Inbox" },
     { path: "Sent", specialUse: "\\Sent" },
-  ]));
+  ]);
 
   const simpleParser = mock(() => Promise.resolve(parsed));
 
@@ -282,7 +268,7 @@ describe("replyCommand", () => {
 
   describe("account iteration", () => {
     it("stops iterating after the UID is found in first account", async () => {
-      const account = makeAccount();
+      const account = makeAccount({ smtp: { host: "smtp.test.com", port: 587, secure: false } });
       const client = makeImapClient();
       let callCount = 0;
 
@@ -306,7 +292,7 @@ describe("replyCommand", () => {
 
     it("tries next account when UID not found in current one", async () => {
       const account1 = makeAccount({ name: "Account 1", smtp: undefined });
-      const account2 = makeAccount({ name: "Account 2" });
+      const account2 = makeAccount({ name: "Account 2", smtp: { host: "smtp.test.com", port: 587, secure: false } });
       let callCount = 0;
 
       const failClient = {

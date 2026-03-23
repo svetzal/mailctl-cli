@@ -1,12 +1,9 @@
 import { describe, it, expect, mock } from "bun:test";
 import { searchMailbox } from "../src/search.js";
+import { makeLock } from "./helpers.js";
 
 function makeDate(str = "2025-03-01") {
   return new Date(str);
-}
-
-function makeLock() {
-  return { release: mock(() => {}) };
 }
 
 /** Build a minimal mock IMAP client with configurable search results. */

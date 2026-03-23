@@ -1,15 +1,8 @@
 import { describe, it, expect, mock } from "bun:test";
 import { extractAttachmentCommand } from "../src/extract-attachment-command.js";
+import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
-
-function makeAccount(overrides = {}) {
-  return { name: "Test Account", user: "user@test.com", ...overrides };
-}
 
 function makeBodyStructure(parts = []) {
   // Flat structure for tests — no child nodes, multiple attachment parts
@@ -49,13 +42,8 @@ function makeDeps(overrides = {}) {
   const pdfPart = makePdfPart();
   const client = makeClient({ bodyStructure: makeBodyStructure([pdfPart]) });
 
-  const listMailboxes = mock(() =>
-    Promise.resolve([{ path: "INBOX" }, { path: "Sent" }])
-  );
-
-  const forEachAccount = mock(async (accounts, fn) => {
-    await fn(client, account);
-  });
+  const listMailboxes = makeListMailboxes();
+  const forEachAccount = makeForEachAccount(client, account);
 
   const fsGateway = {
     mkdir: mock(() => {}),

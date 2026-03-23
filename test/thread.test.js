@@ -1,9 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
 import { findThread, stripSubjectPrefixes, parseReferences, formatThreadText } from "../src/thread.js";
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
+import { makeLock } from "./helpers.js";
 
 function makeDate(str = "2025-03-01T12:00:00Z") {
   return new Date(str);

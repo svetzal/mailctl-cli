@@ -1,15 +1,8 @@
 import { describe, it, expect, mock } from "bun:test";
 import { threadCommand } from "../src/thread-command.js";
+import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
-
-function makeAccount(overrides = {}) {
-  return { name: "Test Account", user: "user@test.com", ...overrides };
-}
 
 function makeThreadResult() {
   return {
@@ -34,13 +27,8 @@ function makeDeps(overrides = {}) {
   const client = makeClient();
   const threadResult = makeThreadResult();
 
-  const forEachAccount = mock(async (accounts, fn) => {
-    await fn(client, account);
-  });
-
-  const listMailboxes = mock(() =>
-    Promise.resolve([{ path: "INBOX" }, { path: "Sent" }])
-  );
+  const forEachAccount = makeForEachAccount(client, account);
+  const listMailboxes = makeListMailboxes();
 
   // Mock findThread — it's an internal module call, but we control it by
   // mocking findThread via the dep pattern would require injection.

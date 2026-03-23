@@ -1,9 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
 import { fetchInbox, formatInboxText } from "../src/inbox.js";
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
+import { makeLock } from "./helpers.js";
 
 /**
  * @param {object} opts

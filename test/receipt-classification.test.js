@@ -6,6 +6,7 @@ import {
   downloadReceiptEmails,
   RECEIPT_EXTRACTION_SCHEMA,
 } from "../src/download-receipts.js";
+import { makeLock } from "./helpers.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ function makeEmailClient(subject = "Invoice #TEST-001") {
   const rawBuffer = Buffer.from(emailBody);
 
   return {
-    getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+    getMailboxLock: mock(() => Promise.resolve(makeLock())),
     search: mock(() => Promise.resolve([1])),
     mailbox: { exists: 1 },
     fetch: mock(() => {

@@ -1,15 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
 import { moveCommand } from "../src/move-command.js";
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
-
-function makeAccount(overrides = {}) {
-  return { name: "Test Account", user: "user@test.com", ...overrides };
-}
+import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
 
 function makeClient({ folders = ["INBOX", "Archive"], messageMoveShouldFail = false } = {}) {
   return {
@@ -26,16 +17,12 @@ function makeDeps(overrides = {}) {
   const account = makeAccount();
   const client = makeClient({ folders: ["INBOX", "Archive"] });
 
-  const listMailboxes = mock(() =>
-    Promise.resolve([
-      { path: "INBOX", specialUse: "\\Inbox" },
-      { path: "Archive", specialUse: null },
-    ])
-  );
+  const listMailboxes = makeListMailboxes([
+    { path: "INBOX", specialUse: "\\Inbox" },
+    { path: "Archive", specialUse: null },
+  ]);
 
-  const forEachAccount = mock(async (accounts, fn) => {
-    await fn(client, account);
-  });
+  const forEachAccount = makeForEachAccount(client, account);
 
   return {
     accounts: [account],

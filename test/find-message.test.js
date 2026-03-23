@@ -1,15 +1,8 @@
 import { describe, it, expect, mock } from "bun:test";
 import { withMessage } from "../src/find-message.js";
+import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function makeLock() {
-  return { release: mock(() => {}) };
-}
-
-function makeAccount(overrides = {}) {
-  return { name: "Test Account", user: "user@test.com", ...overrides };
-}
 
 function makeClient({ searchResult = [42] } = {}) {
   return {
@@ -22,13 +15,8 @@ function makeDeps(overrides = {}) {
   const account = makeAccount();
   const client = makeClient();
 
-  const forEachAccount = mock(async (accounts, fn) => {
-    await fn(client, account);
-  });
-
-  const listMailboxes = mock(() =>
-    Promise.resolve([{ path: "INBOX" }, { path: "Sent" }])
-  );
+  const forEachAccount = makeForEachAccount(client, account);
+  const listMailboxes = makeListMailboxes();
 
   return {
     targetAccounts: [account],

@@ -1,5 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
 import { downloadReceipts } from "../src/downloader.js";
+import { makeLock } from "./helpers.js";
 
 const PDF_BYTES = Buffer.from("%PDF-1.4 fake content");
 const OTHER_BYTES = Buffer.from("not a pdf");
@@ -7,7 +8,7 @@ const OTHER_BYTES = Buffer.from("not a pdf");
 /** Minimal IMAP client mock for download tests. */
 function makeMockClient(pdfContent = PDF_BYTES) {
   return {
-    getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+    getMailboxLock: mock(() => Promise.resolve(makeLock())),
     fetch: mock((_uid, opts) => {
       async function* gen() {
         yield {
@@ -129,7 +130,7 @@ describe("downloadReceipts", () => {
 
   it("increments noPdf when email has no PDF attachment", async () => {
     const clientNoPdf = {
-      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
       fetch: mock(() => {
         async function* gen() {
           yield {
