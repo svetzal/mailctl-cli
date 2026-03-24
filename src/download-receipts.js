@@ -615,6 +615,20 @@ async function processReceiptMessage(client, msg, context) {
   }
 }
 
+/**
+ * Log download summary statistics to stderr.
+ * @param {{ found: number, downloaded: number, noPdf: number, skipped: number, alreadyHave: number, errors: number }} stats
+ */
+function logDownloadSummary(stats) {
+  console.error(`\n=== Download Complete ===`);
+  console.error(`Found:       ${stats.found}`);
+  console.error(`Downloaded:  ${stats.downloaded}`);
+  console.error(`No PDF:      ${stats.noPdf}`);
+  console.error(`Skipped:     ${stats.skipped} (non-invoice or low confidence)`);
+  console.error(`Duplicates:  ${stats.alreadyHave}`);
+  console.error(`Errors:      ${stats.errors}`);
+}
+
 /** Singleton gateway instances used in production. */
 const _defaultFs = new FileSystemGateway();
 const _defaultSubprocess = new SubprocessGateway();
@@ -703,27 +717,16 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
       for (const msg of messages) {
         const context = { accountName: account.name, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess };
         const { action, metadata } = await processReceiptMessage(client, msg, context);
-        if (action === "downloaded" || action === "noPdf") {
-          stats[action === "downloaded" ? "downloaded" : "noPdf"]++;
-          records.push(/** @type {object} */ (metadata));
-        } else if (action === "skipped") {
-          stats.skipped++;
-        } else if (action === "duplicate") {
-          stats.alreadyHave++;
-        } else if (action === "error") {
-          stats.errors++;
-        }
+        if (action === "downloaded") { stats.downloaded++; records.push(/** @type {object} */ (metadata)); }
+        else if (action === "noPdf")   { stats.noPdf++; records.push(/** @type {object} */ (metadata)); }
+        else if (action === "skipped") { stats.skipped++; }
+        else if (action === "duplicate") { stats.alreadyHave++; }
+        else if (action === "error") { stats.errors++; }
       }
     });
   });
 
-  console.error(`\n=== Download Complete ===`);
-  console.error(`Found:       ${stats.found}`);
-  console.error(`Downloaded:  ${stats.downloaded}`);
-  console.error(`No PDF:      ${stats.noPdf}`);
-  console.error(`Skipped:     ${stats.skipped} (non-invoice or low confidence)`);
-  console.error(`Duplicates:  ${stats.alreadyHave}`);
-  console.error(`Errors:      ${stats.errors}`);
+  logDownloadSummary(stats);
 
   return { stats, records };
 }
