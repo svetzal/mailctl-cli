@@ -395,6 +395,225 @@ function resolveReceiptAccounts(accountFilter, loadAccountsFn) {
   return targetAccounts;
 }
 
+/**
+ * Extract receipt metadata from text content.
+ * Tries LLM extraction first; falls back to regex pattern matching.
+ * @param {{ broker: any }|null} llm
+ * @param {string} extractionText
+ * @param {string} subject
+ * @param {string} fromAddress
+ * @param {string} fromName
+ * @param {Date} emailDate
+ * @returns {Promise<object>} metadata object
+ */
+async function extractReceiptMetadata(llm, extractionText, subject, fromAddress, fromName, emailDate) {
+  let metadata;
+  if (llm) {
+    try {
+      metadata = await extractMetadataWithLLM(llm.broker, extractionText, subject, fromAddress, fromName, emailDate);
+    } catch (err) {
+      console.error(`   LLM extraction failed: ${err.message}`);
+      metadata = null;
+    }
+  }
+  if (!metadata) {
+    metadata = extractMetadata(extractionText, subject, fromAddress, fromName, emailDate);
+  }
+  return metadata;
+}
+
+/**
+ * Determine the text to use for metadata extraction.
+ * If the email has PDF attachments, converts the first PDF to markdown via docling.
+ * Otherwise returns the email body text.
+ * @param {Array} pdfAttachments
+ * @param {string} bodyText
+ * @param {number} uid
+ * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} subprocess
+ * @returns {string}
+ */
+function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess) {
+  if (pdfAttachments.length === 0) return bodyText;
+
+  const tmpPdfPath = join(process.env.TMPDIR || "/tmp", `mailctl-receipt-${Date.now()}.pdf`);
+  try {
+    fs.writeFile(tmpPdfPath, pdfAttachments[0].content);
+    const pdfMarkdown = pdfToText(tmpPdfPath, fs, subprocess);
+    if (pdfMarkdown) {
+      console.error(`      Using PDF content for extraction (UID ${uid})`);
+      return pdfMarkdown;
+    }
+  } catch (err) {
+    console.error(`      Docling failed for UID ${uid}: ${err.message}`);
+  } finally {
+    try { fs.rm(tmpPdfPath, { force: true }); } catch {}
+  }
+  return bodyText;
+}
+
+/**
+ * Write receipt output files (PDF + JSON sidecar) to the output directory.
+ * @param {object} params
+ * @param {object} params.metadata
+ * @param {Array} params.pdfAttachments
+ * @param {object} params.msg - envelope result
+ * @param {string} params.bodyText
+ * @param {object} params.parsed - parsed email
+ * @param {Date} params.emailDate
+ * @param {string} params.outputDir
+ * @param {boolean} params.dryRun
+ * @param {Set<string>} params.existingHashes
+ * @param {Set<string>} params.usedPaths
+ * @param {import("./gateways/fs-gateway.js").FileSystemGateway} params.fs
+ * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', metadata: object }}
+ */
+function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs }) {
+  const d = emailDate instanceof Date ? emailDate : new Date(emailDate);
+  const yyyy = String(d.getFullYear());
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const monthDir = join(outputDir, yyyy, mm);
+
+  const vendorClean = cleanVendorForFilename(msg.fromAddress, msg.fromName, bodyText, parsed.subject || msg.subject);
+  let rawBase;
+  if (metadata.invoice_number) {
+    const safeInvoice = metadata.invoice_number.replace(/[\/\\:*?"<>|]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    rawBase = `${vendorClean}-${safeInvoice}`;
+  } else {
+    rawBase = `${vendorClean}-${metadata.date}`;
+  }
+
+  if (rawBase.length > 60) {
+    rawBase = rawBase.slice(0, 60).replace(/[-_][^-_]*$/, "");
+    rawBase = rawBase.replace(/[-._]+$/, "");
+  }
+
+  const baseName = uniqueBaseName(monthDir, rawBase, usedPaths, fs);
+
+  if (pdfAttachments.length > 0) {
+    const att = pdfAttachments[0];
+    const contentHash = createHash("sha256").update(att.content).digest("hex");
+
+    if (existingHashes.has(contentHash)) {
+      const dupLabel = metadata.invoice_number
+        ? `${vendorClean} ${metadata.invoice_number}`
+        : `${vendorClean} (${metadata.date})`;
+      console.error(`   Skipping ${dupLabel} — duplicate content`);
+      return { action: "duplicate", metadata };
+    }
+
+    const pdfFilename = `${baseName}.pdf`;
+    const jsonFilename = `${baseName}.json`;
+    const pdfPath = join(monthDir, pdfFilename);
+    const jsonPath = join(monthDir, jsonFilename);
+
+    metadata.receipt_file = pdfFilename;
+
+    if (dryRun) {
+      console.error(`   [DRY RUN] ${pdfFilename}`);
+      console.error(`   [DRY RUN] ${jsonFilename}`);
+    } else {
+      fs.mkdir(monthDir);
+      fs.writeFile(pdfPath, att.content);
+      fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
+      console.error(`   Downloaded: ${pdfFilename} (${(att.content.length / 1024).toFixed(0)} KB)`);
+    }
+
+    return { action: "downloaded", metadata };
+  } else {
+    metadata.receipt_file = null;
+    const jsonFilename = `${baseName}.json`;
+    const jsonPath = join(monthDir, jsonFilename);
+
+    if (dryRun) {
+      console.error(`   [DRY RUN] ${jsonFilename} (no PDF)`);
+    } else {
+      fs.mkdir(monthDir);
+      fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
+      console.error(`   Wrote metadata: ${jsonFilename} (no PDF)`);
+    }
+
+    return { action: "noPdf", metadata };
+  }
+}
+
+/**
+ * Process a single receipt email: download, parse, extract metadata,
+ * check dedup, and write output files.
+ * @param {object} client - connected IMAP client
+ * @param {object} msg - envelope result with uid, from, subject, date, mailbox, accountName
+ * @param {object} context
+ * @param {string} context.accountName
+ * @param {string} context.outputDir
+ * @param {boolean} context.dryRun
+ * @param {{ broker: any }|null} context.llm
+ * @param {Set<string>} context.existingInvoiceNumbers
+ * @param {Set<string>} context.existingHashes
+ * @param {Set<string>} context.usedPaths
+ * @param {import("./gateways/fs-gateway.js").FileSystemGateway} context.fs
+ * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
+ * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'error', metadata?: object }>}
+ */
+async function processReceiptMessage(client, msg, context) {
+  const { accountName, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess } = context;
+
+  try {
+    // Download and parse the full message
+    const raw = await client.download(String(msg.uid), undefined, { uid: true });
+    const chunks = [];
+    for await (const chunk of raw.content) chunks.push(chunk);
+    const buf = Buffer.concat(chunks);
+    const parsed = await simpleParser(buf);
+
+    const bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
+    const emailDate = parsed.date || msg.date || new Date();
+
+    // Find PDF attachments early — needed to decide extraction source
+    const pdfAttachments = (parsed.attachments || []).filter(
+      (a) => a.contentType === "application/pdf" ||
+        (a.filename && a.filename.toLowerCase().endsWith(".pdf"))
+    );
+
+    const extractionText = resolveExtractionText(pdfAttachments, bodyText, msg.uid, fs, subprocess);
+    const metadata = await extractReceiptMetadata(llm, extractionText, parsed.subject || msg.subject, msg.fromAddress, msg.fromName, emailDate);
+
+    metadata.source_account = accountName.toLowerCase();
+    metadata.email_uid = msg.uid;
+    metadata.source_body_snippet = bodyText.length > 2000 ? bodyText.slice(0, 2000) : bodyText;
+
+    // Check LLM classification — skip non-invoices
+    if (metadata.is_invoice === false) {
+      console.error(`   Skipping ${metadata.vendor} — classified as non-invoice (confidence: ${(metadata.confidence || 0).toFixed(2)})`);
+      return { action: "skipped" };
+    }
+    if (metadata.confidence !== null && metadata.confidence < 0.4) {
+      console.error(`   Skipping ${metadata.vendor} — low confidence ${(metadata.confidence).toFixed(2)}`);
+      return { action: "skipped" };
+    }
+
+    // Invoice number dedup
+    if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
+      console.error(`   Skipping ${metadata.vendor} ${metadata.invoice_number} — already exists`);
+      return { action: "duplicate" };
+    }
+
+    const result = writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs });
+
+    if (result.action === "downloaded" && metadata.invoice_number) {
+      existingInvoiceNumbers.add(metadata.invoice_number);
+    }
+    if (result.action === "downloaded" && pdfAttachments.length > 0) {
+      const contentHash = createHash("sha256").update(pdfAttachments[0].content).digest("hex");
+      existingHashes.add(contentHash);
+    }
+
+    return result;
+  } catch (err) {
+    console.error(`   Error processing UID ${msg.uid}: ${err.message}`);
+    return { action: "error" };
+  }
+}
+
 /** Singleton gateway instances used in production. */
 const _defaultFs = new FileSystemGateway();
 const _defaultSubprocess = new SubprocessGateway();
@@ -494,168 +713,16 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
 
       try {
         for (const msg of messages) {
-          try {
-            // Download and parse the full message
-            const raw = await client.download(String(msg.uid), undefined, { uid: true });
-            const chunks = [];
-            for await (const chunk of raw.content) chunks.push(chunk);
-            const buf = Buffer.concat(chunks);
-            const parsed = await simpleParser(buf);
-
-            const bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
-            const emailDate = parsed.date || msg.date || new Date();
-
-            // Find PDF attachments early — needed to decide extraction source
-            const pdfAttachments = (parsed.attachments || []).filter(
-              (a) => a.contentType === "application/pdf" ||
-                (a.filename && a.filename.toLowerCase().endsWith(".pdf"))
-            );
-
-            // Determine extraction text: for emails with PDF attachments, use
-            // docling to convert the PDF to markdown (the real receipt details
-            // are often in the PDF, not the email body). For inline receipts
-            // (no PDF), use the email body text.
-            let extractionText = bodyText;
-            if (pdfAttachments.length > 0) {
-              const tmpPdfPath = join(process.env.TMPDIR || "/tmp", `mailctl-receipt-${Date.now()}.pdf`);
-              try {
-                fs.writeFile(tmpPdfPath, pdfAttachments[0].content);
-                const pdfMarkdown = pdfToText(tmpPdfPath, fs, subprocess);
-                if (pdfMarkdown) {
-                  extractionText = pdfMarkdown;
-                  console.error(`      Using PDF content for extraction (UID ${msg.uid})`);
-                }
-              } catch (err) {
-                console.error(`      Docling failed for UID ${msg.uid}: ${err.message}`);
-              } finally {
-                try { fs.rm(tmpPdfPath, { force: true }); } catch {}
-              }
-            }
-
-            // Extract metadata — try LLM first, fall back to regex patterns
-            let metadata;
-            if (llm) {
-              try {
-                metadata = await extractMetadataWithLLM(
-                  llm.broker, extractionText, parsed.subject || msg.subject,
-                  msg.fromAddress, msg.fromName, emailDate
-                );
-              } catch (err) {
-                console.error(`   LLM extraction failed for UID ${msg.uid}: ${err.message}`);
-                metadata = null;
-              }
-            }
-            if (!metadata) {
-              metadata = extractMetadata(
-                extractionText, parsed.subject || msg.subject,
-                msg.fromAddress, msg.fromName, emailDate
-              );
-            }
-            metadata.source_account = account.name.toLowerCase();
-            metadata.email_uid = msg.uid;
-
-            // Store body snippet for future reprocessing (before any extraction)
-            metadata.source_body_snippet = bodyText.length > 2000 ? bodyText.slice(0, 2000) : bodyText;
-
-            // Check LLM classification — skip non-invoices
-            if (metadata.is_invoice === false) {
-              console.error(`   Skipping ${metadata.vendor} — classified as non-invoice (confidence: ${(metadata.confidence || 0).toFixed(2)})`);
-              stats.skipped++;
-              continue;
-            }
-            if (metadata.confidence !== null && metadata.confidence < 0.4) {
-              console.error(`   Skipping ${metadata.vendor} — low confidence ${(metadata.confidence).toFixed(2)}`);
-              stats.skipped++;
-              continue;
-            }
-
-            // Invoice number dedup
-            if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
-              console.error(`   Skipping ${metadata.vendor} ${metadata.invoice_number} — already exists`);
-              stats.alreadyHave++;
-              continue;
-            }
-
-            // Output path: <output>/<YYYY>/<MM>/
-            const d = emailDate instanceof Date ? emailDate : new Date(emailDate);
-            const yyyy = String(d.getFullYear());
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const monthDir = join(outputDir, yyyy, mm);
-
-            // Filename base — pass body and subject for forwarded/self-sent detection
-            const vendorClean = cleanVendorForFilename(msg.fromAddress, msg.fromName, bodyText, parsed.subject || msg.subject);
-            let rawBase;
-            if (metadata.invoice_number) {
-              // Sanitize invoice number for filesystem safety (no slashes, colons, etc.)
-              const safeInvoice = metadata.invoice_number.replace(/[\/\\:*?"<>|]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-              rawBase = `${vendorClean}-${safeInvoice}`;
-            } else {
-              rawBase = `${vendorClean}-${metadata.date}`;
-            }
-
-            // Cap at 60 chars, truncating at a separator boundary
-            if (rawBase.length > 60) {
-              rawBase = rawBase.slice(0, 60).replace(/[-_][^-_]*$/, "");
-              rawBase = rawBase.replace(/[-._]+$/, "");
-            }
-
-            const baseName = uniqueBaseName(monthDir, rawBase, usedPaths, fs);
-
-            if (pdfAttachments.length > 0) {
-              const att = pdfAttachments[0];
-
-              // SHA-256 content dedup
-              const contentHash = createHash("sha256").update(att.content).digest("hex");
-              if (existingHashes.has(contentHash)) {
-                const dupLabel = metadata.invoice_number
-                  ? `${vendorClean} ${metadata.invoice_number}`
-                  : `${vendorClean} (${metadata.date})`;
-                console.error(`   Skipping ${dupLabel} — duplicate content`);
-                stats.alreadyHave++;
-                continue;
-              }
-
-              const pdfFilename = `${baseName}.pdf`;
-              const jsonFilename = `${baseName}.json`;
-              const pdfPath = join(monthDir, pdfFilename);
-              const jsonPath = join(monthDir, jsonFilename);
-
-              metadata.receipt_file = pdfFilename;
-
-              if (dryRun) {
-                console.error(`   [DRY RUN] ${pdfFilename}`);
-                console.error(`   [DRY RUN] ${jsonFilename}`);
-              } else {
-                fs.mkdir(monthDir);
-                fs.writeFile(pdfPath, att.content);
-                existingHashes.add(contentHash);
-
-                fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-                console.error(`   Downloaded: ${pdfFilename} (${(att.content.length / 1024).toFixed(0)} KB)`);
-              }
-
-              if (metadata.invoice_number) existingInvoiceNumbers.add(metadata.invoice_number);
-              stats.downloaded++;
-              records.push(metadata);
-            } else {
-              // No PDF — still write JSON sidecar
-              metadata.receipt_file = null;
-              const jsonFilename = `${baseName}.json`;
-              const jsonPath = join(monthDir, jsonFilename);
-
-              if (dryRun) {
-                console.error(`   [DRY RUN] ${jsonFilename} (no PDF)`);
-              } else {
-                fs.mkdir(monthDir);
-                fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-                console.error(`   Wrote metadata: ${jsonFilename} (no PDF)`);
-              }
-
-              stats.noPdf++;
-              records.push(metadata);
-            }
-          } catch (err) {
-            console.error(`   Error processing UID ${msg.uid}: ${err.message}`);
+          const context = { accountName: account.name, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess };
+          const { action, metadata } = await processReceiptMessage(client, msg, context);
+          if (action === "downloaded" || action === "noPdf") {
+            stats[action === "downloaded" ? "downloaded" : "noPdf"]++;
+            records.push(/** @type {object} */ (metadata));
+          } else if (action === "skipped") {
+            stats.skipped++;
+          } else if (action === "duplicate") {
+            stats.alreadyHave++;
+          } else if (action === "error") {
             stats.errors++;
           }
         }
