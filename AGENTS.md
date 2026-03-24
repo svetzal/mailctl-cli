@@ -82,11 +82,13 @@ src/format-search.js           — formatSearchResultsText() — pure search res
 src/format-move.js             — formatMoveResultText() — pure move summary formatter
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
+src/receipt-search-pipeline.js — searchAccountForReceipts() — per-account mailbox search with dedup; shared by download and list-vendors
+src/receipt-filters.js         — applyReceiptFilters() — pure vendor and subject-exclusion filtering
 src/vendor-map.js              — Single source of truth for vendor address → display name mappings
 src/scanner.js                 — Scan orchestration, sender aggregation
 src/sorter.js                  — IMAP folder management, message moving
 src/downloader.js              — PDF attachment download with SHA-256 dedup
-src/download-receipts.js       — LLM-based receipt extraction: PDF → docling → LLM metadata
+src/download-receipts.js       — Receipt download orchestration: search → filter → extract metadata (LLM+fallback) → write PDF+sidecar
 src/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
 src/mailbox-detect.js          — detectMailbox() — finds which mailbox contains a given UID
 src/reply.js                   — Pure reply builders: headers, body, editor template, parser
