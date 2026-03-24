@@ -1,9 +1,8 @@
 import {
   listMailboxes as _listMailboxes,
-  filterSearchMailboxes,
   forEachAccount as _forEachAccount,
 } from "./imap-client.js";
-import { deduplicateByMessageId } from "./dedup.js";
+import { searchAccountForReceipts } from "./receipt-search-pipeline.js";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { join, resolve } from "path";
 import { createHash } from "crypto";
@@ -462,18 +461,8 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
   await forEachAccount(targetAccounts, async (client, account) => {
     console.error(`\nSearching ${account.name} (${account.user})...`);
 
-    const list = await listMailboxes(client);
-    const mailboxes = filterSearchMailboxes(list);
-
     // Phase 1: discover receipt emails across all mailboxes
-    const allResults = [];
-    for (const mbPath of mailboxes) {
-      const results = await searchMailboxForReceipts(client, account.name, mbPath, since);
-      allResults.push(...results);
-    }
-
-    // Deduplicate by message-id
-    let unique = deduplicateByMessageId(allResults);
+    let unique = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts });
 
     // Apply vendor filter if specified
     if (opts.vendor) {
@@ -723,16 +712,7 @@ export async function listReceiptVendors(opts = {}, gateways = {}) {
   await forEachAccount(targetAccounts, async (client, account) => {
     console.error(`\nSearching ${account.name} (${account.user})...`);
 
-    const list = await listMailboxes(client);
-    const mailboxes = filterSearchMailboxes(list);
-
-    const allResults = [];
-    for (const mbPath of mailboxes) {
-      const results = await searchMailboxForReceipts(client, account.name, mbPath, since);
-      allResults.push(...results);
-    }
-
-    const unique = deduplicateByMessageId(allResults);
+    const unique = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts });
 
     for (const msg of unique) {
       const key = msg.fromAddress;
