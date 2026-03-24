@@ -4,6 +4,7 @@ import {
 } from "./imap-client.js";
 import { searchAccountForReceipts } from "./receipt-search-pipeline.js";
 import { applyReceiptFilters } from "./receipt-filters.js";
+import { groupByMailbox, forEachMailboxGroup } from "./imap-orchestration.js";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { join, resolve } from "path";
 import { createHash } from "crypto";
@@ -697,39 +698,23 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
     stats.found += unique.length;
 
     // Phase 2: process each email (grouped by mailbox for IMAP efficiency)
-    const byMailbox = new Map();
-    for (const r of unique) {
-      if (!byMailbox.has(r.mailbox)) byMailbox.set(r.mailbox, []);
-      byMailbox.get(r.mailbox).push(r);
-    }
-
-    for (const [mailbox, messages] of byMailbox) {
-      let lock;
-      try {
-        lock = await client.getMailboxLock(mailbox);
-      } catch {
-        continue;
-      }
-
-      try {
-        for (const msg of messages) {
-          const context = { accountName: account.name, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess };
-          const { action, metadata } = await processReceiptMessage(client, msg, context);
-          if (action === "downloaded" || action === "noPdf") {
-            stats[action === "downloaded" ? "downloaded" : "noPdf"]++;
-            records.push(/** @type {object} */ (metadata));
-          } else if (action === "skipped") {
-            stats.skipped++;
-          } else if (action === "duplicate") {
-            stats.alreadyHave++;
-          } else if (action === "error") {
-            stats.errors++;
-          }
+    const byMailbox = groupByMailbox(unique);
+    await forEachMailboxGroup(client, byMailbox, async (_mailbox, messages) => {
+      for (const msg of messages) {
+        const context = { accountName: account.name, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess };
+        const { action, metadata } = await processReceiptMessage(client, msg, context);
+        if (action === "downloaded" || action === "noPdf") {
+          stats[action === "downloaded" ? "downloaded" : "noPdf"]++;
+          records.push(/** @type {object} */ (metadata));
+        } else if (action === "skipped") {
+          stats.skipped++;
+        } else if (action === "duplicate") {
+          stats.alreadyHave++;
+        } else if (action === "error") {
+          stats.errors++;
         }
-      } finally {
-        lock.release();
       }
-    }
+    });
   });
 
   console.error(`\n=== Download Complete ===`);
