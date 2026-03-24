@@ -3,6 +3,7 @@ import {
   forEachAccount as _forEachAccount,
 } from "./imap-client.js";
 import { searchAccountForReceipts } from "./receipt-search-pipeline.js";
+import { applyReceiptFilters } from "./receipt-filters.js";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { join, resolve } from "path";
 import { createHash } from "crypto";
@@ -462,22 +463,17 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
     console.error(`\nSearching ${account.name} (${account.user})...`);
 
     // Phase 1: discover receipt emails across all mailboxes
-    let unique = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts });
+    const searchResults = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts });
+    const { filtered: unique, vendorExcluded, subjectExcluded } = applyReceiptFilters(
+      searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS
+    );
 
-    // Apply vendor filter if specified
-    if (opts.vendor) {
-      const beforeCount = unique.length;
-      unique = unique.filter(msg => matchesVendor(opts.vendor, msg.fromAddress, msg.fromName));
-      console.error(`   Filtered to ${unique.length} of ${beforeCount} messages matching vendor "${opts.vendor}"`);
+    if (vendorExcluded > 0) {
+      console.error(`   Filtered to ${unique.length} of ${unique.length + vendorExcluded} messages matching vendor "${opts.vendor}"`);
     }
-
-    // Filter out non-invoice subjects
-    const beforeExclusion = unique.length;
-    unique = unique.filter(msg => !RECEIPT_SUBJECT_EXCLUSIONS.some(re => re.test(msg.subject)));
-    if (unique.length < beforeExclusion) {
-      console.error(`   Excluded ${beforeExclusion - unique.length} non-invoice subjects`);
+    if (subjectExcluded > 0) {
+      console.error(`   Excluded ${subjectExcluded} non-invoice subjects`);
     }
-
     console.error(`   ${unique.length} unique receipt emails`);
     stats.found += unique.length;
 
