@@ -19,16 +19,17 @@ import { ensureDataDir, saveScanResults } from "./scan-data.js";
  *
  * @param {object} opts - CLI options (months, allMailboxes, output)
  * @param {ScanCommandDeps} deps - injected dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ total: number, senders: Array, rawPath: string, summaryPath: string }>}
  */
-export async function scanCommand(opts, deps) {
+export async function scanCommand(opts, deps, onProgress = () => {}) {
   const { account, dataDir, fsGateway } = deps;
 
   const results = await scanAllAccounts({
     months: parseInt(opts.months ?? "12", 10),
     allMailboxes: opts.allMailboxes ?? false,
     account: account || null,
-  });
+  }, {}, onProgress);
 
   const senders = aggregateBySender(results);
 

@@ -35,9 +35,10 @@ const defaultGateways = {
  * @param {boolean}         [opts.allMailboxes=false] - scan all mailboxes (slow)
  * @param {string}          [opts.account]        - only scan this account (case-insensitive)
  * @param {object}          [gateways]            - injectable implementations for testing
+ * @param {function(object): void} [onProgress]  - receives structured progress events
  * @returns {Promise<Array>} receipt messages
  */
-export async function scanAllAccounts(opts = {}, gateways = {}) {
+export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () => {}) {
   const {
     loadAccounts,
     forEachAccount,
@@ -67,7 +68,7 @@ export async function scanAllAccounts(opts = {}, gateways = {}) {
   const allResults = [];
 
   await forEachAccount(accounts, async (client, account) => {
-    console.error(`🔍 Scanning ${account.name} (${account.user})...`);
+    onProgress({ type: "scan-account-start", name: account.name, user: account.user });
 
     let mailboxes;
     if (opts.mailboxes) {
@@ -82,7 +83,7 @@ export async function scanAllAccounts(opts = {}, gateways = {}) {
     }
 
     const results = await scanForReceipts(client, account.name, mailboxes, { since });
-    console.error(`   ✅ Found ${results.length} receipt-like messages`);
+    onProgress({ type: "scan-account-complete", name: account.name, count: results.length });
     allResults.push(...results);
   });
 

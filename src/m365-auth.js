@@ -27,9 +27,14 @@ function saveTokens(tokens) {
 
 /**
  * Refresh an expired access token using the refresh_token.
+ * @param {string} clientId
+ * @param {string} tenantId
+ * @param {string} clientSecret
+ * @param {string} refreshToken
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ access_token: string, refresh_token: string, expires_at: number } | null>}
  */
-async function refreshAccessToken(clientId, tenantId, clientSecret, refreshToken) {
+async function refreshAccessToken(clientId, tenantId, clientSecret, refreshToken, onProgress = () => {}) {
   const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const body = new URLSearchParams({
     client_id: clientId,
@@ -45,8 +50,8 @@ async function refreshAccessToken(clientId, tenantId, clientSecret, refreshToken
   });
 
   if (!res.ok) {
-    const err = /** @type {{ error_description?: string }} */ (await res.json().catch(() => ({})));
-    console.error(`   Token refresh failed: ${err.error_description || res.statusText}`);
+    const errData = /** @type {{ error_description?: string }} */ (await res.json().catch(() => ({})));
+    onProgress({ type: "token-refresh-failed", error: new Error(errData.error_description || res.statusText) });
     return null;
   }
 
@@ -63,9 +68,13 @@ async function refreshAccessToken(clientId, tenantId, clientSecret, refreshToken
 /**
  * Run the OAuth2 device code flow interactively.
  * Prints a user code and verification URL, then polls until the user authenticates.
+ * @param {string} clientId
+ * @param {string} tenantId
+ * @param {string} clientSecret
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ access_token: string, refresh_token: string, expires_at: number }>}
  */
-async function deviceCodeFlow(clientId, tenantId, clientSecret) {
+async function deviceCodeFlow(clientId, tenantId, clientSecret, onProgress = () => {}) {
   const deviceUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/devicecode`;
   const deviceRes = await fetch(deviceUrl, {
     method: "POST",
@@ -84,9 +93,8 @@ async function deviceCodeFlow(clientId, tenantId, clientSecret) {
   const deviceData = /** @type {{ device_code: string, user_code: string, verification_uri: string, interval: number, expires_in: number }} */ (await deviceRes.json());
   const { device_code, user_code, verification_uri, interval, expires_in } = deviceData;
 
-  console.error(`\nTo authenticate Microsoft 365, visit: ${verification_uri}`);
-  console.error(`Enter code: ${user_code}`);
-  console.error(`Waiting for authentication...`);
+  onProgress({ type: "device-code-prompt", verificationUri: verification_uri, userCode: user_code });
+  onProgress({ type: "auth-waiting" });
 
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const pollInterval = (interval || 5) * 1000;
@@ -126,7 +134,7 @@ async function deviceCodeFlow(clientId, tenantId, clientSecret) {
       expires_at: Date.now() + tokenData.expires_in * 1000,
     };
     saveTokens(tokens);
-    console.error(`Authentication successful. Tokens cached.`);
+    onProgress({ type: "auth-success" });
     return tokens;
   }
 
@@ -138,9 +146,10 @@ async function deviceCodeFlow(clientId, tenantId, clientSecret) {
  * Tries cached token first, then refresh, then falls back to device code flow.
  *
  * @param {{ clientId: string, tenantId: string, clientSecret: string }} creds
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<string>} access token
  */
-export async function getM365AccessToken({ clientId, tenantId, clientSecret }) {
+export async function getM365AccessToken({ clientId, tenantId, clientSecret }, onProgress = () => {}) {
   const cached = loadTokens();
 
   if (cached) {
@@ -151,7 +160,7 @@ export async function getM365AccessToken({ clientId, tenantId, clientSecret }) {
 
     // Try refresh
     if (cached.refresh_token) {
-      const refreshed = await refreshAccessToken(clientId, tenantId, clientSecret, cached.refresh_token);
+      const refreshed = await refreshAccessToken(clientId, tenantId, clientSecret, cached.refresh_token, onProgress);
       if (refreshed) {
         return refreshed.access_token;
       }
@@ -159,6 +168,6 @@ export async function getM365AccessToken({ clientId, tenantId, clientSecret }) {
   }
 
   // Fall back to interactive device code flow
-  const tokens = await deviceCodeFlow(clientId, tenantId, clientSecret);
+  const tokens = await deviceCodeFlow(clientId, tenantId, clientSecret, onProgress);
   return tokens.access_token;
 }

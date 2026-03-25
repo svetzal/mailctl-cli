@@ -19,9 +19,10 @@ import { parseDate } from "./parse-date.js";
  *
  * @param {object} opts - CLI options (listVendors, reprocess, output, months, since, dryRun, vendor)
  * @param {DownloadReceiptsCommandDeps} deps - injected dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<object>} result object (shape varies by mode)
  */
-export async function downloadReceiptsCommand(opts, deps) {
+export async function downloadReceiptsCommand(opts, deps, onProgress = () => {}) {
   const { account, importDownloadReceipts, importVendorMap } = deps;
 
   if (opts.listVendors) {
@@ -33,7 +34,7 @@ export async function downloadReceiptsCommand(opts, deps) {
       months: parseInt(opts.months ?? "12", 10),
       since: sinceDate || undefined,
       account: account || null,
-    });
+    }, {}, onProgress);
 
     const knownNames = getVendorDisplayNames();
     const knownDomains = getVendorDomainMap();
@@ -51,7 +52,7 @@ export async function downloadReceiptsCommand(opts, deps) {
       vendor: opts.vendor || null,
       since: sinceDate,
       dryRun: opts.dryRun ?? false,
-    });
+    }, {}, onProgress);
 
     return { mode: "reprocess", ...result };
   }
@@ -64,7 +65,7 @@ export async function downloadReceiptsCommand(opts, deps) {
     account: account || null,
     vendor: opts.vendor || null,
     dryRun: opts.dryRun ?? false,
-  });
+  }, {}, onProgress);
 
   return { mode: "download", stats, records };
 }

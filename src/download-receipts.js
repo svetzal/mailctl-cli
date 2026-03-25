@@ -101,16 +101,17 @@ Be thorough — extract EVERY field you can. A receipt with a null amount is nea
 /**
  * Try to create an LLM broker for receipt extraction.
  * Returns null if OPENAI_API_KEY is not set.
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {{ broker: LlmBroker, gateway: OpenAIGateway }|null}
  */
-function createLlmBroker() {
+function createLlmBroker(onProgress = () => {}) {
   if (!process.env.OPENAI_API_KEY) return null;
   try {
     const gateway = new OpenAIGateway();
     const broker = new LlmBroker("gpt-5-mini", gateway);
     return { broker, gateway };
   } catch (err) {
-    console.error(`   Warning: Could not initialize LLM broker: ${err.message}`);
+    onProgress({ type: "llm-not-configured", error: err });
     return null;
   }
 }
@@ -216,9 +217,10 @@ export function pdfToText(pdfPath, fs, subprocess) {
  * @param {string} accountName
  * @param {string} mailboxPath
  * @param {Date} since
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<Array>}
  */
-export async function searchMailboxForReceipts(client, accountName, mailboxPath, since) {
+export async function searchMailboxForReceipts(client, accountName, mailboxPath, since, onProgress = () => {}) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
@@ -227,7 +229,8 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
   }
 
   try {
-    console.error(`   ${mailboxPath} (${client.mailbox && client.mailbox.exists} messages)...`);
+    const messageCount = client.mailbox && client.mailbox.exists;
+    onProgress({ type: "mailbox-search-start", mailbox: mailboxPath, messageCount });
     const allUids = new Set();
 
     // Subject-based search
@@ -252,7 +255,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
 
     if (allUids.size === 0) return [];
 
-    console.error(`      ${allUids.size} candidates`);
+    onProgress({ type: "mailbox-candidates", mailbox: mailboxPath, count: allUids.size });
 
     const results = [];
     const uidRange = [...allUids].join(",");
@@ -274,7 +277,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
         });
       }
     } catch (err) {
-      console.error(`      Fetch failed: ${err.message}`);
+      onProgress({ type: "mailbox-fetch-error", error: err });
     }
 
     return results;
@@ -405,15 +408,16 @@ function resolveReceiptAccounts(accountFilter, loadAccountsFn) {
  * @param {string} fromAddress
  * @param {string} fromName
  * @param {Date} emailDate
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<object>} metadata object
  */
-async function extractReceiptMetadata(llm, extractionText, subject, fromAddress, fromName, emailDate) {
+async function extractReceiptMetadata(llm, extractionText, subject, fromAddress, fromName, emailDate, onProgress = () => {}) {
   let metadata;
   if (llm) {
     try {
       metadata = await extractMetadataWithLLM(llm.broker, extractionText, subject, fromAddress, fromName, emailDate);
     } catch (err) {
-      console.error(`   LLM extraction failed: ${err.message}`);
+      onProgress({ type: "llm-extraction-failed", error: err });
       metadata = null;
     }
   }
@@ -432,9 +436,10 @@ async function extractReceiptMetadata(llm, extractionText, subject, fromAddress,
  * @param {number} uid
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} subprocess
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {string}
  */
-function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess) {
+function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess, onProgress = () => {}) {
   if (pdfAttachments.length === 0) return bodyText;
 
   const tmpPdfPath = join(process.env.TMPDIR || "/tmp", `mailctl-receipt-${Date.now()}.pdf`);
@@ -442,11 +447,11 @@ function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess) {
     fs.writeFile(tmpPdfPath, pdfAttachments[0].content);
     const pdfMarkdown = pdfToText(tmpPdfPath, fs, subprocess);
     if (pdfMarkdown) {
-      console.error(`      Using PDF content for extraction (UID ${uid})`);
+      onProgress({ type: "using-pdf-content", uid });
       return pdfMarkdown;
     }
   } catch (err) {
-    console.error(`      Docling failed for UID ${uid}: ${err.message}`);
+    onProgress({ type: "docling-failed", uid, error: err });
   } finally {
     try { fs.rm(tmpPdfPath, { force: true }); } catch {}
   }
@@ -467,9 +472,10 @@ function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess) {
  * @param {Set<string>} params.existingHashes
  * @param {Set<string>} params.usedPaths
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} params.fs
+ * @param {function(object): void} [params.onProgress] - receives structured progress events
  * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', metadata: object }}
  */
-function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs }) {
+function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs, onProgress = () => {} }) {
   const d = emailDate instanceof Date ? emailDate : new Date(emailDate);
   const yyyy = String(d.getFullYear());
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -499,7 +505,7 @@ function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, e
       const dupLabel = metadata.invoice_number
         ? `${vendorClean} ${metadata.invoice_number}`
         : `${vendorClean} (${metadata.date})`;
-      console.error(`   Skipping ${dupLabel} — duplicate content`);
+      onProgress({ type: "skip-duplicate", label: dupLabel });
       return { action: "duplicate", metadata };
     }
 
@@ -511,13 +517,13 @@ function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, e
     metadata.receipt_file = pdfFilename;
 
     if (dryRun) {
-      console.error(`   [DRY RUN] ${pdfFilename}`);
-      console.error(`   [DRY RUN] ${jsonFilename}`);
+      onProgress({ type: "dry-run-pdf", filename: pdfFilename });
+      onProgress({ type: "dry-run-json", filename: jsonFilename });
     } else {
       fs.mkdir(monthDir);
       fs.writeFile(pdfPath, att.content);
       fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-      console.error(`   Downloaded: ${pdfFilename} (${(att.content.length / 1024).toFixed(0)} KB)`);
+      onProgress({ type: "downloaded-pdf", filename: pdfFilename, size: att.content.length });
     }
 
     return { action: "downloaded", metadata };
@@ -527,11 +533,11 @@ function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, e
     const jsonPath = join(monthDir, jsonFilename);
 
     if (dryRun) {
-      console.error(`   [DRY RUN] ${jsonFilename} (no PDF)`);
+      onProgress({ type: "dry-run-metadata", filename: jsonFilename });
     } else {
       fs.mkdir(monthDir);
       fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-      console.error(`   Wrote metadata: ${jsonFilename} (no PDF)`);
+      onProgress({ type: "wrote-metadata", filename: jsonFilename });
     }
 
     return { action: "noPdf", metadata };
@@ -553,10 +559,11 @@ function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, e
  * @param {Set<string>} context.usedPaths
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} context.fs
  * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
+ * @param {function(object): void} [context.onProgress] - receives structured progress events
  * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'error', metadata?: object }>}
  */
 async function processReceiptMessage(client, msg, context) {
-  const { accountName, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess } = context;
+  const { accountName, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess, onProgress = () => {} } = context;
 
   try {
     // Download and parse the full message
@@ -575,8 +582,8 @@ async function processReceiptMessage(client, msg, context) {
         (a.filename && a.filename.toLowerCase().endsWith(".pdf"))
     );
 
-    const extractionText = resolveExtractionText(pdfAttachments, bodyText, msg.uid, fs, subprocess);
-    const metadata = await extractReceiptMetadata(llm, extractionText, parsed.subject || msg.subject, msg.fromAddress, msg.fromName, emailDate);
+    const extractionText = resolveExtractionText(pdfAttachments, bodyText, msg.uid, fs, subprocess, onProgress);
+    const metadata = await extractReceiptMetadata(llm, extractionText, parsed.subject || msg.subject, msg.fromAddress, msg.fromName, emailDate, onProgress);
 
     metadata.source_account = accountName.toLowerCase();
     metadata.email_uid = msg.uid;
@@ -584,21 +591,21 @@ async function processReceiptMessage(client, msg, context) {
 
     // Check LLM classification — skip non-invoices
     if (metadata.is_invoice === false) {
-      console.error(`   Skipping ${metadata.vendor} — classified as non-invoice (confidence: ${(metadata.confidence || 0).toFixed(2)})`);
+      onProgress({ type: "skip-non-invoice", vendor: metadata.vendor, confidence: metadata.confidence || 0 });
       return { action: "skipped" };
     }
     if (metadata.confidence !== null && metadata.confidence < 0.4) {
-      console.error(`   Skipping ${metadata.vendor} — low confidence ${(metadata.confidence).toFixed(2)}`);
+      onProgress({ type: "skip-low-confidence", vendor: metadata.vendor, confidence: metadata.confidence });
       return { action: "skipped" };
     }
 
     // Invoice number dedup
     if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
-      console.error(`   Skipping ${metadata.vendor} ${metadata.invoice_number} — already exists`);
+      onProgress({ type: "skip-existing-invoice", vendor: metadata.vendor, invoiceNumber: metadata.invoice_number });
       return { action: "duplicate" };
     }
 
-    const result = writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs });
+    const result = writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs, onProgress });
 
     if (result.action === "downloaded" && metadata.invoice_number) {
       existingInvoiceNumbers.add(metadata.invoice_number);
@@ -610,24 +617,11 @@ async function processReceiptMessage(client, msg, context) {
 
     return result;
   } catch (err) {
-    console.error(`   Error processing UID ${msg.uid}: ${err.message}`);
+    onProgress({ type: "process-error", uid: msg.uid, error: err });
     return { action: "error" };
   }
 }
 
-/**
- * Log download summary statistics to stderr.
- * @param {{ found: number, downloaded: number, noPdf: number, skipped: number, alreadyHave: number, errors: number }} stats
- */
-function logDownloadSummary(stats) {
-  console.error(`\n=== Download Complete ===`);
-  console.error(`Found:       ${stats.found}`);
-  console.error(`Downloaded:  ${stats.downloaded}`);
-  console.error(`No PDF:      ${stats.noPdf}`);
-  console.error(`Skipped:     ${stats.skipped} (non-invoice or low confidence)`);
-  console.error(`Duplicates:  ${stats.alreadyHave}`);
-  console.error(`Errors:      ${stats.errors}`);
-}
 
 /** Singleton gateway instances used in production. */
 const _defaultFs = new FileSystemGateway();
@@ -655,9 +649,10 @@ const defaultGateways = {
  * @param {string}  [opts.vendor] - filter to a specific vendor (substring match)
  * @param {boolean} [opts.dryRun=false] - show what would be done
  * @param {object} [gateways] - injectable implementations for testing
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ stats: object, records: Array }>}
  */
-export async function downloadReceiptEmails(opts = {}, gateways = {}) {
+export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress = () => {}) {
   const {
     fs,
     subprocess,
@@ -686,36 +681,36 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
   const records = [];
 
   // Initialize LLM broker for receipt data extraction (null if OPENAI_API_KEY not set)
-  const llm = _createLlmBroker();
+  const llm = _createLlmBroker(onProgress);
   if (llm) {
-    console.error("Using LLM (gpt-5-mini) for receipt data extraction");
+    onProgress({ type: "llm-enabled" });
   } else {
-    console.error("OPENAI_API_KEY not set — using pattern-based extraction");
+    onProgress({ type: "llm-disabled" });
   }
 
   await forEachAccount(targetAccounts, async (client, account) => {
-    console.error(`\nSearching ${account.name} (${account.user})...`);
+    onProgress({ type: "search-account", name: account.name, user: account.user });
 
     // Phase 1: discover receipt emails across all mailboxes
-    const searchResults = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts });
+    const searchResults = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts: (client, accountName, mbPath, since) => searchMailboxForReceipts(client, accountName, mbPath, since, onProgress) });
     const { filtered: unique, vendorExcluded, subjectExcluded } = applyReceiptFilters(
       searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS
     );
 
     if (vendorExcluded > 0) {
-      console.error(`   Filtered to ${unique.length} of ${unique.length + vendorExcluded} messages matching vendor "${opts.vendor}"`);
+      onProgress({ type: "vendor-filter-applied", matchCount: unique.length, excludedCount: vendorExcluded });
     }
     if (subjectExcluded > 0) {
-      console.error(`   Excluded ${subjectExcluded} non-invoice subjects`);
+      onProgress({ type: "subject-exclusions", count: subjectExcluded });
     }
-    console.error(`   ${unique.length} unique receipt emails`);
+    onProgress({ type: "unique-receipts", count: unique.length });
     stats.found += unique.length;
 
     // Phase 2: process each email (grouped by mailbox for IMAP efficiency)
     const byMailbox = groupByMailbox(unique);
     await forEachMailboxGroup(client, byMailbox, async (_mailbox, messages) => {
       for (const msg of messages) {
-        const context = { accountName: account.name, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess };
+        const context = { accountName: account.name, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess, onProgress };
         const { action, metadata } = await processReceiptMessage(client, msg, context);
         if (action === "downloaded") { stats.downloaded++; records.push(/** @type {object} */ (metadata)); }
         else if (action === "noPdf")   { stats.noPdf++; records.push(/** @type {object} */ (metadata)); }
@@ -726,7 +721,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
     });
   });
 
-  logDownloadSummary(stats);
+  onProgress({ type: "download-summary", stats });
 
   return { stats, records };
 }
@@ -739,9 +734,10 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}) {
  * @param {Date}    [opts.since] - search from this date instead of months
  * @param {string}  [opts.account] - only search this account
  * @param {object} [gateways] - injectable implementations for testing
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<Array<{ vendor: string, address: string, count: number }>>}
  */
-export async function listReceiptVendors(opts = {}, gateways = {}) {
+export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = () => {}) {
   const {
     loadAccounts,
     forEachAccount,
@@ -761,9 +757,9 @@ export async function listReceiptVendors(opts = {}, gateways = {}) {
   const vendorCounts = new Map();
 
   await forEachAccount(targetAccounts, async (client, account) => {
-    console.error(`\nSearching ${account.name} (${account.user})...`);
+    onProgress({ type: "search-account", name: account.name, user: account.user });
 
-    const unique = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts });
+    const unique = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts: (client, accountName, mbPath, since) => searchMailboxForReceipts(client, accountName, mbPath, since, onProgress) });
 
     for (const msg of unique) {
       const key = msg.fromAddress;
@@ -807,9 +803,10 @@ export function collectSidecarFiles(outputDir, fs) {
  * @param {Date} [opts.since] - only reprocess files newer than this date
  * @param {boolean} [opts.dryRun]
  * @param {object} [gateways] - injectable dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{reprocessed: number, skipped: number, errors: number, reclassified: number, results: Array}>}
  */
-export async function reprocessReceipts(opts, gateways = {}) {
+export async function reprocessReceipts(opts, gateways = {}, onProgress = () => {}) {
   const {
     fs,
     subprocess,
@@ -821,12 +818,12 @@ export async function reprocessReceipts(opts, gateways = {}) {
   const vendorFilter = opts.vendor || null;
   const sinceDate = opts.since || null;
 
-  const llm = _createLlmBroker();
+  const llm = _createLlmBroker(onProgress);
   if (!llm) {
     throw new Error("OPENAI_API_KEY not set — LLM extraction is required for reprocessing.");
   }
 
-  console.error(`Reprocessing receipts in ${outputDir}...`);
+  onProgress({ type: "reprocess-start", outputDir });
 
   const sidecars = collectSidecarFiles(outputDir, fs);
   const stats = { reprocessed: 0, skipped: 0, errors: 0, reclassified: 0 };
@@ -859,7 +856,7 @@ export async function reprocessReceipts(opts, gateways = {}) {
 
     if (hasPdf) {
       if (dryRun) {
-        console.error(`  [DRY RUN] ${jsonFilename} — would reprocess`);
+        onProgress({ type: "reprocess-dry-run", filename: jsonFilename });
         stats.reprocessed++;
         results.push({ file: jsonFilename, status: "dry-run" });
         continue;
@@ -868,22 +865,22 @@ export async function reprocessReceipts(opts, gateways = {}) {
       if (pdfMarkdown) {
         extractionText = pdfMarkdown;
       } else {
-        console.error(`  ❌ ${jsonFilename} — docling conversion failed`);
+        onProgress({ type: "reprocess-docling-failed", filename: jsonFilename });
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "docling conversion failed" });
         continue;
       }
     } else if (sidecar.source_body_snippet) {
       if (dryRun) {
-        console.error(`  [DRY RUN] ${jsonFilename} — would reprocess (body snippet)`);
+        onProgress({ type: "reprocess-dry-run-body", filename: jsonFilename });
         stats.reprocessed++;
         results.push({ file: jsonFilename, status: "dry-run" });
         continue;
       }
       extractionText = sidecar.source_body_snippet;
-      console.error(`      Using stored body snippet for extraction (${jsonFilename})`);
+      onProgress({ type: "reprocess-using-body", filename: jsonFilename });
     } else {
-      console.error(`  ⏭️  ${jsonFilename} — no PDF and no body snippet, skipped`);
+      onProgress({ type: "reprocess-skipped", filename: jsonFilename, reason: "no PDF and no body snippet" });
       stats.skipped++;
       results.push({ file: jsonFilename, status: "skipped", reason: "no PDF and no body snippet" });
       continue;
@@ -901,14 +898,14 @@ export async function reprocessReceipts(opts, gateways = {}) {
       );
 
       if (!metadata) {
-        console.error(`  ❌ ${jsonFilename} — LLM extraction returned no data`);
+        onProgress({ type: "reprocess-no-data", filename: jsonFilename });
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "LLM extraction failed" });
         continue;
       }
 
       if (metadata.is_invoice === false) {
-        console.error(`  🗑️  ${jsonFilename} — reclassified as non-invoice, removing`);
+        onProgress({ type: "reprocess-reclassified", filename: jsonFilename });
         fs.rm(jsonPath, { force: true });
         stats.reclassified++;
         results.push({ file: jsonFilename, status: "reclassified", reason: "non-invoice" });
@@ -927,17 +924,17 @@ export async function reprocessReceipts(opts, gateways = {}) {
       };
 
       fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
-      console.error(`  ✅ ${jsonFilename} — updated metadata`);
+      onProgress({ type: "reprocess-updated", filename: jsonFilename });
       stats.reprocessed++;
       results.push({ file: jsonFilename, status: "reprocessed" });
     } catch (err) {
-      console.error(`  ❌ ${jsonFilename} — extraction failed: ${err.message}`);
+      onProgress({ type: "reprocess-error", filename: jsonFilename, error: err });
       stats.errors++;
       results.push({ file: jsonFilename, status: "error", reason: err.message });
     }
   }
 
-  console.error(`\nReprocessed: ${stats.reprocessed}, Skipped: ${stats.skipped}, Reclassified: ${stats.reclassified}, Errors: ${stats.errors}`);
+  onProgress({ type: "reprocess-summary", reprocessed: stats.reprocessed, skipped: stats.skipped, reclassified: stats.reclassified, errors: stats.errors });
 
   return { ...stats, results };
 }

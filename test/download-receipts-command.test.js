@@ -54,7 +54,9 @@ describe("downloadReceiptsCommand", () => {
       await downloadReceiptsCommand({ listVendors: true, months: "6" }, deps);
 
       expect(listReceiptVendors).toHaveBeenCalledWith(
-        expect.objectContaining({ months: 6 })
+        expect.objectContaining({ months: 6 }),
+        expect.anything(),
+        expect.any(Function)
       );
     });
 
@@ -110,7 +112,9 @@ describe("downloadReceiptsCommand", () => {
       await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
 
       expect(downloadReceiptEmails).toHaveBeenCalledWith(
-        expect.objectContaining({ account: "icloud" })
+        expect.objectContaining({ account: "icloud" }),
+        expect.anything(),
+        expect.any(Function)
       );
     });
 
@@ -127,7 +131,9 @@ describe("downloadReceiptsCommand", () => {
       await downloadReceiptsCommand({ output: ".", months: "12", vendor: "Amazon" }, deps);
 
       expect(downloadReceiptEmails).toHaveBeenCalledWith(
-        expect.objectContaining({ vendor: "Amazon" })
+        expect.objectContaining({ vendor: "Amazon" }),
+        expect.anything(),
+        expect.any(Function)
       );
     });
   });

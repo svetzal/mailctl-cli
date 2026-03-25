@@ -78,12 +78,12 @@ export function compareSemver(a, b) {
 /**
  * Install mailctl skill files.
  * @param {string} version - current mailctl version
- * @param {object} options
- * @param {boolean} [options.json] - output as JSON
+ * @param {object} [options]
  * @param {boolean} [options.global] - install to ~/.claude instead of CWD
  * @param {boolean} [options.force] - bypass version guard
+ * @returns {Promise<{ version: string, global: boolean, files: FileResult[] }>}
  */
-export async function initCommand(version, { json = false, global = false, force = false } = {}) {
+export async function initCommand(version, { global = false, force = false } = {}) {
   const baseDir = global ? join(homedir(), ".claude") : process.cwd();
   const relativePath = global ? "skills/mailctl/SKILL.md" : ".claude/skills/mailctl/SKILL.md";
   const fullPath = join(baseDir, relativePath);
@@ -108,8 +108,7 @@ export async function initCommand(version, { json = false, global = false, force
       if (!force) {
         const warning = `Installed skill is from mailctl v${installedVersion} but this binary is v${version}. Use --force to downgrade.`;
         result = { path: relativePath, action: "skipped", warning };
-        outputResult(version, [result], { json, global });
-        return;
+        return { version, global, files: [result] };
       }
     }
 
@@ -127,50 +126,5 @@ export async function initCommand(version, { json = false, global = false, force
     }
   }
 
-  outputResult(version, [result], { json, global });
-}
-
-/**
- * Output init results in JSON or human-readable format.
- * @param {string} version
- * @param {FileResult[]} results
- * @param {object} options
- * @param {boolean} options.json
- * @param {boolean} options.global
- */
-function outputResult(version, results, { json, global }) {
-  const skipped = results.filter(r => r.action === "skipped").length;
-
-  if (json) {
-    /** @type {InitResult} */
-    const output = {
-      success: skipped === 0,
-      message: skipped > 0
-        ? `Skill install skipped`
-        : `Skill ${results[0].action}`,
-      version,
-      files: results,
-    };
-    console.log(JSON.stringify(output));
-  } else {
-    const scope = global ? "global (~/.claude)" : "local";
-    console.log(`\nmailctl v${version} — skill files (${scope})\n`);
-    for (const r of results) {
-      const icon =
-        r.action === "created" ? "+" :
-        r.action === "updated" ? "~" :
-        r.action === "skipped" ? "!" :
-        "=";
-      const label =
-        r.action === "created" ? "Created" :
-        r.action === "updated" ? "Updated" :
-        r.action === "skipped" ? "Skipped" :
-        "Up to date";
-      console.log(`  ${icon} ${r.path} (${label})`);
-      if (r.warning) {
-        console.log(`    ${r.warning}`);
-      }
-    }
-    console.log();
-  }
+  return { version, global, files: [result] };
 }

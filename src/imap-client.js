@@ -8,13 +8,14 @@ import { buildScanResult } from "./scan-helpers.js";
  * Supports both password-based and OAuth2 (XOAUTH2) authentication.
  *
  * @param {{ host: string, port: number, user: string, pass?: string, oauth2?: { clientId: string, tenantId: string, clientSecret: string }, name?: string }} account
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<ImapFlow>}
  */
-export async function connect(account) {
+export async function connect(account, onProgress = () => {}) {
   let auth;
 
   if (account.oauth2) {
-    const accessToken = await getM365AccessToken(account.oauth2);
+    const accessToken = await getM365AccessToken(account.oauth2, onProgress);
     auth = { user: account.user, accessToken };
   } else {
     auth = { user: account.user, pass: account.pass };
@@ -125,14 +126,15 @@ export { filterScanMailboxes, filterSearchMailboxes } from "./mailbox-filters.js
  * Handles connect/logout lifecycle and error reporting.
  * @param {Array} accounts - from loadAccounts()
  * @param {function(import("imapflow").ImapFlow, object): Promise<void>} fn - callback receiving (client, account)
+ * @param {function(object): void} [onProgress] - receives structured progress events
  */
-export async function forEachAccount(accounts, fn) {
+export async function forEachAccount(accounts, fn, onProgress = () => {}) {
   for (const account of accounts) {
     let client;
     try {
-      client = await connect(account);
+      client = await connect(account, onProgress);
     } catch (err) {
-      console.error(`   ❌ Failed to connect to ${account.name}: ${err.message}`);
+      onProgress({ type: "connect-error", account: account.name, error: err });
       continue;
     }
     try {

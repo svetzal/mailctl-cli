@@ -122,8 +122,9 @@ const defaultGateways = {
  * @param {string}  [opts.outputDir] - override output directory
  * @param {string}  [opts.account]   - only download from this account (case-insensitive)
  * @param {object} [gateways] - injectable implementations for testing
+ * @param {function(object): void} [onProgress] - receives structured progress events
  */
-export async function downloadReceipts(opts = {}, gateways = {}) {
+export async function downloadReceipts(opts = {}, gateways = {}, onProgress = () => {}) {
   const {
     loadAccounts,
     forEachAccount,
@@ -183,7 +184,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
   }
 
   await forEachAccount(accounts, async (client, account) => {
-    console.error(`\n📎 Downloading from ${account.name} (${account.user})...`);
+    onProgress({ type: "download-account-start", name: account.name, user: account.user });
 
     const list = await listMailboxes(client);
     const mailboxes = filterScanMailboxes(list, {
@@ -195,7 +196,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
 
     // Filter to business only
     const bizResults = results.filter((r) => classifications[r.address] === "business");
-    console.error(`   🏢 ${bizResults.length} business receipt emails to check for PDFs`);
+    onProgress({ type: "download-biz-count", count: bizResults.length });
 
     await forEachMailboxGroup(client, groupByMailbox(bizResults), async (mailbox, messages) => {
       for (const msg of messages) {
@@ -213,7 +214,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
             bodyStructure = fetched.bodyStructure;
           }
         } catch (err) {
-          console.error(`      ⚠️  Could not fetch structure for UID ${msg.uid}: ${err.message}`);
+          onProgress({ type: "fetch-structure-error", uid: msg.uid, error: err });
           continue;
         }
 
@@ -234,7 +235,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
           const filename = buildFilename(vendor, msg.date, part.filename, existingFiles);
 
           if (dryRun) {
-            console.error(`   📄 [DRY RUN] Would download: ${filename}`);
+            onProgress({ type: "download-dry-run", filename });
             stats.downloaded++;
           } else {
             try {
@@ -249,14 +250,14 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
 
               // Verify it's actually a PDF
               if (buffer.length < 5 || buffer.subarray(0, 5).toString() !== "%PDF-") {
-                console.error(`      ⚠️  Skipping ${filename} — not a valid PDF`);
+                onProgress({ type: "invalid-pdf", filename });
                 continue;
               }
 
               // Content-level dedup: skip if we already have this exact file
               const contentHash = createHash("sha256").update(buffer).digest("hex");
               if (existingHashes.has(contentHash)) {
-                console.error(`      ⏭️  Skipping ${filename} — duplicate content`);
+                onProgress({ type: "duplicate-content", filename });
                 stats.alreadyHave++;
                 manifest[manifestKey] = { status: "duplicate", hash: contentHash.slice(0, 12), date: msg.date, vendor };
                 continue;
@@ -266,7 +267,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
               const outPath = join(outputDir, filename);
               fs.writeFile(outPath, buffer);
               existingFiles.add(filename.toLowerCase());
-              console.error(`   📄 Downloaded: ${filename} (${(buffer.length / 1024).toFixed(0)} KB)`);
+              onProgress({ type: "downloaded", filename, size: buffer.length });
               stats.downloaded++;
 
               // Record content hash in manifest for cross-run dedup
@@ -279,7 +280,7 @@ export async function downloadReceipts(opts = {}, gateways = {}) {
                 vendor,
               };
             } catch (err) {
-              console.error(`      ⚠️  Download failed for ${filename}: ${err.message}`);
+              onProgress({ type: "download-failed", filename, error: err });
               stats.skipped++;
             }
           }

@@ -90,6 +90,31 @@ function requireAccounts() {
 /** Shared dependency object for resolveCommandContext calls throughout this file. */
 const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccountsByName };
 
+/**
+ * Render M365 auth progress events to stderr.
+ * @param {object} event
+ */
+function renderAuthProgress(event) {
+  switch (event.type) {
+    case "token-refresh-failed":
+      console.error(`   Token refresh failed: ${event.error.message}`);
+      break;
+    case "device-code-prompt":
+      console.error(`\nTo authenticate Microsoft 365, visit: ${event.verificationUri}`);
+      console.error(`Enter code: ${event.userCode}`);
+      break;
+    case "auth-waiting":
+      console.error(`Waiting for authentication...`);
+      break;
+    case "auth-success":
+      console.error(`Authentication successful. Tokens cached.`);
+      break;
+    case "connect-error":
+      console.error(`   ❌ Failed to connect to ${event.account}: ${event.error.message}`);
+      break;
+  }
+}
+
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
@@ -114,6 +139,15 @@ program
       account: account || null,
       dataDir: DATA_DIR,
       fsGateway: new FileSystemGateway(),
+    }, (event) => {
+      switch (event.type) {
+        case "scan-account-start":
+          console.error(`🔍 Scanning ${event.name} (${event.user})...`);
+          break;
+        case "scan-account-complete":
+          console.error(`   ✅ Found ${event.count} receipt-like messages`);
+          break;
+      }
     });
 
     console.error(`Saved raw results to ${rawPath}`);
@@ -235,6 +269,33 @@ program
       dryRun: opts.dryRun,
       outputDir: opts.output,
       account: account || null,
+    }, {}, (event) => {
+      switch (event.type) {
+        case "download-account-start":
+          console.error(`\n📎 Downloading from ${event.name} (${event.user})...`);
+          break;
+        case "download-biz-count":
+          console.error(`   🏢 ${event.count} business receipt emails to check for PDFs`);
+          break;
+        case "fetch-structure-error":
+          console.error(`      ⚠️  Could not fetch structure for UID ${event.uid}: ${event.error.message}`);
+          break;
+        case "download-dry-run":
+          console.error(`   📄 [DRY RUN] Would download: ${event.filename}`);
+          break;
+        case "invalid-pdf":
+          console.error(`      ⚠️  Skipping ${event.filename} — not a valid PDF`);
+          break;
+        case "duplicate-content":
+          console.error(`      ⏭️  Skipping ${event.filename} — duplicate content`);
+          break;
+        case "downloaded":
+          console.error(`   📄 Downloaded: ${event.filename} (${(event.size / 1024).toFixed(0)} KB)`);
+          break;
+        case "download-failed":
+          console.error(`      ⚠️  Download failed for ${event.filename}: ${event.error.message}`);
+          break;
+      }
     });
 
     if (json) {
@@ -267,6 +328,122 @@ program
       account: account || null,
       importDownloadReceipts: () => import("./download-receipts.js"),
       importVendorMap: () => import("./vendor-map.js"),
+    }, (event) => {
+      switch (event.type) {
+        case "llm-enabled":
+          console.error("Using LLM (gpt-5-mini) for receipt data extraction");
+          break;
+        case "llm-disabled":
+          console.error("OPENAI_API_KEY not set — using pattern-based extraction");
+          break;
+        case "llm-not-configured":
+          console.error(`   Warning: Could not initialize LLM broker: ${event.error.message}`);
+          break;
+        case "search-account":
+          console.error(`\nSearching ${event.name} (${event.user})...`);
+          break;
+        case "mailbox-search-start":
+          console.error(`   ${event.mailbox} (${event.messageCount} messages)...`);
+          break;
+        case "mailbox-candidates":
+          console.error(`      ${event.count} candidates`);
+          break;
+        case "mailbox-fetch-error":
+          console.error(`      Fetch failed: ${event.error.message}`);
+          break;
+        case "vendor-filter-applied":
+          console.error(`   Filtered to ${event.matchCount} of ${event.matchCount + event.excludedCount} messages matching vendor "${opts.vendor}"`);
+          break;
+        case "subject-exclusions":
+          console.error(`   Excluded ${event.count} non-invoice subjects`);
+          break;
+        case "unique-receipts":
+          console.error(`   ${event.count} unique receipt emails`);
+          break;
+        case "using-pdf-content":
+          console.error(`      Using PDF content for extraction (UID ${event.uid})`);
+          break;
+        case "docling-failed":
+          console.error(`      Docling failed for UID ${event.uid}: ${event.error.message}`);
+          break;
+        case "llm-extraction-failed":
+          console.error(`   LLM extraction failed: ${event.error.message}`);
+          break;
+        case "skip-non-invoice":
+          console.error(`   Skipping ${event.vendor} — classified as non-invoice (confidence: ${(event.confidence || 0).toFixed(2)})`);
+          break;
+        case "skip-low-confidence":
+          console.error(`   Skipping ${event.vendor} — low confidence ${(event.confidence).toFixed(2)}`);
+          break;
+        case "skip-existing-invoice":
+          console.error(`   Skipping ${event.vendor} ${event.invoiceNumber} — already exists`);
+          break;
+        case "skip-duplicate":
+          console.error(`   Skipping ${event.label} — duplicate content`);
+          break;
+        case "dry-run-pdf":
+          console.error(`   [DRY RUN] ${event.filename}`);
+          break;
+        case "dry-run-json":
+          console.error(`   [DRY RUN] ${event.filename}`);
+          break;
+        case "downloaded-pdf":
+          console.error(`   Downloaded: ${event.filename} (${(event.size / 1024).toFixed(0)} KB)`);
+          break;
+        case "dry-run-metadata":
+          console.error(`   [DRY RUN] ${event.filename} (no PDF)`);
+          break;
+        case "wrote-metadata":
+          console.error(`   Wrote metadata: ${event.filename} (no PDF)`);
+          break;
+        case "process-error":
+          console.error(`   Error processing UID ${event.uid}: ${event.error.message}`);
+          break;
+        case "download-summary": {
+          const s = event.stats;
+          console.error(`\n=== Download Complete ===`);
+          console.error(`Found:       ${s.found}`);
+          console.error(`Downloaded:  ${s.downloaded}`);
+          console.error(`No PDF:      ${s.noPdf}`);
+          console.error(`Skipped:     ${s.skipped} (non-invoice or low confidence)`);
+          console.error(`Duplicates:  ${s.alreadyHave}`);
+          console.error(`Errors:      ${s.errors}`);
+          break;
+        }
+        case "reprocess-start":
+          console.error(`Reprocessing receipts in ${event.outputDir}...`);
+          break;
+        case "reprocess-dry-run":
+          console.error(`  [DRY RUN] ${event.filename} — would reprocess`);
+          break;
+        case "reprocess-docling-failed":
+          console.error(`  ❌ ${event.filename} — docling conversion failed`);
+          break;
+        case "reprocess-dry-run-body":
+          console.error(`  [DRY RUN] ${event.filename} — would reprocess (body snippet)`);
+          break;
+        case "reprocess-using-body":
+          console.error(`      Using stored body snippet for extraction (${event.filename})`);
+          break;
+        case "reprocess-skipped":
+          console.error(`  ⏭️  ${event.filename} — no PDF and no body snippet, skipped`);
+          break;
+        case "reprocess-no-data":
+          console.error(`  ❌ ${event.filename} — LLM extraction returned no data`);
+          break;
+        case "reprocess-reclassified":
+          console.error(`  🗑️  ${event.filename} — reclassified as non-invoice, removing`);
+          break;
+        case "reprocess-updated":
+          console.error(`  ✅ ${event.filename} — updated metadata`);
+          break;
+        case "reprocess-error":
+          console.error(`  ❌ ${event.filename} — extraction failed: ${event.error.message}`);
+          break;
+        case "reprocess-summary":
+          console.error(`\nReprocessed: ${event.reprocessed}, Skipped: ${event.skipped}, Reclassified: ${event.reclassified}, Errors: ${event.errors}`);
+          break;
+      }
     });
 
     if (json) {
@@ -409,7 +586,7 @@ program
           console.log(`  ${f.path}${special}`);
         }
       }
-    });
+    }, renderAuthProgress);
 
     if (json) {
       console.log(JSON.stringify(allFolders));
@@ -660,7 +837,44 @@ program
   .option("--force", "overwrite even if installed skill is from a newer version")
   .action(withErrorHandling(async (opts) => {
     const json = resolveJson(opts);
-    await initCommand(program.version(), { json, global: !!opts.global, force: !!opts.force });
+    const result = await initCommand(program.version(), { global: !!opts.global, force: !!opts.force });
+
+    const { version, files } = result;
+    const isGlobal = result.global;
+    const skipped = files.filter(r => r.action === "skipped").length;
+
+    if (json) {
+      /** @type {import("./init.js").InitResult} */
+      const output = {
+        success: skipped === 0,
+        message: skipped > 0
+          ? `Skill install skipped`
+          : `Skill ${files[0].action}`,
+        version,
+        files,
+      };
+      console.log(JSON.stringify(output));
+    } else {
+      const scope = isGlobal ? "global (~/.claude)" : "local";
+      console.log(`\nmailctl v${version} — skill files (${scope})\n`);
+      for (const r of files) {
+        const icon =
+          r.action === "created" ? "+" :
+          r.action === "updated" ? "~" :
+          r.action === "skipped" ? "!" :
+          "=";
+        const label =
+          r.action === "created" ? "Created" :
+          r.action === "updated" ? "Updated" :
+          r.action === "skipped" ? "Skipped" :
+          "Up to date";
+        console.log(`  ${icon} ${r.path} (${label})`);
+        if (r.warning) {
+          console.log(`    ${r.warning}`);
+        }
+      }
+      console.log();
+    }
   }));
 
 program.parse();
