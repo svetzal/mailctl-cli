@@ -698,7 +698,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     );
 
     if (vendorExcluded > 0) {
-      onProgress({ type: "vendor-filter-applied", matchCount: unique.length, excludedCount: vendorExcluded });
+      onProgress({ type: "vendor-filter-applied", matchCount: unique.length, excludedCount: vendorExcluded, vendor: opts.vendor || null });
     }
     if (subjectExcluded > 0) {
       onProgress({ type: "subject-exclusions", count: subjectExcluded });

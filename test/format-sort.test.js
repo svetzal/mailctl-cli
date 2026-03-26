@@ -1,0 +1,31 @@
+import { describe, it, expect } from "bun:test";
+import { formatSortResultText } from "../src/format-sort.js";
+
+describe("formatSortResultText", () => {
+  it("includes the Sort Complete header", () => {
+    const text = formatSortResultText({ moved: 0, skipped: 0, unclassified: 0 });
+    expect(text).toContain("=== Sort Complete ===");
+  });
+
+  it("shows moved count", () => {
+    const text = formatSortResultText({ moved: 5, skipped: 0, unclassified: 0 });
+    expect(text).toContain("Moved:        5");
+  });
+
+  it("shows skipped count", () => {
+    const text = formatSortResultText({ moved: 0, skipped: 3, unclassified: 0 });
+    expect(text).toContain("Skipped:      3");
+  });
+
+  it("shows unclassified count with default note", () => {
+    const text = formatSortResultText({ moved: 0, skipped: 0, unclassified: 2 });
+    expect(text).toContain("Unclassified: 2 (defaulted to personal)");
+  });
+
+  it("formats all stats together correctly", () => {
+    const text = formatSortResultText({ moved: 10, skipped: 5, unclassified: 1 });
+    expect(text).toContain("Moved:        10");
+    expect(text).toContain("Skipped:      5");
+    expect(text).toContain("Unclassified: 1 (defaulted to personal)");
+  });
+});

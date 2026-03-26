@@ -33,6 +33,14 @@ import { ConfirmGateway } from "./gateways/confirm-gateway.js";
 import { formatThreadText } from "./thread.js";
 import { formatContactsText } from "./contacts.js";
 import { initCommand } from "./init.js";
+import { renderAuthEvent } from "./render-auth-events.js";
+import { renderScanEvent } from "./render-scan-events.js";
+import { renderSortEvent } from "./render-sort-events.js";
+import { renderDownloadEvent } from "./render-download-events.js";
+import { renderDownloadReceiptsEvent } from "./render-download-receipts-events.js";
+import { formatSortResultText } from "./format-sort.js";
+import { formatDownloadResultText } from "./format-download.js";
+import { formatDownloadReceiptsResultText } from "./format-download-receipts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -95,24 +103,8 @@ const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccoun
  * @param {object} event
  */
 function renderAuthProgress(event) {
-  switch (event.type) {
-    case "token-refresh-failed":
-      console.error(`   Token refresh failed: ${event.error.message}`);
-      break;
-    case "device-code-prompt":
-      console.error(`\nTo authenticate Microsoft 365, visit: ${event.verificationUri}`);
-      console.error(`Enter code: ${event.userCode}`);
-      break;
-    case "auth-waiting":
-      console.error(`Waiting for authentication...`);
-      break;
-    case "auth-success":
-      console.error(`Authentication successful. Tokens cached.`);
-      break;
-    case "connect-error":
-      console.error(`   ❌ Failed to connect to ${event.account}: ${event.error.message}`);
-      break;
-  }
+  const line = renderAuthEvent(event);
+  if (line) console.error(line);
 }
 
 program
@@ -140,14 +132,8 @@ program
       dataDir: DATA_DIR,
       fsGateway: new FileSystemGateway(),
     }, (event) => {
-      switch (event.type) {
-        case "scan-account-start":
-          console.error(`🔍 Scanning ${event.name} (${event.user})...`);
-          break;
-        case "scan-account-complete":
-          console.error(`   ✅ Found ${event.count} receipt-like messages`);
-          break;
-      }
+      const line = renderScanEvent(event);
+      if (line) console.error(line);
     });
 
     console.error(`Saved raw results to ${rawPath}`);
@@ -215,32 +201,8 @@ program
       },
       {},
       (event) => {
-        switch (event.type) {
-          case "account-start":
-            console.error(`\n📬 Sorting ${event.name} (${event.user})...`);
-            break;
-          case "folder-exists":
-            console.error(`   ✅ Folder exists: ${event.folder}`);
-            break;
-          case "folder-created":
-            console.error(`   📁 Created folder: ${event.folder}`);
-            break;
-          case "folder-error":
-            console.error(`   ❌ Failed to create ${event.folder}: ${event.error.message}`);
-            break;
-          case "scan-complete":
-            console.error(`   🔍 Found ${event.count} receipt messages to sort`);
-            break;
-          case "move-dry-run":
-            console.error(`   ${event.icon} [DRY RUN] Would move ${event.count} messages: ${event.label}`);
-            break;
-          case "moved":
-            console.error(`   ${event.icon} Moved ${event.count} messages: ${event.label}`);
-            break;
-          case "move-error":
-            console.error(`   ⚠️  Move failed (${event.label}): ${event.error.message}`);
-            break;
-        }
+        const line = renderSortEvent(event);
+        if (line) console.error(line);
       }
     );
 
@@ -249,10 +211,7 @@ program
       return;
     }
 
-    console.log("\n=== Sort Complete ===");
-    console.log(`Moved:        ${stats.moved}`);
-    console.log(`Skipped:      ${stats.skipped}`);
-    console.log(`Unclassified: ${stats.unclassified} (defaulted to personal)`);
+    console.log(formatSortResultText(stats));
   }));
 
 program
@@ -270,32 +229,8 @@ program
       outputDir: opts.output,
       account: account || null,
     }, {}, (event) => {
-      switch (event.type) {
-        case "download-account-start":
-          console.error(`\n📎 Downloading from ${event.name} (${event.user})...`);
-          break;
-        case "download-biz-count":
-          console.error(`   🏢 ${event.count} business receipt emails to check for PDFs`);
-          break;
-        case "fetch-structure-error":
-          console.error(`      ⚠️  Could not fetch structure for UID ${event.uid}: ${event.error.message}`);
-          break;
-        case "download-dry-run":
-          console.error(`   📄 [DRY RUN] Would download: ${event.filename}`);
-          break;
-        case "invalid-pdf":
-          console.error(`      ⚠️  Skipping ${event.filename} — not a valid PDF`);
-          break;
-        case "duplicate-content":
-          console.error(`      ⏭️  Skipping ${event.filename} — duplicate content`);
-          break;
-        case "downloaded":
-          console.error(`   📄 Downloaded: ${event.filename} (${(event.size / 1024).toFixed(0)} KB)`);
-          break;
-        case "download-failed":
-          console.error(`      ⚠️  Download failed for ${event.filename}: ${event.error.message}`);
-          break;
-      }
+      const line = renderDownloadEvent(event);
+      if (line) console.error(line);
     });
 
     if (json) {
@@ -303,11 +238,7 @@ program
       return;
     }
 
-    console.log("\n=== Download Complete ===");
-    console.log(`Downloaded:    ${stats.downloaded}`);
-    console.log(`Already had:   ${stats.alreadyHave}`);
-    console.log(`No PDF:        ${stats.noPdf}`);
-    console.log(`Skipped/Error: ${stats.skipped}`);
+    console.log(formatDownloadResultText(stats));
   }));
 
 program
@@ -329,121 +260,8 @@ program
       importDownloadReceipts: () => import("./download-receipts.js"),
       importVendorMap: () => import("./vendor-map.js"),
     }, (event) => {
-      switch (event.type) {
-        case "llm-enabled":
-          console.error("Using LLM (gpt-5-mini) for receipt data extraction");
-          break;
-        case "llm-disabled":
-          console.error("OPENAI_API_KEY not set — using pattern-based extraction");
-          break;
-        case "llm-not-configured":
-          console.error(`   Warning: Could not initialize LLM broker: ${event.error.message}`);
-          break;
-        case "search-account":
-          console.error(`\nSearching ${event.name} (${event.user})...`);
-          break;
-        case "mailbox-search-start":
-          console.error(`   ${event.mailbox} (${event.messageCount} messages)...`);
-          break;
-        case "mailbox-candidates":
-          console.error(`      ${event.count} candidates`);
-          break;
-        case "mailbox-fetch-error":
-          console.error(`      Fetch failed: ${event.error.message}`);
-          break;
-        case "vendor-filter-applied":
-          console.error(`   Filtered to ${event.matchCount} of ${event.matchCount + event.excludedCount} messages matching vendor "${opts.vendor}"`);
-          break;
-        case "subject-exclusions":
-          console.error(`   Excluded ${event.count} non-invoice subjects`);
-          break;
-        case "unique-receipts":
-          console.error(`   ${event.count} unique receipt emails`);
-          break;
-        case "using-pdf-content":
-          console.error(`      Using PDF content for extraction (UID ${event.uid})`);
-          break;
-        case "docling-failed":
-          console.error(`      Docling failed for UID ${event.uid}: ${event.error.message}`);
-          break;
-        case "llm-extraction-failed":
-          console.error(`   LLM extraction failed: ${event.error.message}`);
-          break;
-        case "skip-non-invoice":
-          console.error(`   Skipping ${event.vendor} — classified as non-invoice (confidence: ${(event.confidence || 0).toFixed(2)})`);
-          break;
-        case "skip-low-confidence":
-          console.error(`   Skipping ${event.vendor} — low confidence ${(event.confidence).toFixed(2)}`);
-          break;
-        case "skip-existing-invoice":
-          console.error(`   Skipping ${event.vendor} ${event.invoiceNumber} — already exists`);
-          break;
-        case "skip-duplicate":
-          console.error(`   Skipping ${event.label} — duplicate content`);
-          break;
-        case "dry-run-pdf":
-          console.error(`   [DRY RUN] ${event.filename}`);
-          break;
-        case "dry-run-json":
-          console.error(`   [DRY RUN] ${event.filename}`);
-          break;
-        case "downloaded-pdf":
-          console.error(`   Downloaded: ${event.filename} (${(event.size / 1024).toFixed(0)} KB)`);
-          break;
-        case "dry-run-metadata":
-          console.error(`   [DRY RUN] ${event.filename} (no PDF)`);
-          break;
-        case "wrote-metadata":
-          console.error(`   Wrote metadata: ${event.filename} (no PDF)`);
-          break;
-        case "process-error":
-          console.error(`   Error processing UID ${event.uid}: ${event.error.message}`);
-          break;
-        case "download-summary": {
-          const s = event.stats;
-          console.error(`\n=== Download Complete ===`);
-          console.error(`Found:       ${s.found}`);
-          console.error(`Downloaded:  ${s.downloaded}`);
-          console.error(`No PDF:      ${s.noPdf}`);
-          console.error(`Skipped:     ${s.skipped} (non-invoice or low confidence)`);
-          console.error(`Duplicates:  ${s.alreadyHave}`);
-          console.error(`Errors:      ${s.errors}`);
-          break;
-        }
-        case "reprocess-start":
-          console.error(`Reprocessing receipts in ${event.outputDir}...`);
-          break;
-        case "reprocess-dry-run":
-          console.error(`  [DRY RUN] ${event.filename} — would reprocess`);
-          break;
-        case "reprocess-docling-failed":
-          console.error(`  ❌ ${event.filename} — docling conversion failed`);
-          break;
-        case "reprocess-dry-run-body":
-          console.error(`  [DRY RUN] ${event.filename} — would reprocess (body snippet)`);
-          break;
-        case "reprocess-using-body":
-          console.error(`      Using stored body snippet for extraction (${event.filename})`);
-          break;
-        case "reprocess-skipped":
-          console.error(`  ⏭️  ${event.filename} — no PDF and no body snippet, skipped`);
-          break;
-        case "reprocess-no-data":
-          console.error(`  ❌ ${event.filename} — LLM extraction returned no data`);
-          break;
-        case "reprocess-reclassified":
-          console.error(`  🗑️  ${event.filename} — reclassified as non-invoice, removing`);
-          break;
-        case "reprocess-updated":
-          console.error(`  ✅ ${event.filename} — updated metadata`);
-          break;
-        case "reprocess-error":
-          console.error(`  ❌ ${event.filename} — extraction failed: ${event.error.message}`);
-          break;
-        case "reprocess-summary":
-          console.error(`\nReprocessed: ${event.reprocessed}, Skipped: ${event.skipped}, Reclassified: ${event.reclassified}, Errors: ${event.errors}`);
-          break;
-      }
+      const line = renderDownloadReceiptsEvent(event);
+      if (line) console.error(line);
     });
 
     if (json) {
@@ -458,34 +276,7 @@ program
       return;
     }
 
-    if (result.mode === "listVendors") {
-      if (result.configVendors.length > 0) {
-        console.log("Known vendors (from config):");
-        console.log(`  ${result.configVendors.join(", ")}`);
-        console.log();
-      }
-      if (result.recentVendors.length > 0) {
-        const monthLabel = opts.since ? `since ${opts.since}` : `last ${opts.months} months`;
-        console.log(`Recent vendors (${monthLabel}):`);
-        for (const v of result.recentVendors) {
-          console.log(`  ${v.vendor} (${v.count} receipt${v.count === 1 ? "" : "s"})`);
-        }
-      } else {
-        console.log("No receipt vendors found in the search period.");
-      }
-    } else if (result.mode === "reprocess") {
-      console.log("\n=== Reprocess Complete ===");
-      console.log(`Reprocessed:   ${result.reprocessed}`);
-      console.log(`Skipped:       ${result.skipped}`);
-      console.log(`Errors:        ${result.errors}`);
-    } else {
-      console.log("\n=== Download Receipts Complete ===");
-      console.log(`Found:         ${result.stats.found}`);
-      console.log(`Downloaded:    ${result.stats.downloaded}`);
-      console.log(`No PDF:        ${result.stats.noPdf}`);
-      console.log(`Already have:  ${result.stats.alreadyHave}`);
-      console.log(`Errors:        ${result.stats.errors}`);
-    }
+    console.log(formatDownloadReceiptsResultText(result, opts));
   }));
 
 // --- General email operations ---

@@ -48,7 +48,7 @@ bin/run classify                # output unclassified senders
 
 ```text
 bin/run                        — Secure credential wrapper (bash)
-src/cli.js                     — CLI entry point: thin dispatcher (~635 lines), each .action() is 5–20 lines
+src/cli.js                     — CLI entry point: true thin dispatcher (~400 lines), each .action() is 5–15 lines with no inline event rendering logic
 
 Command orchestrators (testable, injected deps):
 src/search-command.js          — Search orchestration (cross-account, date filters, dedup)
@@ -77,9 +77,18 @@ src/move-logic.js              — parseUidArgs(), groupUidsByAccount() — pure
 src/read-email.js              — buildReadResult(), formatReadResultText() — pure email read formatting
 src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachmentIndex() — attachment helpers
 src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
+src/format-bytes.js            — formatKB() — shared byte-to-KB formatter
 src/format-scan.js             — formatScanSummaryText(), formatUnclassifiedText() — pure scan output formatters
 src/format-search.js           — formatSearchResultsText() — pure search result formatter
 src/format-move.js             — formatMoveResultText() — pure move summary formatter
+src/format-sort.js             — formatSortResultText() — pure sort summary formatter
+src/format-download.js         — formatDownloadResultText() — pure download summary formatter
+src/format-download-receipts.js — formatDownloadReceiptsResultText() — pure download-receipts result formatter
+src/render-auth-events.js      — renderAuthEvent() — pure auth progress event renderer
+src/render-scan-events.js      — renderScanEvent() — pure scan progress event renderer
+src/render-sort-events.js      — renderSortEvent() — pure sort progress event renderer
+src/render-download-events.js  — renderDownloadEvent() — pure download progress event renderer
+src/render-download-receipts-events.js — renderDownloadReceiptsEvent() — pure download-receipts progress event renderer
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
 src/receipt-search-pipeline.js — searchAccountForReceipts() — per-account mailbox search with dedup; shared by download and list-vendors
