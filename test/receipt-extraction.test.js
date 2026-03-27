@@ -1,22 +1,22 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
+import { resetConfigCache } from "../src/config.js";
 import {
-  titleCase,
-  sanitizeFilename,
-  vendorFromDomain,
-  extractVendorFromContent,
   cleanVendorForFilename,
+  extractAmount,
   extractForwardedSender,
+  extractInvoiceNumber,
+  extractMetadata,
+  extractService,
+  extractTax,
+  extractVendorFromContent,
   formatDate,
   inferCurrency,
   isCanadianMerchant,
   isValidInvoiceNumber,
-  extractInvoiceNumber,
-  extractAmount,
-  extractTax,
-  extractService,
-  extractMetadata,
+  sanitizeFilename,
+  titleCase,
+  vendorFromDomain,
 } from "../src/receipt-extraction.js";
-import { resetConfigCache } from "../src/config.js";
 
 /** Test vendor maps — injected via overrides, not from config file. */
 const TEST_VENDOR_FILENAME_NAMES = {
@@ -367,13 +367,13 @@ describe("extractTax", () => {
 
   it("extracts GST amount", () => {
     const result = extractTax("GST: $0.50");
-    expect(result?.amount).toBe(0.50);
+    expect(result?.amount).toBe(0.5);
     expect(result?.type).toBe("GST");
   });
 
   it("extracts tax in 'Tax (HST): $X.XX' format", () => {
     const result = extractTax("Tax (HST): $2.30");
-    expect(result?.amount).toBe(2.30);
+    expect(result?.amount).toBe(2.3);
     expect(result?.type).toBe("HST");
   });
 

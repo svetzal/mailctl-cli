@@ -3,10 +3,11 @@
  * Isolates filesystem and subprocess I/O so tests can inject a mock instead.
  * Contains no logic to test.
  */
-import { writeFileSync, readFileSync, unlinkSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
-import { execSync } from "child_process";
+
+import { execSync } from "node:child_process";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export class EditorGateway {
   /**

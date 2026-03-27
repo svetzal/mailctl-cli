@@ -1,5 +1,11 @@
-import { describe, it, expect } from "bun:test";
-import { sanitizeString, headerValueToString, collectValues, filterAccountsByName, resolveCommandContext } from "../src/cli-helpers.js";
+import { describe, expect, it } from "bun:test";
+import {
+  collectValues,
+  filterAccountsByName,
+  headerValueToString,
+  resolveCommandContext,
+  sanitizeString,
+} from "../src/cli-helpers.js";
 
 // ── sanitizeString ────────────────────────────────────────────────────────────
 
@@ -87,11 +93,7 @@ describe("collectValues", () => {
 // ── filterAccountsByName ───────────────────────────────────────────────────────
 
 describe("filterAccountsByName", () => {
-  const accounts = [
-    { name: "iCloud" },
-    { name: "Gmail" },
-    { name: "Work" },
-  ];
+  const accounts = [{ name: "iCloud" }, { name: "Gmail" }, { name: "Work" }];
 
   it("returns all accounts when name is null", () => {
     expect(filterAccountsByName(accounts, null)).toEqual(accounts);
@@ -123,10 +125,7 @@ describe("filterAccountsByName", () => {
 // ── resolveCommandContext ──────────────────────────────────────────────────────
 
 describe("resolveCommandContext", () => {
-  const allAccounts = [
-    { name: "iCloud" },
-    { name: "Gmail" },
-  ];
+  const allAccounts = [{ name: "iCloud" }, { name: "Gmail" }];
 
   const deps = {
     resolveJson: (/** @type {any} */ opts) => !!opts.json,
@@ -149,9 +148,9 @@ describe("resolveCommandContext", () => {
   });
 
   it("throws when the account name matches no configured account", () => {
-    expect(() =>
-      resolveCommandContext({ json: false, account: "NoSuchAccount" }, deps)
-    ).toThrow('Account "NoSuchAccount" not found.');
+    expect(() => resolveCommandContext({ json: false, account: "NoSuchAccount" }, deps)).toThrow(
+      'Account "NoSuchAccount" not found.',
+    );
   });
 
   it("resolves the json flag from opts", () => {

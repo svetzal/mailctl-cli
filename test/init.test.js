@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { stampVersion, stripVersionInfo, parseInstalledVersion, compareSemver } from "../src/init.js";
+import { describe, expect, it } from "bun:test";
+import { compareSemver, parseInstalledVersion, stampVersion, stripVersionInfo } from "../src/init.js";
 
 describe("stampVersion", () => {
   it("inserts mailctl-version before closing frontmatter delimiter", () => {

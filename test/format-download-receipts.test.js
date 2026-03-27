@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { formatDownloadReceiptsResultText } from "../src/format-download-receipts.js";
 
 /** @typedef {import("../src/format-download-receipts.js").DownloadReceiptsResult} DownloadReceiptsResult */

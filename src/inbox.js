@@ -94,9 +94,7 @@ export function formatInboxText(resultsByAccount) {
     for (const msg of messages) {
       const marker = msg.unread ? "\u25CF" : "\u25CB";
       const dateStr = formatMessageDate(msg.date);
-      const sender = msg.fromName
-        ? `${msg.fromName} <${msg.from}>`
-        : msg.from;
+      const sender = msg.fromName ? `${msg.fromName} <${msg.from}>` : msg.from;
       lines.push(`  ${marker} UID:${msg.uid}  ${dateStr}  ${sender}`);
       lines.push(`    ${msg.subject}`);
     }
@@ -113,12 +111,10 @@ export function formatInboxText(resultsByAccount) {
  * @returns {string}
  */
 function formatMessageDate(date) {
-  if (!(date instanceof Date) || isNaN(date.getTime())) return "";
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
   const now = new Date();
   const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
+    date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
 
   if (isToday) {
     return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });

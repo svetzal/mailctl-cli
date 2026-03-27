@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { resolveDateFilters } from "../src/date-filters.js";
 
 describe("resolveDateFilters", () => {
@@ -55,15 +55,15 @@ describe("resolveDateFilters", () => {
   });
 
   it("throws when --since is on or after --before", () => {
-    expect(() =>
-      resolveDateFilters({ since: "2026-03-01", before: "2026-01-01" })
-    ).toThrow("--since date must be before --before date");
+    expect(() => resolveDateFilters({ since: "2026-03-01", before: "2026-01-01" })).toThrow(
+      "--since date must be before --before date",
+    );
   });
 
   it("throws when --since equals --before", () => {
-    expect(() =>
-      resolveDateFilters({ since: "2026-01-15", before: "2026-01-15" })
-    ).toThrow("--since date must be before --before date");
+    expect(() => resolveDateFilters({ since: "2026-01-15", before: "2026-01-15" })).toThrow(
+      "--since date must be before --before date",
+    );
   });
 
   it("combines --months and --before without conflict or warnings", () => {

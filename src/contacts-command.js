@@ -4,8 +4,9 @@
  * Extracts the orchestration logic from the cli.js contacts handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
-import { extractContacts, aggregateContacts } from "./contacts.js";
+
 import { getConfigSelfAddresses } from "./config.js";
+import { aggregateContacts, extractContacts } from "./contacts.js";
 import { parseDate } from "./parse-date.js";
 
 /**

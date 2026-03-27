@@ -143,6 +143,7 @@ data/                          — Runtime data (gitignored): scan results, clas
 - JSDoc comments on public functions
 - Console output: `console.error` for progress/status, `console.log` for data output
 - No magic numbers — use named constants
+- **Formatting enforced by Biome** — run `bun run lint:fix` to auto-fix
 
 ### Testing
 
@@ -154,12 +155,15 @@ data/                          — Runtime data (gitignored): scan results, clas
 
 ### Quality Gates (hone)
 
-All four must pass before shipping:
+All five must pass before shipping:
 
-- **lint**: `bunx tsc --noEmit` — JSDoc type checking via `checkJs` + `@types/node`
+- **typecheck**: `bunx tsc --noEmit` — JSDoc type checking via `checkJs` + `@types/node`
+- **lint**: `bunx biome check src/ test/` — linting and formatting (Biome)
 - **test**: `bun test` — all tests green
 - **build**: `bun build src/cli.js --compile --outfile=build/mailctl`
 - **audit**: `bun audit` — no known dependency vulnerabilities
+
+To auto-fix lint and formatting issues: `bun run lint:fix`
 
 ### Security Rules — CRITICAL
 

@@ -4,7 +4,7 @@
  * Accepts an injected gateway instance so callers can pass a mock in tests.
  */
 
-import { join } from "path";
+import { join } from "node:path";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 
 const SCAN_RESULTS_FILE = "scan-results.json";

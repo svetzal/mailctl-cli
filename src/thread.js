@@ -198,18 +198,22 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
 
   try {
     const uidStr = String(uid);
-    for await (const msg of client.fetch(uidStr, {
-      envelope: true,
-      headers: true,
-      uid: true,
-    }, { uid: true })) {
+    for await (const msg of client.fetch(
+      uidStr,
+      {
+        envelope: true,
+        headers: true,
+        uid: true,
+      },
+      { uid: true },
+    )) {
       anchorMessageId = msg.envelope.messageId || "";
       anchorSubject = msg.envelope.subject || "";
       if (msg.headers) {
         const headersText = msg.headers.toString();
-        const refsMatch = headersText.match(/^References:\s*(.+?)(?=\r?\n\S|\r?\n\r?\n)/mis);
+        const refsMatch = headersText.match(/^References:\s*(.+?)(?=\r?\n\S|\r?\n\r?\n)/ims);
         if (refsMatch) anchorReferences = refsMatch[1].replace(/\r?\n\s+/g, " ").trim();
-        const replyMatch = headersText.match(/^In-Reply-To:\s*(.+?)$/mi);
+        const replyMatch = headersText.match(/^In-Reply-To:\s*(.+?)$/im);
         if (replyMatch) anchorInReplyTo = replyMatch[1].trim();
       }
     }
@@ -316,19 +320,28 @@ export function formatThreadText(messages, opts = {}) {
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    const dateStr = msg.date ? new Date(msg.date).toLocaleString("en-US", {
-      month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-    }) : "unknown";
-    const sender = msg.fromName
-      ? `${msg.fromName} <${msg.from}>`
-      : msg.from;
+    const dateStr = msg.date
+      ? new Date(msg.date).toLocaleString("en-US", {
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      : "unknown";
+    const sender = msg.fromName ? `${msg.fromName} <${msg.from}>` : msg.from;
 
     lines.push(`  ${i + 1}. ${dateStr}  ${sender}`);
     lines.push(`     ${msg.subject}`);
 
     if (opts.full && msg.body) {
-      lines.push("     " + "─".repeat(60));
-      lines.push(msg.body.split("\n").map((l) => `     ${l}`).join("\n"));
+      lines.push(`     ${"─".repeat(60)}`);
+      lines.push(
+        msg.body
+          .split("\n")
+          .map((l) => `     ${l}`)
+          .join("\n"),
+      );
       lines.push("");
     } else {
       lines.push(`     ${msg.snippet}`);

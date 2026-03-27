@@ -3,7 +3,7 @@
  * Isolates subprocess execution so tests can inject a mock.
  * Contains no logic to test.
  */
-import { execFileSync } from "child_process";
+import { execFileSync } from "node:child_process";
 
 export class SubprocessGateway {
   /**

@@ -1,6 +1,6 @@
-import { describe, it, expect, mock, beforeEach } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { replyCommand } from "../src/reply-command.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,9 @@ function makeImapClient({ downloadContent = Buffer.from("raw email"), findMailbo
     getMailboxLock: mock(() => Promise.resolve(makeLock())),
     search: mock(() => Promise.resolve(findMailbox ? [42] : [])),
     download: mock(() => ({
-      content: (async function* () { yield downloadContent; })(),
+      content: (async function* () {
+        yield downloadContent;
+      })(),
     })),
   };
 }
@@ -75,7 +77,7 @@ describe("replyCommand", () => {
     it("throws when no message source is provided", async () => {
       const deps = makeDeps();
       await expect(replyCommand("42", {}, deps)).rejects.toThrow(
-        "Provide --message, --message-file, or --edit to compose a reply."
+        "Provide --message, --message-file, or --edit to compose a reply.",
       );
     });
 
@@ -86,19 +88,19 @@ describe("replyCommand", () => {
         }),
       });
       await expect(replyCommand("99", { message: "hello" }, deps)).rejects.toThrow(
-        "Could not find UID 99 in any account."
+        "Could not find UID 99 in any account.",
       );
     });
 
     it("throws when matched account has no SMTP configuration", async () => {
       const accountNoSmtp = makeAccount({ smtp: undefined });
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(makeImapClient(), accountNoSmtp);
         }),
       });
       await expect(replyCommand("42", { message: "hello" }, deps)).rejects.toThrow(
-        `No SMTP configuration for account "Test Account"`
+        `No SMTP configuration for account "Test Account"`,
       );
     });
   });
@@ -198,9 +200,7 @@ describe("replyCommand", () => {
       // parseEditorContent strips comment lines — return only comments
       deps.editorGateway.editTempFile = mock(() => "# Just a comment\n# Another comment");
 
-      await expect(replyCommand("42", { edit: true }, deps)).rejects.toThrow(
-        "Empty reply — aborting."
-      );
+      await expect(replyCommand("42", { edit: true }, deps)).rejects.toThrow("Empty reply — aborting.");
     });
 
     it("prompts for confirmation before sending", async () => {
@@ -270,16 +270,16 @@ describe("replyCommand", () => {
     it("stops iterating after the UID is found in first account", async () => {
       const account = makeAccount({ smtp: { host: "smtp.test.com", port: 587, secure: false } });
       const client = makeImapClient();
-      let callCount = 0;
+      let _callCount = 0;
 
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => {
-          callCount++;
+        forEachAccount: mock(async (_accounts, fn) => {
+          _callCount++;
           await fn(client, account);
           await fn(client, makeAccount({ name: "Second Account" })); // should not be used
         }),
         simpleParser: mock(() => {
-          callCount++;
+          _callCount++;
           return Promise.resolve(makeParsedEmail());
         }),
       });
@@ -298,12 +298,14 @@ describe("replyCommand", () => {
       const failClient = {
         getMailboxLock: mock(() => Promise.resolve(makeLock())),
         search: mock(() => Promise.resolve([])),
-        download: mock(() => { throw new Error("UID not found"); }),
+        download: mock(() => {
+          throw new Error("UID not found");
+        }),
       };
       const successClient = makeImapClient();
 
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(failClient, account1);
           await fn(successClient, account2);
         }),

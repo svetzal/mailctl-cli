@@ -1,6 +1,6 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { extractAttachmentCommand } from "../src/extract-attachment-command.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,9 @@ function makeClient({ bodyStructure = null, downloadContent = Buffer.from("PDF d
       yield { bodyStructure };
     }),
     download: mock(() => ({
-      content: (async function* () { yield downloadContent; })(),
+      content: (async function* () {
+        yield downloadContent;
+      })(),
     })),
   };
 }
@@ -66,9 +68,7 @@ describe("extractAttachmentCommand", () => {
   describe("list mode", () => {
     it("returns found: true with attachment listing", async () => {
       const deps = makeDeps();
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { list: true }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
 
       expect(result.found).toBe(true);
       expect(result.list).toBe(true);
@@ -77,9 +77,7 @@ describe("extractAttachmentCommand", () => {
 
     it("includes attachment filename and contentType in listing", async () => {
       const deps = makeDeps();
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { list: true }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
 
       expect(result.attachments[0].filename).toBe("invoice.pdf");
       expect(result.attachments[0].contentType).toBe("application/pdf");
@@ -87,9 +85,7 @@ describe("extractAttachmentCommand", () => {
 
     it("includes account name and uid in list result", async () => {
       const deps = makeDeps();
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { list: true }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
 
       expect(result.account).toBe("Test Account");
       expect(result.uid).toBe(42);
@@ -98,14 +94,12 @@ describe("extractAttachmentCommand", () => {
     it("returns empty attachments array when message has no attachments", async () => {
       const noAttachClient = makeClient({ bodyStructure: null });
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(noAttachClient, makeAccount());
         }),
         _client: noAttachClient,
       });
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { list: true }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
 
       // null bodyStructure means we return early — found stays false
       expect(result.found).toBe(false);
@@ -115,9 +109,7 @@ describe("extractAttachmentCommand", () => {
   describe("save mode", () => {
     it("downloads the specified attachment and writes to disk", async () => {
       const deps = makeDeps();
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps));
 
       expect(result.found).toBe(true);
       expect(result.list).toBe(false);
@@ -126,9 +118,7 @@ describe("extractAttachmentCommand", () => {
 
     it("saves to the correct output directory", async () => {
       const deps = makeDeps();
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { output: "/tmp/receipts" }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/receipts" }, deps));
 
       expect(result.path).toContain("invoice.pdf");
       expect(deps.fsGateway.mkdir).toHaveBeenCalledTimes(1);
@@ -136,9 +126,7 @@ describe("extractAttachmentCommand", () => {
 
     it("uses correct filename from attachment metadata", async () => {
       const deps = makeDeps();
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { output: "." }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "." }, deps));
 
       expect(result.filename).toBe("invoice.pdf");
     });
@@ -147,12 +135,12 @@ describe("extractAttachmentCommand", () => {
       const unnamedPart = makePdfPart({ filename: null, dispositionParameters: {}, parameters: {} });
       const client = makeClient({ bodyStructure: makeBodyStructure([unnamedPart]) });
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => { await fn(client, makeAccount()); }),
+        forEachAccount: mock(async (_accounts, fn) => {
+          await fn(client, makeAccount());
+        }),
         _client: client,
       });
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { output: "." }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "." }, deps));
 
       expect(result.filename).toBe("attachment_0");
     });
@@ -161,21 +149,21 @@ describe("extractAttachmentCommand", () => {
       const content = Buffer.from("PDF content here");
       const client = makeClient({ bodyStructure: makeBodyStructure([makePdfPart()]), downloadContent: content });
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => { await fn(client, makeAccount()); }),
+        forEachAccount: mock(async (_accounts, fn) => {
+          await fn(client, makeAccount());
+        }),
         _client: client,
       });
-      const result = /** @type {any} */ (
-        await extractAttachmentCommand("42", 0, { output: "." }, deps)
-      );
+      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "." }, deps));
 
       expect(result.size).toBe(content.length);
     });
 
     it("throws when attachment index is out of range", async () => {
       const deps = makeDeps();
-      await expect(
-        extractAttachmentCommand("42", 5, { output: "." }, deps)
-      ).rejects.toThrow("Attachment index 5 out of range");
+      await expect(extractAttachmentCommand("42", 5, { output: "." }, deps)).rejects.toThrow(
+        "Attachment index 5 out of range",
+      );
     });
 
     it("downloads with the correct MIME part specifier", async () => {
@@ -206,7 +194,7 @@ describe("extractAttachmentCommand", () => {
         download: mock(() => ({ content: (async function* () {})() })),
       };
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(lockFailClient, makeAccount());
         }),
         _client: lockFailClient,

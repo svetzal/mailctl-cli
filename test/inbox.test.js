@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { fetchInbox, formatInboxText } from "../src/inbox.js";
 import { makeLock } from "./helpers.js";
 
@@ -65,7 +65,7 @@ describe("fetchInbox", () => {
   it("respects limit by taking the last N UIDs", async () => {
     const searchUids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const client = makeClient({ searchUids, envelopes: [] });
-    client.fetch = mock((uidRange) => {
+    client.fetch = mock((_uidRange) => {
       async function* gen() {}
       return gen();
     });
@@ -135,8 +135,26 @@ describe("fetchInbox", () => {
 describe("formatInboxText", () => {
   it("shows unread count in account header", () => {
     const messages = [
-      { account: "iCloud", uid: 1, date: new Date("2026-03-07"), from: "a@b.com", fromName: "", subject: "S1", unread: true, mailbox: "INBOX" },
-      { account: "iCloud", uid: 2, date: new Date("2026-03-07"), from: "c@d.com", fromName: "", subject: "S2", unread: false, mailbox: "INBOX" },
+      {
+        account: "iCloud",
+        uid: 1,
+        date: new Date("2026-03-07"),
+        from: "a@b.com",
+        fromName: "",
+        subject: "S1",
+        unread: true,
+        mailbox: "INBOX",
+      },
+      {
+        account: "iCloud",
+        uid: 2,
+        date: new Date("2026-03-07"),
+        from: "c@d.com",
+        fromName: "",
+        subject: "S2",
+        unread: false,
+        mailbox: "INBOX",
+      },
     ];
     const map = new Map([["iCloud", messages]]);
 
@@ -147,8 +165,26 @@ describe("formatInboxText", () => {
 
   it("uses filled circle for unread and open circle for read", () => {
     const messages = [
-      { account: "Test", uid: 1, date: new Date("2026-03-07"), from: "a@b.com", fromName: "", subject: "Unread", unread: true, mailbox: "INBOX" },
-      { account: "Test", uid: 2, date: new Date("2026-03-07"), from: "c@d.com", fromName: "", subject: "Read", unread: false, mailbox: "INBOX" },
+      {
+        account: "Test",
+        uid: 1,
+        date: new Date("2026-03-07"),
+        from: "a@b.com",
+        fromName: "",
+        subject: "Unread",
+        unread: true,
+        mailbox: "INBOX",
+      },
+      {
+        account: "Test",
+        uid: 2,
+        date: new Date("2026-03-07"),
+        from: "c@d.com",
+        fromName: "",
+        subject: "Read",
+        unread: false,
+        mailbox: "INBOX",
+      },
     ];
     const map = new Map([["Test", messages]]);
 

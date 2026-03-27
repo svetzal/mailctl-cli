@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { contactsCommand } from "../src/contacts-command.js";
 import { makeAccount } from "./helpers.js";
 
@@ -16,18 +16,17 @@ function makeContactEntry(address, name = "Unknown") {
 
 function makeDeps(overrides = {}) {
   const account = makeAccount();
-  const contactEntries = [
-    makeContactEntry("alice@example.com", "Alice"),
-    makeContactEntry("bob@example.com", "Bob"),
-  ];
+  const contactEntries = [makeContactEntry("alice@example.com", "Alice"), makeContactEntry("bob@example.com", "Bob")];
 
-  const forEachAccount = mock(async (accounts, fn) => {
+  const forEachAccount = mock(async (_accounts, fn) => {
     // extractContacts calls listMailboxes(client) which calls client.list()
     const client = {
-      list: mock(() => Promise.resolve([
-        { path: "INBOX", specialUse: "\\Inbox", name: "INBOX" },
-        { path: "Sent", specialUse: "\\Sent", name: "Sent" },
-      ])),
+      list: mock(() =>
+        Promise.resolve([
+          { path: "INBOX", specialUse: "\\Inbox", name: "INBOX" },
+          { path: "Sent", specialUse: "\\Sent", name: "Sent" },
+        ]),
+      ),
       getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
       search: mock(() => Promise.resolve([1, 2])),
       fetch: mock(async function* () {
@@ -85,9 +84,14 @@ describe("contactsCommand", () => {
     const selfAccount = makeAccount({ user: "self@test.com" });
     const deps = makeDeps({
       targetAccounts: [selfAccount],
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         const client = {
-          list: mock(() => Promise.resolve([{ path: "INBOX", specialUse: "\\Inbox" }, { path: "Sent", specialUse: "\\Sent" }])),
+          list: mock(() =>
+            Promise.resolve([
+              { path: "INBOX", specialUse: "\\Inbox" },
+              { path: "Sent", specialUse: "\\Sent" },
+            ]),
+          ),
           getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
           search: mock(() => Promise.resolve([1])),
           fetch: mock(async function* () {
@@ -118,9 +122,14 @@ describe("contactsCommand", () => {
 
     const deps = makeDeps({
       targetAccounts: [account1, account2],
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         const makeClient = () => ({
-          list: mock(() => Promise.resolve([{ path: "INBOX", specialUse: "\\Inbox" }, { path: "Sent", specialUse: "\\Sent" }])),
+          list: mock(() =>
+            Promise.resolve([
+              { path: "INBOX", specialUse: "\\Inbox" },
+              { path: "Sent", specialUse: "\\Sent" },
+            ]),
+          ),
           getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
           search: mock(() => Promise.resolve([1])),
           fetch: mock(async function* () {

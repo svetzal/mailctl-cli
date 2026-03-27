@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { parseUidArgs, groupUidsByAccount } from "../src/move-logic.js";
+import { describe, expect, it } from "bun:test";
+import { groupUidsByAccount, parseUidArgs } from "../src/move-logic.js";
 
 describe("parseUidArgs", () => {
   it("parses plain UIDs using the default account", () => {
@@ -30,9 +30,7 @@ describe("parseUidArgs", () => {
   });
 
   it("throws when a UID has no prefix and no default account", () => {
-    expect(() => parseUidArgs(["123"], null)).toThrow(
-      'UID "123" has no account prefix'
-    );
+    expect(() => parseUidArgs(["123"], null)).toThrow('UID "123" has no account prefix');
   });
 
   it("handles mixed prefixed and unprefixed UIDs when default account is set", () => {
@@ -52,9 +50,7 @@ describe("parseUidArgs", () => {
 
   it("does not treat an all-digit prefix as an account name", () => {
     // "12345:6789" — the part before : is all digits, so no account prefix
-    expect(() => parseUidArgs(["12345:6789"], null)).toThrow(
-      'UID "12345:6789" has no account prefix'
-    );
+    expect(() => parseUidArgs(["12345:6789"], null)).toThrow('UID "12345:6789" has no account prefix');
   });
 
   it("returns an empty array for empty input", () => {

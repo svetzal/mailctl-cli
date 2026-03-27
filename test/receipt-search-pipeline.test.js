@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { searchAccountForReceipts } from "../src/receipt-search-pipeline.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -23,9 +23,7 @@ function makeMsg(uid, messageId, fromAddress = "billing@acme.com", fromName = "A
 function makeFns({ mailboxes = [], messages = {} } = {}) {
   return {
     listMailboxes: mock(() => Promise.resolve(mailboxes)),
-    searchMailboxForReceipts: mock((client, accountName, mbPath) =>
-      Promise.resolve(messages[mbPath] ?? [])
-    ),
+    searchMailboxForReceipts: mock((_client, _accountName, mbPath) => Promise.resolve(messages[mbPath] ?? [])),
   };
 }
 
@@ -78,7 +76,7 @@ describe("searchAccountForReceipts", () => {
     const account = { name: "TestAccount" };
     const since = new Date();
     const msg1 = makeMsg(1, "same-id@acme.com");
-    const msg2 = makeMsg(2, "same-id@acme.com");  // same message-id, different mailbox
+    const msg2 = makeMsg(2, "same-id@acme.com"); // same message-id, different mailbox
     const fns = makeFns({
       mailboxes: [makeMailbox("INBOX"), makeMailbox("Archive")],
       messages: {
@@ -90,7 +88,7 @@ describe("searchAccountForReceipts", () => {
     const result = await searchAccountForReceipts(client, account, since, fns);
 
     expect(result).toHaveLength(1);
-    expect(result[0].uid).toBe(1);  // first occurrence kept
+    expect(result[0].uid).toBe(1); // first occurrence kept
   });
 
   it("returns results from multiple mailboxes when message-ids are unique", async () => {
@@ -119,7 +117,7 @@ describe("searchAccountForReceipts", () => {
     const capturedSince = [];
     const fns = {
       listMailboxes: mock(() => Promise.resolve([makeMailbox("INBOX")])),
-      searchMailboxForReceipts: mock((c, name, mbPath, s) => {
+      searchMailboxForReceipts: mock((_c, _name, _mbPath, s) => {
         capturedSince.push(s);
         return Promise.resolve([]);
       }),
@@ -137,7 +135,7 @@ describe("searchAccountForReceipts", () => {
     const capturedNames = [];
     const fns = {
       listMailboxes: mock(() => Promise.resolve([makeMailbox("INBOX")])),
-      searchMailboxForReceipts: mock((c, name) => {
+      searchMailboxForReceipts: mock((_c, name) => {
         capturedNames.push(name);
         return Promise.resolve([]);
       }),

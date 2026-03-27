@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { downloadReceipts } from "../src/downloader.js";
 import { makeLock } from "./helpers.js";
 
@@ -9,7 +9,7 @@ const OTHER_BYTES = Buffer.from("not a pdf");
 function makeMockClient(pdfContent = PDF_BYTES) {
   return {
     getMailboxLock: mock(() => Promise.resolve(makeLock())),
-    fetch: mock((_uid, opts) => {
+    fetch: mock((_uid, _opts) => {
       async function* gen() {
         yield {
           bodyStructure: {
@@ -17,7 +17,9 @@ function makeMockClient(pdfContent = PDF_BYTES) {
             childNodes: [
               { type: "text/plain", part: "1", size: 100 },
               {
-                type: "application/pdf", part: "2", size: pdfContent.length,
+                type: "application/pdf",
+                part: "2",
+                size: pdfContent.length,
                 disposition: "attachment",
                 dispositionParameters: { filename: "invoice.pdf" },
               },
@@ -28,7 +30,9 @@ function makeMockClient(pdfContent = PDF_BYTES) {
       return gen();
     }),
     download: mock(() => {
-      async function* gen() { yield pdfContent; }
+      async function* gen() {
+        yield pdfContent;
+      }
       return Promise.resolve({ content: gen() });
     }),
   };
@@ -48,13 +52,17 @@ function makeBaseDeps(client, overrides = {}) {
     loadClassifications: () => ({ "billing@vendor.com": "business" }),
     loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
     loadManifest: () => manifest,
-    saveManifest: mock((m) => { Object.assign(manifest, m); }),
+    saveManifest: mock((m) => {
+      Object.assign(manifest, m);
+    }),
     fs: {
       exists: mock(() => false),
       readdir: mock(() => []),
       readBuffer: mock(() => Buffer.alloc(0)),
       mkdir: mock(() => {}),
-      writeFile: mock((path, data) => { written.push({ path, data }); }),
+      writeFile: mock((path, data) => {
+        written.push({ path, data });
+      }),
     },
     forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
     listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
@@ -143,7 +151,7 @@ describe("downloadReceipts", () => {
         }
         return gen();
       }),
-      download: mock(() => Promise.resolve({ content: (async function*() {})() })),
+      download: mock(() => Promise.resolve({ content: (async function* () {})() })),
     };
 
     const deps = makeBaseDeps(clientNoPdf);

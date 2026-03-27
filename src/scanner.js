@@ -1,21 +1,21 @@
+import { loadAccounts as _loadAccounts } from "./accounts.js";
 import {
-  scanForReceipts as _scanForReceipts,
-  listMailboxes as _listMailboxes,
   filterScanMailboxes as _filterScanMailboxes,
   forEachAccount as _forEachAccount,
+  listMailboxes as _listMailboxes,
+  scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
-import { loadAccounts as _loadAccounts } from "./accounts.js";
 
 /**
  * Real implementations used in production. Tests override individual keys.
  * @type {Required<ScannerGateways>}
  */
 const defaultGateways = {
-  loadAccounts:        _loadAccounts,
-  forEachAccount:      _forEachAccount,
-  listMailboxes:       _listMailboxes,
+  loadAccounts: _loadAccounts,
+  forEachAccount: _forEachAccount,
+  listMailboxes: _listMailboxes,
   filterScanMailboxes: _filterScanMailboxes,
-  scanForReceipts:     _scanForReceipts,
+  scanForReceipts: _scanForReceipts,
 };
 
 /**
@@ -39,13 +39,10 @@ const defaultGateways = {
  * @returns {Promise<Array>} receipt messages
  */
 export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () => {}) {
-  const {
-    loadAccounts,
-    forEachAccount,
-    listMailboxes,
-    filterScanMailboxes,
-    scanForReceipts,
-  } = { ...defaultGateways, ...gateways };
+  const { loadAccounts, forEachAccount, listMailboxes, filterScanMailboxes, scanForReceipts } = {
+    ...defaultGateways,
+    ...gateways,
+  };
 
   const months = opts.months ?? 12;
   const since = new Date();

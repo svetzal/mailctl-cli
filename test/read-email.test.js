@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { buildReadResult, formatReadResultText } from "../src/read-email.js";
 
 /**
@@ -43,8 +43,12 @@ describe("buildReadResult", () => {
     const withHtml = mockParsed({ html: "<p>Hello</p>" });
     const withoutHtml = mockParsed({ html: null });
 
-    expect(buildReadResult(withHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).toHaveProperty("bodyHtml");
-    expect(buildReadResult(withoutHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).not.toHaveProperty("bodyHtml");
+    expect(buildReadResult(withHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).toHaveProperty(
+      "bodyHtml",
+    );
+    expect(buildReadResult(withoutHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).not.toHaveProperty(
+      "bodyHtml",
+    );
   });
 
   it("includes headers only when includeHeaders is true", () => {
@@ -90,10 +94,7 @@ describe("buildReadResult", () => {
 
   it("lists attachment filenames, using '(unnamed)' for nameless attachments", () => {
     const parsed = mockParsed({
-      attachments: [
-        { filename: "receipt.pdf" },
-        { filename: null },
-      ],
+      attachments: [{ filename: "receipt.pdf" }, { filename: null }],
     });
     const result = buildReadResult(parsed, "icloud", "1", { maxBody: 1000, includeHeaders: false });
 

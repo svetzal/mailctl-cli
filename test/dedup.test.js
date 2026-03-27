@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { deduplicateByMessageId } from "../src/dedup.js";
 
 /** @param {Partial<{messageId: string, account: string, mailbox: string, uid: string}>} fields */
@@ -14,10 +14,7 @@ function makeResult(fields = {}) {
 
 describe("deduplicateByMessageId", () => {
   it("returns all items when there are no duplicates", () => {
-    const results = [
-      makeResult({ messageId: "a@example.com" }),
-      makeResult({ messageId: "b@example.com" }),
-    ];
+    const results = [makeResult({ messageId: "a@example.com" }), makeResult({ messageId: "b@example.com" })];
 
     expect(deduplicateByMessageId(results)).toEqual(results);
   });

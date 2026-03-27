@@ -10,11 +10,7 @@
  * @returns {string|null}
  */
 export function getPartFilename(part) {
-  return (
-    part.dispositionParameters?.filename ||
-    part.parameters?.name ||
-    null
-  );
+  return part.dispositionParameters?.filename || part.parameters?.name || null;
 }
 
 /**
@@ -60,10 +56,7 @@ function collectAttachmentParts(node, parts) {
   if (isInlineImage(node)) return;
 
   // Skip text/plain and text/html body parts (unless explicitly attached)
-  if (
-    (node.type === "text/plain" || node.type === "text/html") &&
-    node.disposition !== "attachment"
-  ) {
+  if ((node.type === "text/plain" || node.type === "text/html") && node.disposition !== "attachment") {
     return;
   }
 
@@ -105,8 +98,7 @@ function collectPdfParts(node, parts) {
   const filename = getPartFilename(node);
   const isPdf =
     node.type === "application/pdf" ||
-    (node.type === "application/octet-stream" &&
-      filename?.toLowerCase().endsWith(".pdf"));
+    (node.type === "application/octet-stream" && filename?.toLowerCase().endsWith(".pdf"));
 
   if (isPdf) {
     parts.push({

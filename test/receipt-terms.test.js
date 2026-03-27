@@ -1,9 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import {
-  RECEIPT_SUBJECT_TERMS,
-  RECEIPT_SUBJECT_EXCLUSIONS,
-  BILLING_SENDER_PATTERNS,
-} from "../src/receipt-terms.js";
+import { describe, expect, it } from "bun:test";
+import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_EXCLUSIONS, RECEIPT_SUBJECT_TERMS } from "../src/receipt-terms.js";
 
 describe("RECEIPT_SUBJECT_TERMS", () => {
   it("is a non-empty array", () => {

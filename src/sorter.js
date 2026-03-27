@@ -1,16 +1,16 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadAccounts as _loadAccounts } from "./accounts.js";
+import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
-  scanForReceipts as _scanForReceipts,
-  listMailboxes as _listMailboxes,
   filterScanMailboxes as _filterScanMailboxes,
   forEachAccount as _forEachAccount,
+  listMailboxes as _listMailboxes,
+  scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
-import { loadAccounts as _loadAccounts } from "./accounts.js";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { BIZ_FOLDER, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
-import { groupByMailbox, forEachMailboxGroup } from "./imap-orchestration.js";
+import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
 import { requireClassificationsData } from "./scan-data.js";
-import { FileSystemGateway } from "./gateways/fs-gateway.js";
+import { BIZ_FOLDER, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -42,11 +42,11 @@ async function ensureFolders(client, onProgress) {
  */
 const defaultGateways = {
   loadClassifications: () => requireClassificationsData(DATA_DIR, new FileSystemGateway()),
-  loadAccounts:        _loadAccounts,
-  forEachAccount:      _forEachAccount,
-  listMailboxes:       _listMailboxes,
+  loadAccounts: _loadAccounts,
+  forEachAccount: _forEachAccount,
+  listMailboxes: _listMailboxes,
   filterScanMailboxes: _filterScanMailboxes,
-  scanForReceipts:     _scanForReceipts,
+  scanForReceipts: _scanForReceipts,
 };
 
 /**
@@ -59,14 +59,10 @@ const defaultGateways = {
  * @param {function(object): void} [onProgress] - receives structured progress events
  */
 export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => {}) {
-  const {
-    loadClassifications,
-    loadAccounts,
-    forEachAccount,
-    listMailboxes,
-    filterScanMailboxes,
-    scanForReceipts,
-  } = { ...defaultGateways, ...gateways };
+  const { loadClassifications, loadAccounts, forEachAccount, listMailboxes, filterScanMailboxes, scanForReceipts } = {
+    ...defaultGateways,
+    ...gateways,
+  };
 
   const dryRun = opts.dryRun ?? false;
   const months = opts.months ?? 24;

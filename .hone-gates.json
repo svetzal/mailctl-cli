@@ -1,8 +1,13 @@
 {
   "gates": [
     {
-      "name": "lint",
+      "name": "typecheck",
       "command": "bunx tsc --noEmit",
+      "required": true
+    },
+    {
+      "name": "lint",
+      "command": "bunx biome check src/ test/",
       "required": true
     },
     {

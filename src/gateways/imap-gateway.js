@@ -3,7 +3,7 @@
  * All IMAP I/O is isolated here so tests can inject a mock instead.
  * Contains no logic to test.
  */
-import { connect, listMailboxes as _listMailboxes } from "../imap-client.js";
+import { listMailboxes as _listMailboxes, connect } from "../imap-client.js";
 
 export class ImapGateway {
   /**

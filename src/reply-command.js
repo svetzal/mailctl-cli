@@ -4,9 +4,9 @@
  * Extracts the orchestration logic from the cli.js reply handler so it can
  * be tested independently. All I/O is injected via deps.
  */
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { withMessage } from "./find-message.js";
-import { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorContent } from "./reply.js";
+import { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "./reply.js";
 
 /**
  * @typedef {object} ReplyCommandDeps
@@ -110,9 +110,7 @@ export async function replyCommand(uid, opts, deps) {
   const { parsed: originalParsed, account: matchedAccount } = await fetchOriginalMessage(uid, opts, deps);
 
   if (!matchedAccount.smtp) {
-    throw new Error(
-      `No SMTP configuration for account "${matchedAccount.name}". Add an smtp section to config.json.`
-    );
+    throw new Error(`No SMTP configuration for account "${matchedAccount.name}". Add an smtp section to config.json.`);
   }
 
   const headers = buildReplyHeaders(originalParsed, matchedAccount.user);

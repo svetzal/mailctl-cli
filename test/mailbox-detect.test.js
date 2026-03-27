@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { detectMailbox } from "../src/mailbox-detect.js";
 
 /**
@@ -64,10 +64,7 @@ describe("detectMailbox", () => {
   });
 
   it("handles IMAP lock errors on individual mailboxes gracefully", async () => {
-    const client = buildClient(
-      { INBOX: [], Sent: [400], "Receipts/Business": [400] },
-      { failLock: ["Sent"] },
-    );
+    const client = buildClient({ INBOX: [], Sent: [400], "Receipts/Business": [400] }, { failLock: ["Sent"] });
 
     const result = await detectMailbox(client, 400, ALL_PATHS);
 
@@ -75,10 +72,7 @@ describe("detectMailbox", () => {
   });
 
   it("handles IMAP search errors on individual mailboxes gracefully", async () => {
-    const client = buildClient(
-      { INBOX: [], Sent: [500], Archive: [500] },
-      { failSearch: ["Sent"] },
-    );
+    const client = buildClient({ INBOX: [], Sent: [500], Archive: [500] }, { failSearch: ["Sent"] });
 
     const result = await detectMailbox(client, 500, ALL_PATHS);
 

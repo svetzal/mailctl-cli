@@ -59,7 +59,8 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
     }
 
     try {
-      onProgress({ type: "mailbox-start", mailbox, count: client.mailbox && client.mailbox.exists });
+      // @ts-expect-error — imapflow types client.mailbox as false|MailboxObject; ?. handles the false case at runtime
+      onProgress({ type: "mailbox-start", mailbox, count: client.mailbox?.exists });
       const allUids = new Set();
 
       for (const term of RECEIPT_SUBJECT_TERMS) {

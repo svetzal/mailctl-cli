@@ -1,6 +1,6 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { withMessage } from "../src/find-message.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ function makeDeps(overrides = {}) {
 describe("withMessage", () => {
   it("calls fn with client, account, and detected mailbox", async () => {
     const deps = makeDeps();
-    const fnMock = mock(async (client, acct, mailbox) => "result value");
+    const fnMock = mock(async (_client, _acct, _mailbox) => "result value");
 
     const { result, account, mailbox } = await withMessage("42", {}, deps, fnMock);
 
@@ -59,7 +59,7 @@ describe("withMessage", () => {
     });
 
     await expect(withMessage("99", {}, deps, async () => "never")).rejects.toThrow(
-      "Could not find UID 99 in any account."
+      "Could not find UID 99 in any account.",
     );
   });
 
@@ -71,7 +71,7 @@ describe("withMessage", () => {
 
     let foundAccount = null;
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         await fn(client1, account1);
         await fn(client2, account2);
       }),
@@ -96,7 +96,7 @@ describe("withMessage", () => {
     const successAccount = makeAccount({ name: "Second Account" });
 
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         await fn(lockFailClient, makeAccount({ name: "First" }));
         await fn(successClient, successAccount);
       }),
@@ -115,7 +115,7 @@ describe("withMessage", () => {
       search: mock(() => Promise.resolve([42])),
     };
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         await fn(errorClient, makeAccount());
       }),
       _client: errorClient,
@@ -124,7 +124,7 @@ describe("withMessage", () => {
     await expect(
       withMessage("42", { mailbox: "INBOX" }, deps, async () => {
         throw new Error("fn error");
-      })
+      }),
     ).rejects.toThrow("fn error");
 
     expect(lock.release).toHaveBeenCalledTimes(1);
@@ -133,7 +133,7 @@ describe("withMessage", () => {
   it("stops iterating after UID is found in first account", async () => {
     let fnCallCount = 0;
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         await fn(makeClient(), makeAccount({ name: "First" }));
         await fn(makeClient(), makeAccount({ name: "Second" }));
       }),

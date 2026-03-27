@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { searchMailbox } from "../src/search.js";
 import { makeLock } from "./helpers.js";
 
@@ -55,9 +55,7 @@ describe("searchMailbox", () => {
     await searchMailbox(client, "Account", "INBOX", "query", { from: "alice@example.com" });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { from: "alice@example.com" }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com" }, { uid: true });
   });
 
   it("searches only the specified field when opts.subject is provided", async () => {
@@ -67,9 +65,7 @@ describe("searchMailbox", () => {
     await searchMailbox(client, "Account", "INBOX", "query", { subject: "Invoice" });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { subject: "Invoice" }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ subject: "Invoice" }, { uid: true });
   });
 
   it("deduplicates UIDs across From and Subject searches", async () => {
@@ -102,15 +98,17 @@ describe("searchMailbox", () => {
     const date = makeDate("2025-06-15");
     const client = makeClient({
       searchUids: [7],
-      envelopes: [{
-        uid: 7,
-        envelope: {
-          date,
-          from: [{ address: "Bill@Vendor.com", name: "Vendor Billing" }],
-          subject: "Your receipt",
-          messageId: "msg-7@vendor.com",
+      envelopes: [
+        {
+          uid: 7,
+          envelope: {
+            date,
+            from: [{ address: "Bill@Vendor.com", name: "Vendor Billing" }],
+            subject: "Your receipt",
+            messageId: "msg-7@vendor.com",
+          },
         },
-      }],
+      ],
     });
 
     const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
@@ -129,7 +127,7 @@ describe("searchMailbox", () => {
     // 20 UIDs but limit = 3 → only the last 3 fetched
     const searchUids = Array.from({ length: 20 }, (_, i) => i + 1);
     const client = makeClient({ searchUids, envelopes: [] });
-    client.fetch = mock((uidRange) => {
+    client.fetch = mock((_uidRange) => {
       // Capture what range was passed
       async function* gen() {}
       return gen();
@@ -150,15 +148,17 @@ describe("searchMailbox", () => {
   it("returns results when query is null and --from is provided", async () => {
     const client = makeClient({
       searchUids: [10],
-      envelopes: [{
-        uid: 10,
-        envelope: {
-          date: makeDate(),
-          from: [{ address: "salman@example.com", name: "Salman" }],
-          subject: "Hello",
-          messageId: "msg-10",
+      envelopes: [
+        {
+          uid: 10,
+          envelope: {
+            date: makeDate(),
+            from: [{ address: "salman@example.com", name: "Salman" }],
+            subject: "Hello",
+            messageId: "msg-10",
+          },
         },
-      }],
+      ],
     });
 
     const results = await searchMailbox(client, "Account", "INBOX", null, { from: "salman@example.com" });
@@ -170,15 +170,17 @@ describe("searchMailbox", () => {
   it("returns results when query is null and --subject is provided", async () => {
     const client = makeClient({
       searchUids: [11],
-      envelopes: [{
-        uid: 11,
-        envelope: {
-          date: makeDate(),
-          from: [{ address: "billing@co.com", name: "Billing" }],
-          subject: "Invoice #123",
-          messageId: "msg-11",
+      envelopes: [
+        {
+          uid: 11,
+          envelope: {
+            date: makeDate(),
+            from: [{ address: "billing@co.com", name: "Billing" }],
+            subject: "Invoice #123",
+            messageId: "msg-11",
+          },
         },
-      }],
+      ],
     });
 
     const results = await searchMailbox(client, "Account", "INBOX", null, { subject: "Invoice" });
@@ -194,9 +196,7 @@ describe("searchMailbox", () => {
     await searchMailbox(client, "Account", "INBOX", null, { from: "alice@example.com", subject: "Invoice" });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { from: "alice@example.com", subject: "Invoice" }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", subject: "Invoice" }, { uid: true });
   });
 
   it("returns an empty array when query is null and no opts are provided", async () => {
@@ -222,9 +222,7 @@ describe("searchMailbox", () => {
     await searchMailbox(client, "Account", "INBOX", "", { from: "bob@example.com" });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { from: "bob@example.com" }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ from: "bob@example.com" }, { uid: true });
   });
 
   // ── date filter tests ────────────────────────────────────────────────────
@@ -243,10 +241,7 @@ describe("searchMailbox", () => {
     });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { from: "alice@example.com", since, before },
-      { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", since, before }, { uid: true });
   });
 
   it("passes since and before to both From and Subject searches for general query", async () => {
@@ -275,10 +270,7 @@ describe("searchMailbox", () => {
     });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { subject: "Report", before },
-      { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ subject: "Report", before }, { uid: true });
   });
 
   // ── --to filter tests ───────────────────────────────────────────────────
@@ -290,9 +282,7 @@ describe("searchMailbox", () => {
     await searchMailbox(client, "Account", "INBOX", null, { to: "bob@example.com" });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { to: "bob@example.com" }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com" }, { uid: true });
   });
 
   it("combines --from and --to criteria in a single search", async () => {
@@ -305,25 +295,25 @@ describe("searchMailbox", () => {
     });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { from: "alice@example.com", to: "bob@example.com" }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", to: "bob@example.com" }, { uid: true });
   });
 
   it("includes to and toName fields in result objects", async () => {
     const date = makeDate("2026-03-01");
     const client = makeClient({
       searchUids: [15],
-      envelopes: [{
-        uid: 15,
-        envelope: {
-          date,
-          from: [{ address: "alice@example.com", name: "Alice" }],
-          to: [{ address: "bob@example.com", name: "Bob" }],
-          subject: "Test",
-          messageId: "msg-15",
+      envelopes: [
+        {
+          uid: 15,
+          envelope: {
+            date,
+            from: [{ address: "alice@example.com", name: "Alice" }],
+            to: [{ address: "bob@example.com", name: "Bob" }],
+            subject: "Test",
+            messageId: "msg-15",
+          },
         },
-      }],
+      ],
     });
 
     const [result] = await searchMailbox(client, "Account", "INBOX", "Test");
@@ -339,9 +329,7 @@ describe("searchMailbox", () => {
     await searchMailbox(client, "Account", "INBOX", "keyword", { to: "bob@example.com" });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { to: "bob@example.com" }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com" }, { uid: true });
   });
 
   it("combines --to with date filtering", async () => {
@@ -356,9 +344,7 @@ describe("searchMailbox", () => {
     });
 
     expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith(
-      { to: "bob@example.com", since }, { uid: true }
-    );
+    expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com", since }, { uid: true });
   });
 
   it("releases the mailbox lock after completing the search", async () => {
@@ -366,7 +352,7 @@ describe("searchMailbox", () => {
     const client = {
       getMailboxLock: mock(() => Promise.resolve(lock)),
       search: mock(() => Promise.resolve([])),
-      fetch: mock(() => (async function*() {})()),
+      fetch: mock(() => (async function* () {})()),
     };
 
     await searchMailbox(client, "Account", "INBOX", "receipt");

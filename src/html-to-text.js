@@ -5,8 +5,13 @@
 
 /** HTML entity decode map for common named entities. */
 export const HTML_ENTITIES = {
-  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"',
-  "&#39;": "'", "&apos;": "'", "&nbsp;": " ",
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&apos;": "'",
+  "&nbsp;": " ",
 };
 
 /**

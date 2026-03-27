@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { computeFlagChanges, applyFlagChanges } from "../src/flag-messages.js";
+import { describe, expect, it } from "bun:test";
+import { applyFlagChanges, computeFlagChanges } from "../src/flag-messages.js";
 
 describe("computeFlagChanges", () => {
   it("returns add \\Seen for --read", () => {
@@ -40,20 +40,18 @@ describe("computeFlagChanges", () => {
 
   it("throws when --read and --unread are both set", () => {
     expect(() => computeFlagChanges({ read: true, unread: true })).toThrow(
-      "--read and --unread are mutually exclusive"
+      "--read and --unread are mutually exclusive",
     );
   });
 
   it("throws when --star and --unstar are both set", () => {
     expect(() => computeFlagChanges({ star: true, unstar: true })).toThrow(
-      "--star and --unstar are mutually exclusive"
+      "--star and --unstar are mutually exclusive",
     );
   });
 
   it("throws when no flag options are provided", () => {
-    expect(() => computeFlagChanges({})).toThrow(
-      "No flag options specified"
-    );
+    expect(() => computeFlagChanges({})).toThrow("No flag options specified");
   });
 });
 
@@ -67,9 +65,7 @@ describe("applyFlagChanges", () => {
 
     await applyFlagChanges(client, "123", { add: ["\\Seen"], remove: [] });
 
-    expect(calls).toEqual([
-      { method: "add", range: "123", flags: ["\\Seen"], opts: { uid: true } },
-    ]);
+    expect(calls).toEqual([{ method: "add", range: "123", flags: ["\\Seen"], opts: { uid: true } }]);
   });
 
   it("calls messageFlagsRemove when there are flags to remove", async () => {
@@ -81,9 +77,7 @@ describe("applyFlagChanges", () => {
 
     await applyFlagChanges(client, "456", { add: [], remove: ["\\Seen"] });
 
-    expect(calls).toEqual([
-      { method: "remove", range: "456", flags: ["\\Seen"], opts: { uid: true } },
-    ]);
+    expect(calls).toEqual([{ method: "remove", range: "456", flags: ["\\Seen"], opts: { uid: true } }]);
   });
 
   it("calls both add and remove when both are specified", async () => {

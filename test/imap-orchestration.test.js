@@ -1,5 +1,5 @@
-import { describe, it, expect, mock } from "bun:test";
-import { groupByMailbox, forEachMailboxGroup } from "../src/imap-orchestration.js";
+import { describe, expect, it, mock } from "bun:test";
+import { forEachMailboxGroup, groupByMailbox } from "../src/imap-orchestration.js";
 import { makeLock } from "./helpers.js";
 
 // ── groupByMailbox ────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ describe("groupByMailbox", () => {
 
   it("separates items from different mailboxes into distinct groups", () => {
     const results = [
-      { mailbox: "INBOX",   uid: 1 },
+      { mailbox: "INBOX", uid: 1 },
       { mailbox: "Archive", uid: 2 },
     ];
     const map = groupByMailbox(results);
@@ -74,11 +74,9 @@ describe("forEachMailboxGroup", () => {
     const lock = makeLock();
     const client = { getMailboxLock: mock(() => Promise.resolve(lock)) };
 
-    await forEachMailboxGroup(
-      client,
-      new Map([["INBOX", []]]),
-      async () => { throw new Error("boom"); }
-    ).catch(() => {}); // swallow so test can assert
+    await forEachMailboxGroup(client, new Map([["INBOX", []]]), async () => {
+      throw new Error("boom");
+    }).catch(() => {}); // swallow so test can assert
 
     expect(lock.release).toHaveBeenCalledTimes(1);
   });
@@ -99,7 +97,7 @@ describe("forEachMailboxGroup", () => {
     const visited = [];
 
     const byMailbox = new Map([
-      ["INBOX",   [{ uid: 1 }]],
+      ["INBOX", [{ uid: 1 }]],
       ["Archive", [{ uid: 2 }]],
     ]);
     await forEachMailboxGroup(client, byMailbox, async (mailbox) => {

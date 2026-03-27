@@ -1,8 +1,13 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { buildScanResult } from "../src/scan-helpers.js";
 
 /** Build a minimal imapflow-style message with envelope. */
-function makeMsg({ uid = 1, from = [{ name: "Vendor", address: "billing@vendor.com" }], subject = "Receipt", date = new Date("2025-03-07") } = {}) {
+function makeMsg({
+  uid = 1,
+  from = [{ name: "Vendor", address: "billing@vendor.com" }],
+  subject = "Receipt",
+  date = new Date("2025-03-07"),
+} = {}) {
   return { uid, envelope: { from, subject, date } };
 }
 
@@ -23,30 +28,46 @@ describe("buildScanResult", () => {
   });
 
   it("formats the from address as 'Name <address>'", () => {
-    const result = buildScanResult("Account", "INBOX", makeMsg({
-      from: [{ name: "Vendor Inc", address: "billing@vendor.com" }],
-    }));
+    const result = buildScanResult(
+      "Account",
+      "INBOX",
+      makeMsg({
+        from: [{ name: "Vendor Inc", address: "billing@vendor.com" }],
+      }),
+    );
     expect(result.from).toBe("Vendor Inc <billing@vendor.com>");
   });
 
   it("formats the from address without name when name is empty", () => {
-    const result = buildScanResult("Account", "INBOX", makeMsg({
-      from: [{ name: "", address: "noreply@vendor.com" }],
-    }));
+    const result = buildScanResult(
+      "Account",
+      "INBOX",
+      makeMsg({
+        from: [{ name: "", address: "noreply@vendor.com" }],
+      }),
+    );
     expect(result.from).toBe("<noreply@vendor.com>");
   });
 
   it("normalises the address to lowercase", () => {
-    const result = buildScanResult("Account", "INBOX", makeMsg({
-      from: [{ name: "Vendor", address: "Billing@Vendor.COM" }],
-    }));
+    const result = buildScanResult(
+      "Account",
+      "INBOX",
+      makeMsg({
+        from: [{ name: "Vendor", address: "Billing@Vendor.COM" }],
+      }),
+    );
     expect(result.address).toBe("billing@vendor.com");
   });
 
   it("returns the sender name", () => {
-    const result = buildScanResult("Account", "INBOX", makeMsg({
-      from: [{ name: "Vendor Inc", address: "billing@vendor.com" }],
-    }));
+    const result = buildScanResult(
+      "Account",
+      "INBOX",
+      makeMsg({
+        from: [{ name: "Vendor Inc", address: "billing@vendor.com" }],
+      }),
+    );
     expect(result.name).toBe("Vendor Inc");
   });
 
@@ -69,7 +90,10 @@ describe("buildScanResult", () => {
   });
 
   it("falls back to empty subject when subject is undefined", () => {
-    const msg = { uid: 1, envelope: { from: [{ name: "V", address: "v@v.com" }], subject: undefined, date: new Date() } };
+    const msg = {
+      uid: 1,
+      envelope: { from: [{ name: "V", address: "v@v.com" }], subject: undefined, date: new Date() },
+    };
     const result = buildScanResult("Account", "INBOX", msg);
     expect(result.subject).toBe("");
   });

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { buildAttachmentListing, validateAttachmentIndex } from "../src/extract-attachment-logic.js";
 
 /** @param {Partial<{filename: string|null, type: string, size: number, part: string}>} overrides */
@@ -12,7 +12,13 @@ describe("buildAttachmentListing", () => {
     const listing = buildAttachmentListing(parts);
 
     expect(listing).toHaveLength(1);
-    expect(listing[0]).toEqual({ index: 0, filename: "receipt.pdf", contentType: "application/pdf", size: 2048, part: "2" });
+    expect(listing[0]).toEqual({
+      index: 0,
+      filename: "receipt.pdf",
+      contentType: "application/pdf",
+      size: 2048,
+      part: "2",
+    });
   });
 
   it("uses '(unnamed)' for attachments without a filename", () => {

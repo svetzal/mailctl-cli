@@ -1,16 +1,12 @@
-import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
-import { mkdirSync, rmSync } from "fs";
-import { join } from "path";
-import { createHash } from "crypto";
-import {
-  downloadReceiptEmails,
-  RECEIPT_EXTRACTION_SCHEMA,
-} from "../src/download-receipts.js";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { downloadReceiptEmails, RECEIPT_EXTRACTION_SCHEMA } from "../src/download-receipts.js";
 import { makeLock } from "./helpers.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
-const FAKE_PDF = Buffer.from("%PDF-1.4 fake content for tests");
+const _FAKE_PDF = Buffer.from("%PDF-1.4 fake content for tests");
 
 let tmpDir;
 
@@ -57,7 +53,9 @@ function makeEmailClient(subject = "Invoice #TEST-001") {
       return gen();
     }),
     download: mock(() => {
-      async function* gen() { yield rawBuffer; }
+      async function* gen() {
+        yield rawBuffer;
+      }
       return Promise.resolve({ content: gen() });
     }),
   };
@@ -73,7 +71,9 @@ function makeMockFs() {
       readJson: mock(() => ({})),
       readBuffer: mock(() => Buffer.alloc(0)),
       readText: mock(() => ""),
-      writeFile: mock((p, data) => { written[p] = data; }),
+      writeFile: mock((p, data) => {
+        written[p] = data;
+      }),
       mkdir: mock(() => {}),
       rm: mock(() => {}),
     },
@@ -105,9 +105,16 @@ describe("receipt classification", () => {
     const client = makeEmailClient();
     const { mockFs, written } = makeMockFs();
     const gateways = makeGateways(client, mockFs, {
-      vendor: "GitHub", amount: 39, date: "2025-03-07", currency: "USD",
-      is_invoice: true, confidence: 0.95, invoice_number: null,
-      service: null, tax_amount: null, tax_type: null,
+      vendor: "GitHub",
+      amount: 39,
+      date: "2025-03-07",
+      currency: "USD",
+      is_invoice: true,
+      confidence: 0.95,
+      invoice_number: null,
+      service: null,
+      tax_amount: null,
+      tax_type: null,
     });
 
     await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
@@ -123,9 +130,16 @@ describe("receipt classification", () => {
     const client = makeEmailClient("Your subscription renewal");
     const { mockFs, written } = makeMockFs();
     const gateways = makeGateways(client, mockFs, {
-      vendor: "JetBrains", amount: null, date: "2025-03-07",
-      is_invoice: false, confidence: 0.85, invoice_number: null,
-      currency: null, service: null, tax_amount: null, tax_type: null,
+      vendor: "JetBrains",
+      amount: null,
+      date: "2025-03-07",
+      is_invoice: false,
+      confidence: 0.85,
+      invoice_number: null,
+      currency: null,
+      service: null,
+      tax_amount: null,
+      tax_type: null,
     });
 
     const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
@@ -139,9 +153,16 @@ describe("receipt classification", () => {
     const client = makeEmailClient("Invoice");
     const { mockFs, written } = makeMockFs();
     const gateways = makeGateways(client, mockFs, {
-      vendor: "Unknown", amount: null, date: "2025-03-07",
-      is_invoice: true, confidence: 0.3, invoice_number: null,
-      currency: null, service: null, tax_amount: null, tax_type: null,
+      vendor: "Unknown",
+      amount: null,
+      date: "2025-03-07",
+      is_invoice: true,
+      confidence: 0.3,
+      invoice_number: null,
+      currency: null,
+      service: null,
+      tax_amount: null,
+      tax_type: null,
     });
 
     const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
@@ -155,9 +176,16 @@ describe("receipt classification", () => {
     const client = makeEmailClient("Your order is complete");
     const { mockFs, written } = makeMockFs();
     const gateways = makeGateways(client, mockFs, {
-      vendor: "Audible", amount: 0, date: "2025-03-07",
-      is_invoice: false, confidence: 0.9, invoice_number: null,
-      currency: null, service: null, tax_amount: null, tax_type: null,
+      vendor: "Audible",
+      amount: 0,
+      date: "2025-03-07",
+      is_invoice: false,
+      confidence: 0.9,
+      invoice_number: null,
+      currency: null,
+      service: null,
+      tax_amount: null,
+      tax_type: null,
     });
 
     const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
@@ -171,9 +199,16 @@ describe("receipt classification", () => {
     const client = makeEmailClient("Receipt");
     const { mockFs, written } = makeMockFs();
     const gateways = makeGateways(client, mockFs, {
-      vendor: "Apple", amount: 12.99, date: "2025-03-07", currency: "USD",
-      is_invoice: true, confidence: 0.6, invoice_number: null,
-      service: null, tax_amount: null, tax_type: null,
+      vendor: "Apple",
+      amount: 12.99,
+      date: "2025-03-07",
+      currency: "USD",
+      is_invoice: true,
+      confidence: 0.6,
+      invoice_number: null,
+      service: null,
+      tax_amount: null,
+      tax_type: null,
     });
 
     await downloadReceiptEmails({ outputDir: tmpDir }, gateways);

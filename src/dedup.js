@@ -19,9 +19,7 @@ export function deduplicateByMessageId(results) {
   const unique = [];
 
   for (const r of results) {
-    const key = r.messageId
-      ? `mid:${r.messageId}`
-      : `${r.account}:${r.mailbox}:${r.uid}`;
+    const key = r.messageId ? `mid:${r.messageId}` : `${r.account}:${r.mailbox}:${r.uid}`;
 
     if (seen.has(key)) continue;
     seen.add(key);

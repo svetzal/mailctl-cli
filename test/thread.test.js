@@ -1,5 +1,5 @@
-import { describe, it, expect, mock } from "bun:test";
-import { findThread, stripSubjectPrefixes, parseReferences, formatThreadText } from "../src/thread.js";
+import { describe, expect, it, mock } from "bun:test";
+import { findThread, formatThreadText, parseReferences, stripSubjectPrefixes } from "../src/thread.js";
 import { makeLock } from "./helpers.js";
 
 function makeDate(str = "2025-03-01T12:00:00Z") {
@@ -29,7 +29,7 @@ function makeClient(opts = {}) {
   const headerSearchFails = opts.headerSearchFails || false;
   const subjectSearchUids = opts.subjectSearchUids || [];
 
-  let fetchCallCount = 0;
+  let _fetchCallCount = 0;
 
   return {
     getMailboxLock: mock(() => Promise.resolve(makeLock())),
@@ -39,7 +39,8 @@ function makeClient(opts = {}) {
       }
       if (criteria.header) {
         // Check if any threadEnvelope messageId matches the search
-        const searchValue = criteria.header["Message-ID"] || criteria.header.References || criteria.header["In-Reply-To"];
+        const searchValue =
+          criteria.header["Message-ID"] || criteria.header.References || criteria.header["In-Reply-To"];
         const matchingUids = threadEnvelopes
           .filter((env) => {
             if (criteria.header["Message-ID"]) return env.envelope.messageId === searchValue;
@@ -60,7 +61,7 @@ function makeClient(opts = {}) {
       return Promise.resolve([]);
     }),
     fetch: mock((uidRange, fields) => {
-      fetchCallCount++;
+      _fetchCallCount++;
       const requestedUids = uidRange.split(",").map(Number);
 
       async function* gen() {
@@ -83,14 +84,18 @@ function makeClient(opts = {}) {
               yield {
                 uid,
                 envelope: match.envelope,
-                source: Buffer.from(`From: ${match.envelope.from[0].address}\r\nSubject: ${match.envelope.subject}\r\n\r\n${match.body || "message body"}`),
+                source: Buffer.from(
+                  `From: ${match.envelope.from[0].address}\r\nSubject: ${match.envelope.subject}\r\n\r\n${match.body || "message body"}`,
+                ),
               };
             } else if (uid === requestedUids[0] || uid === Number(uidRange.split(",")[0])) {
               // Anchor message
               yield {
                 uid,
                 envelope: anchorEnvelope,
-                source: Buffer.from(`From: ${anchorEnvelope.from[0].address}\r\nSubject: ${anchorEnvelope.subject}\r\n\r\nanchor body`),
+                source: Buffer.from(
+                  `From: ${anchorEnvelope.from[0].address}\r\nSubject: ${anchorEnvelope.subject}\r\n\r\nanchor body`,
+                ),
               };
             }
           }
@@ -258,9 +263,7 @@ describe("findThread", () => {
 
     // Verify chronological order
     for (let i = 1; i < messages.length; i++) {
-      expect(new Date(messages[i].date).getTime()).toBeGreaterThanOrEqual(
-        new Date(messages[i - 1].date).getTime()
-      );
+      expect(new Date(messages[i].date).getTime()).toBeGreaterThanOrEqual(new Date(messages[i - 1].date).getTime());
     }
   });
 
@@ -282,10 +285,10 @@ describe("findThread", () => {
       threadEnvelopes: [sentReply],
     });
 
-    const { messages } = await findThread(client, "TestAccount", "INBOX", 1, ["INBOX", "Sent"]);
+    await findThread(client, "TestAccount", "INBOX", 1, ["INBOX", "Sent"]);
 
     // The search should have been called for both INBOX and Sent
-    const searchCalls = client.search.mock.calls;
+    const _searchCalls = client.search.mock.calls;
     const mailboxLockCalls = client.getMailboxLock.mock.calls;
     // Multiple mailbox locks should have been acquired
     expect(mailboxLockCalls.length).toBeGreaterThanOrEqual(2);
@@ -310,7 +313,7 @@ describe("findThread", () => {
       subjectSearchUids: [60],
     });
 
-    const { messages, fallback } = await findThread(client, "TestAccount", "INBOX", 1, ["INBOX"]);
+    const { fallback } = await findThread(client, "TestAccount", "INBOX", 1, ["INBOX"]);
 
     expect(fallback).toBe(true);
   });
@@ -366,7 +369,14 @@ describe("formatThreadText", () => {
 
   it("shows full body in full mode", () => {
     const messages = [
-      { date: makeDate(), from: "a@b.com", fromName: "A", subject: "Test", snippet: "hello", body: "full body content here" },
+      {
+        date: makeDate(),
+        from: "a@b.com",
+        fromName: "A",
+        subject: "Test",
+        snippet: "hello",
+        body: "full body content here",
+      },
     ];
     const text = formatThreadText(messages, { full: true });
     expect(text).toContain("full body content here");

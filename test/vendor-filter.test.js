@@ -1,23 +1,22 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-import { matchesVendor } from "../src/vendor-map.js";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { resetConfigCache } from "../src/config.js";
-import { mkdirSync, writeFileSync, rmSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import { matchesVendor } from "../src/vendor-map.js";
 
 // ── matchesVendor ─────────────────────────────────────────────────────────────
 
 // Save and restore config file around tests that need vendor maps
 const CONFIG_DIR = join(homedir(), ".config", "mailctl");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
-let originalConfig;
+let _originalConfig;
 
 beforeEach(() => {
   resetConfigCache();
   try {
-    originalConfig = require("fs").readFileSync(CONFIG_PATH, "utf-8");
+    _originalConfig = require("node:fs").readFileSync(CONFIG_PATH, "utf-8");
   } catch {
-    originalConfig = null;
+    _originalConfig = null;
   }
 });
 

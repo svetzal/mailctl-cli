@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { inboxCommand } from "../src/inbox-command.js";
 import { makeAccount } from "./helpers.js";
 
@@ -16,7 +16,7 @@ function makeDeps(overrides = {}) {
   const account = makeAccount();
   const messages = [makeMessage(1), makeMessage(2)];
 
-  const forEachAccount = mock(async (accounts, fn) => {
+  const forEachAccount = mock(async (_accounts, fn) => {
     const client = {
       getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
       search: mock(() => Promise.resolve([1, 2])),
@@ -68,7 +68,7 @@ describe("inboxCommand", () => {
 
     const deps = makeDeps({
       targetAccounts: [account1, account2],
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         const makeClient = () => ({
           getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
           search: mock(() => Promise.resolve([1])),
@@ -94,7 +94,7 @@ describe("inboxCommand", () => {
   it("passes unreadOnly: true when --unread option is set", async () => {
     let capturedCriteria;
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         const client = {
           getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
           search: mock((criteria) => {
@@ -116,7 +116,7 @@ describe("inboxCommand", () => {
 
   it("returns empty results when no messages in inbox", async () => {
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         const client = {
           getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
           search: mock(() => Promise.resolve([])),

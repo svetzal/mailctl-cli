@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { parseDate } from "../src/parse-date.js";
 
 describe("parseDate", () => {

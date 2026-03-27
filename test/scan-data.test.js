@@ -1,5 +1,12 @@
-import { describe, it, expect, mock } from "bun:test";
-import { ensureDataDir, saveScanResults, loadSenders, loadClassificationsData, saveClassifications, requireClassificationsData } from "../src/scan-data.js";
+import { describe, expect, it, mock } from "bun:test";
+import {
+  ensureDataDir,
+  loadClassificationsData,
+  loadSenders,
+  requireClassificationsData,
+  saveClassifications,
+  saveScanResults,
+} from "../src/scan-data.js";
 
 /** @returns {import("../src/gateways/fs-gateway.js").FileSystemGateway} */
 function makeMockFs(overrides = {}) {
@@ -103,7 +110,7 @@ describe("requireClassificationsData", () => {
     const fs = makeMockFs({ exists: mock(() => false) });
 
     expect(() => requireClassificationsData("/data", fs)).toThrow(
-      "No classifications.json found. Run scan + classify first."
+      "No classifications.json found. Run scan + classify first.",
     );
   });
 

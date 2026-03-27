@@ -2,8 +2,9 @@
  * Shared receipt search pipeline — per-account mailbox search and dedup.
  * Used by both download and list-vendors flows.
  */
-import { filterSearchMailboxes } from "./imap-client.js";
+
 import { deduplicateByMessageId } from "./dedup.js";
+import { filterSearchMailboxes } from "./imap-client.js";
 
 /**
  * Search all mailboxes on a single connected account for receipt emails,

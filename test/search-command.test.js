@@ -1,10 +1,10 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { searchCommand } from "../src/search-command.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function makeSearchResult(uid = 42, account = "Test Account") {
+function _makeSearchResult(uid = 42, account = "Test Account") {
   return {
     uid,
     account,
@@ -56,7 +56,7 @@ describe("searchCommand", () => {
     it("throws when no query or field criteria provided", async () => {
       const deps = makeDeps();
       await expect(searchCommand(undefined, {}, deps)).rejects.toThrow(
-        "Provide a search query or use --from, --to, --subject, or --body to filter."
+        "Provide a search query or use --from, --to, --subject, or --body to filter.",
       );
     });
 
@@ -78,7 +78,7 @@ describe("searchCommand", () => {
     it("returns empty results when no messages match", async () => {
       const noResultClient = makeClient({ searchUids: [] });
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(noResultClient, makeAccount());
         }),
         _client: noResultClient,
@@ -117,10 +117,14 @@ describe("searchCommand", () => {
   describe("date filtering", () => {
     it("returns a warning when both --months and --since are provided", async () => {
       const deps = makeDeps();
-      const result = await searchCommand("test", {
-        months: "3",
-        since: "2025-01-01",
-      }, deps);
+      const result = await searchCommand(
+        "test",
+        {
+          months: "3",
+          since: "2025-01-01",
+        },
+        deps,
+      );
 
       expect(result.warnings.length).toBeGreaterThan(0);
     });

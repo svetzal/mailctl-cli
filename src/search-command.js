@@ -4,10 +4,11 @@
  * Extracts the orchestration logic from the cli.js search handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
+
+import { resolveDateFilters } from "./date-filters.js";
+import { deduplicateByMessageId } from "./dedup.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { searchMailbox } from "./search.js";
-import { deduplicateByMessageId } from "./dedup.js";
-import { resolveDateFilters } from "./date-filters.js";
 
 /**
  * @typedef {object} SearchCommandDeps

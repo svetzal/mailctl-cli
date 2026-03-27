@@ -1,6 +1,6 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { flagCommand } from "../src/flag-command.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -36,30 +36,24 @@ describe("flagCommand", () => {
   describe("input validation", () => {
     it("throws when no UIDs provided", async () => {
       const deps = makeDeps();
-      await expect(flagCommand([], { read: true }, deps)).rejects.toThrow(
-        "No UIDs provided."
-      );
+      await expect(flagCommand([], { read: true }, deps)).rejects.toThrow("No UIDs provided.");
     });
 
     it("throws when no flag option is specified", async () => {
       const deps = makeDeps();
-      await expect(flagCommand(["42"], {}, deps)).rejects.toThrow(
-        "No flag options specified"
-      );
+      await expect(flagCommand(["42"], {}, deps)).rejects.toThrow("No flag options specified");
     });
 
     it("throws when --read and --unread are both set", async () => {
       const deps = makeDeps();
       await expect(flagCommand(["42"], { read: true, unread: true }, deps)).rejects.toThrow(
-        "--read and --unread are mutually exclusive"
+        "--read and --unread are mutually exclusive",
       );
     });
 
     it("throws when account prefix is not found", async () => {
       const deps = makeDeps({ accounts: [makeAccount({ name: "Other" })] });
-      await expect(
-        flagCommand(["test:42"], { read: true }, deps)
-      ).rejects.toThrow('Account "test" not found.');
+      await expect(flagCommand(["test:42"], { read: true }, deps)).rejects.toThrow('Account "test" not found.');
     });
   });
 
@@ -147,15 +141,13 @@ describe("flagCommand", () => {
         messageFlagsRemove: mock(() => Promise.resolve()),
       };
       const deps = makeDeps({
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(notFoundClient, makeAccount());
         }),
         _client: notFoundClient,
       });
 
-      await expect(flagCommand(["42"], { read: true }, deps)).rejects.toThrow(
-        "UID 42 not found in any mailbox"
-      );
+      await expect(flagCommand(["42"], { read: true }, deps)).rejects.toThrow("UID 42 not found in any mailbox");
     });
   });
 });

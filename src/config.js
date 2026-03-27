@@ -1,11 +1,11 @@
-import { readFileSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 const CONFIG_PATH = join(homedir(), ".config", "mailctl", "config.json");
 
 /** @type {object|null} */
-let cachedConfig = undefined;
+let cachedConfig;
 
 /**
  * Load the mailctl config file from ~/.config/mailctl/config.json.

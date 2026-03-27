@@ -29,7 +29,11 @@ import { withMessage } from "./find-message.js";
 export async function readCommand(uid, opts, deps) {
   const { simpleParser } = deps;
 
-  const { result: parsed, account, mailbox } = await withMessage(uid, opts, deps, async (client) => {
+  const {
+    result: parsed,
+    account,
+    mailbox,
+  } = await withMessage(uid, opts, deps, async (client) => {
     try {
       const raw = await client.download(uid, undefined, { uid: true });
       const chunks = [];

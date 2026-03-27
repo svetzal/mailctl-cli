@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { aggregateBySender } from "../src/scanner.js";
 
 describe("aggregateBySender", () => {
@@ -7,13 +7,15 @@ describe("aggregateBySender", () => {
   });
 
   it("returns a single sender entry for a single result", () => {
-    const results = [{
-      address: "billing@acme.com",
-      name: "Acme Billing",
-      account: "personal",
-      subject: "Your receipt",
-      date: new Date("2025-01-01"),
-    }];
+    const results = [
+      {
+        address: "billing@acme.com",
+        name: "Acme Billing",
+        account: "personal",
+        subject: "Your receipt",
+        date: new Date("2025-01-01"),
+      },
+    ];
     const senders = aggregateBySender(results);
     expect(senders.length).toBe(1);
     expect(senders[0].address).toBe("billing@acme.com");
@@ -22,8 +24,20 @@ describe("aggregateBySender", () => {
 
   it("aggregates multiple results from the same address into one entry", () => {
     const results = [
-      { address: "billing@acme.com", name: "Acme", account: "work", subject: "Invoice 1", date: new Date("2025-01-01") },
-      { address: "billing@acme.com", name: "Acme", account: "work", subject: "Invoice 2", date: new Date("2025-02-01") },
+      {
+        address: "billing@acme.com",
+        name: "Acme",
+        account: "work",
+        subject: "Invoice 1",
+        date: new Date("2025-01-01"),
+      },
+      {
+        address: "billing@acme.com",
+        name: "Acme",
+        account: "work",
+        subject: "Invoice 2",
+        date: new Date("2025-02-01"),
+      },
     ];
     const senders = aggregateBySender(results);
     expect(senders.length).toBe(1);
@@ -33,7 +47,7 @@ describe("aggregateBySender", () => {
   it("collects unique accounts across results for the same sender", () => {
     const results = [
       { address: "billing@acme.com", name: "Acme", account: "personal", subject: "Inv1", date: new Date() },
-      { address: "billing@acme.com", name: "Acme", account: "work",     subject: "Inv2", date: new Date() },
+      { address: "billing@acme.com", name: "Acme", account: "work", subject: "Inv2", date: new Date() },
     ];
     const senders = aggregateBySender(results);
     expect(senders[0].accounts).toContain("personal");
@@ -54,7 +68,7 @@ describe("aggregateBySender", () => {
 
   it("tracks the latest date across results for the same sender", () => {
     const earlier = new Date("2025-01-01");
-    const later   = new Date("2025-06-15");
+    const later = new Date("2025-06-15");
     const results = [
       { address: "billing@acme.com", name: "Acme", account: "work", subject: "Old", date: earlier },
       { address: "billing@acme.com", name: "Acme", account: "work", subject: "New", date: later },
@@ -74,7 +88,7 @@ describe("aggregateBySender", () => {
 
   it("sorts senders by count descending", () => {
     const results = [
-      { address: "rare@example.com",   name: "Rare",   account: "a", subject: "S1", date: new Date() },
+      { address: "rare@example.com", name: "Rare", account: "a", subject: "S1", date: new Date() },
       { address: "common@example.com", name: "Common", account: "a", subject: "S2", date: new Date() },
       { address: "common@example.com", name: "Common", account: "a", subject: "S3", date: new Date() },
       { address: "common@example.com", name: "Common", account: "a", subject: "S4", date: new Date() },
@@ -85,9 +99,7 @@ describe("aggregateBySender", () => {
   });
 
   it("returns arrays (not Sets) in the output objects", () => {
-    const results = [
-      { address: "billing@acme.com", name: "Acme", account: "work", subject: "Inv", date: new Date() },
-    ];
+    const results = [{ address: "billing@acme.com", name: "Acme", account: "work", subject: "Inv", date: new Date() }];
     const senders = aggregateBySender(results);
     expect(Array.isArray(senders[0].accounts)).toBe(true);
     expect(Array.isArray(senders[0].sampleSubjects)).toBe(true);

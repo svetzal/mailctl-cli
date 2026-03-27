@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 const TOKEN_PATH = join(homedir(), ".newt", "m365-tokens.json");
 const SCOPE = "https://outlook.office365.com/IMAP.AccessAsUser.All offline_access";
@@ -29,12 +29,12 @@ function saveTokens(tokens) {
  * Refresh an expired access token using the refresh_token.
  * @param {string} clientId
  * @param {string} tenantId
- * @param {string} clientSecret
+ * @param {string} _clientSecret
  * @param {string} refreshToken
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ access_token: string, refresh_token: string, expires_at: number } | null>}
  */
-async function refreshAccessToken(clientId, tenantId, clientSecret, refreshToken, onProgress = () => {}) {
+async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToken, onProgress = () => {}) {
   const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const body = new URLSearchParams({
     client_id: clientId,
@@ -70,11 +70,11 @@ async function refreshAccessToken(clientId, tenantId, clientSecret, refreshToken
  * Prints a user code and verification URL, then polls until the user authenticates.
  * @param {string} clientId
  * @param {string} tenantId
- * @param {string} clientSecret
+ * @param {string} _clientSecret
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ access_token: string, refresh_token: string, expires_at: number }>}
  */
-async function deviceCodeFlow(clientId, tenantId, clientSecret, onProgress = () => {}) {
+async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress = () => {}) {
   const deviceUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/devicecode`;
   const deviceRes = await fetch(deviceUrl, {
     method: "POST",
@@ -90,7 +90,10 @@ async function deviceCodeFlow(clientId, tenantId, clientSecret, onProgress = () 
     throw new Error(`Device code request failed: ${err.error_description || deviceRes.statusText}`);
   }
 
-  const deviceData = /** @type {{ device_code: string, user_code: string, verification_uri: string, interval: number, expires_in: number }} */ (await deviceRes.json());
+  const deviceData =
+    /** @type {{ device_code: string, user_code: string, verification_uri: string, interval: number, expires_in: number }} */ (
+      await deviceRes.json()
+    );
   const { device_code, user_code, verification_uri, interval, expires_in } = deviceData;
 
   onProgress({ type: "device-code-prompt", verificationUri: verification_uri, userCode: user_code });
@@ -113,7 +116,10 @@ async function deviceCodeFlow(clientId, tenantId, clientSecret, onProgress = () 
       }),
     });
 
-    const tokenData = /** @type {{ error?: string, error_description?: string, access_token?: string, refresh_token?: string, expires_in?: number }} */ (await tokenRes.json());
+    const tokenData =
+      /** @type {{ error?: string, error_description?: string, access_token?: string, refresh_token?: string, expires_in?: number }} */ (
+        await tokenRes.json()
+      );
 
     if (tokenData.error === "authorization_pending") {
       continue;

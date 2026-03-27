@@ -4,11 +4,11 @@
  * Extracts the orchestration logic from the cli.js extract-attachment handler
  * so it can be tested independently. All I/O is injected via deps.
  */
-import { resolve, join } from "path";
-import { filterSearchMailboxes } from "./imap-client.js";
-import { detectMailbox } from "./mailbox-detect.js";
+import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
+import { filterSearchMailboxes } from "./imap-client.js";
+import { detectMailbox } from "./mailbox-detect.js";
 
 /**
  * @typedef {object} ExtractAttachmentCommandDeps

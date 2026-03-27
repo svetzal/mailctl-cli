@@ -63,8 +63,18 @@ export function parseDate(input) {
 
   // Month name (with optional year): "january", "jan", "jan 2026", "january 2026"
   const monthNames = [
-    "january", "february", "march", "april", "may", "june",
-    "july", "august", "september", "october", "november", "december",
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
   ];
   const monthAbbr = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
@@ -90,7 +100,9 @@ export function parseDate(input) {
     }
   }
 
-  throw new Error(`Cannot parse date: "${input}". Try formats like: 2026-01-15, 3d, 2w, 1m, jan, january 2026, today, yesterday, last month`);
+  throw new Error(
+    `Cannot parse date: "${input}". Try formats like: 2026-01-15, 3d, 2w, 1m, jan, january 2026, today, yesterday, last month`,
+  );
 }
 
 /**

@@ -41,7 +41,7 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
     // Date criteria apply to all search paths
     /** @type {Record<string, any>} */
     const dateCriteria = {};
-    if (opts.since)  dateCriteria.since  = opts.since;
+    if (opts.since) dateCriteria.since = opts.since;
     if (opts.before) dateCriteria.before = opts.before;
 
     if (!query && !hasFieldCriteria) {
@@ -51,10 +51,10 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
       // No general query, but field-specific criteria — search by criteria only
       /** @type {Record<string, any>} */
       const criteria = { ...dateCriteria };
-      if (opts.from)    criteria.from    = opts.from;
-      if (opts.to)      criteria.to      = opts.to;
+      if (opts.from) criteria.from = opts.from;
+      if (opts.to) criteria.to = opts.to;
       if (opts.subject) criteria.subject = opts.subject;
-      if (opts.body)    criteria.body    = opts.body;
+      if (opts.body) criteria.body = opts.body;
       uidsToFetch = await client.search(criteria, { uid: true });
     } else if (!hasFieldCriteria) {
       // General query only — search both From and Subject
@@ -68,10 +68,10 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
       // Both query and field criteria — use field criteria only
       /** @type {Record<string, any>} */
       const criteria = { ...dateCriteria };
-      if (opts.from)    criteria.from    = opts.from;
-      if (opts.to)      criteria.to      = opts.to;
+      if (opts.from) criteria.from = opts.from;
+      if (opts.to) criteria.to = opts.to;
       if (opts.subject) criteria.subject = opts.subject;
-      if (opts.body)    criteria.body    = opts.body;
+      if (opts.body) criteria.body = opts.body;
       uidsToFetch = await client.search(criteria, { uid: true });
     }
 
@@ -81,22 +81,26 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
     const uidRange = recent.join(",");
     const results = [];
 
-    for await (const msg of client.fetch(uidRange, { envelope: true, headers: ["message-id"], uid: true }, { uid: true })) {
+    for await (const msg of client.fetch(
+      uidRange,
+      { envelope: true, headers: ["message-id"], uid: true },
+      { uid: true },
+    )) {
       const env = msg.envelope;
       const from = env.from?.[0];
       const to = env.to?.[0];
       const messageId = env.messageId || "";
       results.push({
-        account:  acctName,
-        mailbox:  mailboxPath,
-        uid:      msg.uid,
+        account: acctName,
+        mailbox: mailboxPath,
+        uid: msg.uid,
         messageId,
-        date:     env.date,
-        from:     from?.address || "",
-        fromName: from?.name    || "",
-        to:       to?.address   || "",
-        toName:   to?.name      || "",
-        subject:  env.subject   || "",
+        date: env.date,
+        from: from?.address || "",
+        fromName: from?.name || "",
+        to: to?.address || "",
+        toName: to?.name || "",
+        subject: env.subject || "",
       });
     }
 

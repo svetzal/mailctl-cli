@@ -4,9 +4,9 @@
  * No I/O — same inputs always produce the same outputs.
  */
 
-import { extractUnsubscribeLinks } from "./unsubscribe.js";
+import { headerValueToString, sanitizeString } from "./cli-helpers.js";
 import { htmlToText } from "./html-to-text.js";
-import { sanitizeString, headerValueToString } from "./cli-helpers.js";
+import { extractUnsubscribeLinks } from "./unsubscribe.js";
 
 /**
  * @typedef {object} ReadResultOptions

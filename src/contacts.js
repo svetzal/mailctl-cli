@@ -8,7 +8,7 @@ import { listMailboxes } from "./imap-client.js";
  * Extract contacts from recent email envelopes.
  * Scans INBOX for received messages (From) and Sent folder for sent messages (To/CC).
  * @param {any} client - connected IMAP client
- * @param {string} accountName
+ * @param {string} _accountName
  * @param {object} opts
  * @param {Date} opts.since
  * @param {number} opts.limit
@@ -16,7 +16,7 @@ import { listMailboxes } from "./imap-client.js";
  * @param {boolean} [opts.receivedOnly] - only count senders of received mail
  * @returns {Promise<Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>>}
  */
-export async function extractContacts(client, accountName, opts) {
+export async function extractContacts(client, _accountName, opts) {
   const { since, sentOnly, receivedOnly } = opts;
   const entries = [];
 
@@ -169,9 +169,7 @@ export function aggregateContacts(entries, opts = {}) {
 
   if (search) {
     const lower = search.toLowerCase();
-    results = results.filter(
-      (c) => c.address.includes(lower) || c.name.toLowerCase().includes(lower)
-    );
+    results = results.filter((c) => c.address.includes(lower) || c.name.toLowerCase().includes(lower));
   }
 
   results.sort((a, b) => {
@@ -213,6 +211,6 @@ export function formatContactsText(contacts, opts) {
  * @returns {string}
  */
 function formatContactDate(date) {
-  if (!(date instanceof Date) || isNaN(date.getTime())) return "";
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 }

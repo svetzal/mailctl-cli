@@ -3,7 +3,7 @@
  * All filesystem I/O is isolated here so tests can inject a mock instead.
  * Contains no logic to test.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 export class FileSystemGateway {
   /**

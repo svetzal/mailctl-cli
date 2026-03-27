@@ -1,6 +1,6 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { threadCommand } from "../src/thread-command.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -54,20 +54,18 @@ describe("threadCommand", () => {
       search: mock(() => Promise.resolve([])), // UID not found — detectMailbox returns null
     };
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         await fn(notFoundClient, makeAccount());
       }),
       _client: notFoundClient,
     });
 
-    await expect(threadCommand("99", {}, deps)).rejects.toThrow(
-      "UID 99 not found in any mailbox"
-    );
+    await expect(threadCommand("99", {}, deps)).rejects.toThrow("UID 99 not found in any mailbox");
   });
 
   it("uses explicit --mailbox option without detection", async () => {
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         // We need a client that supports findThread operations
         const client = {
           getMailboxLock: mock(() => Promise.resolve(makeLock())),
@@ -94,7 +92,7 @@ describe("threadCommand", () => {
 
   it("returns thread result with account name", async () => {
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         const client = {
           getMailboxLock: mock(() => Promise.resolve(makeLock())),
           search: mock(() => Promise.resolve([42])),

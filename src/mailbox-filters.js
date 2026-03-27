@@ -51,7 +51,7 @@ export function filterSearchMailboxes(mailboxes, opts = {}) {
       if (mb.path.startsWith("_")) return false;
       if (mb.path === "Notes") return false;
       for (const prefix of excludePaths) {
-        if (mb.path === prefix || mb.path.startsWith(prefix + "/")) return false;
+        if (mb.path === prefix || mb.path.startsWith(`${prefix}/`)) return false;
       }
       return true;
     })

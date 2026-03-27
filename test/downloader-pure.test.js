@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "bun:test";
-import { vendorName, buildFilename, getVendorNames } from "../src/downloader.js";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { resetConfigCache } from "../src/config.js";
+import { buildFilename, getVendorNames, vendorName } from "../src/downloader.js";
 
 beforeEach(() => {
   resetConfigCache();

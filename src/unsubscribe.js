@@ -1,19 +1,25 @@
 /** Keywords indicating unsubscribe-related URLs. */
 const UNSUB_URL_KEYWORDS = [
-  "unsubscribe", "unsub", "opt-out", "optout",
-  "manage-preferences", "email-preferences", "manage-subscriptions",
+  "unsubscribe",
+  "unsub",
+  "opt-out",
+  "optout",
+  "manage-preferences",
+  "email-preferences",
+  "manage-subscriptions",
 ];
 
 /** Keywords to match in anchor text (case-insensitive). */
 const UNSUB_TEXT_KEYWORDS = [
-  "unsubscribe", "manage preferences", "opt out", "email preferences",
+  "unsubscribe",
+  "manage preferences",
+  "opt out",
+  "email preferences",
   "update your preferences",
 ];
 
 /** CSS class substrings indicating unsubscribe links (case-insensitive). */
-const UNSUB_CLASS_KEYWORDS = [
-  "unsubscribe", "unsub", "manage-preferences", "opt-out",
-];
+const UNSUB_CLASS_KEYWORDS = ["unsubscribe", "unsub", "manage-preferences", "opt-out"];
 
 /**
  * Clean a URL by stripping trailing punctuation, removing QP soft line breaks,
@@ -24,7 +30,10 @@ const UNSUB_CLASS_KEYWORDS = [
  * @returns {string}
  */
 function cleanUrl(url) {
-  return url.replace(/=\r?\n/g, "").replace(/[)\]>]+$/, "").replace(/&amp;/g, "&");
+  return url
+    .replace(/=\r?\n/g, "")
+    .replace(/[)\]>]+$/, "")
+    .replace(/&amp;/g, "&");
 }
 
 /**
@@ -54,9 +63,7 @@ function listUnsubscribeToString(headerValue) {
   if (headerValue?.value) {
     // value can be an array of objects with .url
     if (Array.isArray(headerValue.value)) {
-      return headerValue.value
-        .map((v) => (typeof v === "string" ? v : v?.url || v?.text || String(v)))
-        .join(", ");
+      return headerValue.value.map((v) => (typeof v === "string" ? v : v?.url || v?.text || String(v))).join(", ");
     }
     if (typeof headerValue.value === "string") return headerValue.value;
   }
@@ -113,6 +120,7 @@ function extractUnsubscribeLinks(parsed) {
     // Parse full <a> tags to check href, class, and inner text
     const anchorPattern = /<a\s+([^>]*)>([\s\S]*?)<\/a>/gi;
     let anchorMatch;
+    // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex exec loop
     while ((anchorMatch = anchorPattern.exec(parsed.html)) !== null) {
       const attrs = anchorMatch[1];
       const innerText = anchorMatch[2].replace(/<[^>]*>/g, "").trim();
@@ -144,6 +152,7 @@ function extractUnsubscribeLinks(parsed) {
   const textBody = parsed.text || "";
   const urlPattern = /https?:\/\/[^\s<>")\]]+/gi;
   let textMatch;
+  // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex exec loop
   while ((textMatch = urlPattern.exec(textBody)) !== null) {
     const url = textMatch[0];
     const lower = url.toLowerCase();
@@ -158,4 +167,4 @@ function extractUnsubscribeLinks(parsed) {
   return [...links];
 }
 
-export { extractUnsubscribeLinks, cleanUrl, isValidUrl, listUnsubscribeToString };
+export { cleanUrl, extractUnsubscribeLinks, isValidUrl, listUnsubscribeToString };

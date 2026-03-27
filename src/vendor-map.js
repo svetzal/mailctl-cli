@@ -21,9 +21,7 @@ export function getVendorDisplayNames() {
  */
 export function getVendorFilenameNames() {
   const map = getConfigVendorAddressMap();
-  return Object.fromEntries(
-    Object.entries(map).map(([addr, name]) => [addr, name.replace(/ /g, "-")])
-  );
+  return Object.fromEntries(Object.entries(map).map(([addr, name]) => [addr, name.replace(/ /g, "-")]));
 }
 
 /**
@@ -49,10 +47,10 @@ export function matchesVendor(filter, fromAddress, fromName) {
   const f = filter.toLowerCase();
 
   // 1. Check sender display name
-  if (fromName && fromName.toLowerCase().includes(f)) return true;
+  if (fromName?.toLowerCase().includes(f)) return true;
 
   // 2. Check sender email address
-  if (fromAddress && fromAddress.toLowerCase().includes(f)) return true;
+  if (fromAddress?.toLowerCase().includes(f)) return true;
 
   // 3. Check configured vendor names (address map and domain map)
   const addressMap = getConfigVendorAddressMap();
@@ -61,24 +59,24 @@ export function matchesVendor(filter, fromAddress, fromName) {
   const addr = (fromAddress || "").toLowerCase();
 
   // Check if sender address is in the address map and the vendor name matches
-  if (addressMap[addr] && addressMap[addr].toLowerCase().includes(f)) return true;
+  if (addressMap[addr]?.toLowerCase().includes(f)) return true;
 
   // Check if sender domain is in the domain map and the vendor name matches
   const domain = addr.includes("@") ? addr.split("@").pop() : "";
   if (domain) {
     // Check exact domain match in domain map
-    if (domainMap[domain] && domainMap[domain].toLowerCase().includes(f)) return true;
+    if (domainMap[domain]?.toLowerCase().includes(f)) return true;
 
     // Check parent domains (e.g. mail.anthropic.com -> anthropic.com)
     const parts = domain.split(".");
     for (let i = 1; i < parts.length - 1; i++) {
       const parent = parts.slice(i).join(".");
-      if (domainMap[parent] && domainMap[parent].toLowerCase().includes(f)) return true;
+      if (domainMap[parent]?.toLowerCase().includes(f)) return true;
     }
   }
 
   // 4. Check domain portion of the sender address
-  if (domain && domain.includes(f)) return true;
+  if (domain?.includes(f)) return true;
 
   return false;
 }

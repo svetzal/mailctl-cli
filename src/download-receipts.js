@@ -1,33 +1,20 @@
-import {
-  listMailboxes as _listMailboxes,
-  forEachAccount as _forEachAccount,
-} from "./imap-client.js";
-import { searchAccountForReceipts } from "./receipt-search-pipeline.js";
-import { applyReceiptFilters } from "./receipt-filters.js";
-import { groupByMailbox, forEachMailboxGroup } from "./imap-orchestration.js";
-import { loadAccounts as _loadAccounts } from "./accounts.js";
-import { join, resolve } from "path";
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
+import { join, resolve } from "node:path";
 import { simpleParser } from "mailparser";
-import { OpenAIGateway, LlmBroker, Message, isOk } from "mojentic";
-import { htmlToText } from "./html-to-text.js";
-import {
-  sanitizeFilename,
-  cleanVendorForFilename,
-  formatDate,
-  extractMetadata,
-} from "./receipt-extraction.js";
-import { matchesVendor } from "./vendor-map.js";
+import { isOk, LlmBroker, Message, OpenAIGateway } from "mojentic";
+import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
-import {
-  RECEIPT_SUBJECT_TERMS,
-  RECEIPT_SUBJECT_EXCLUSIONS,
-  BILLING_SENDER_PATTERNS,
-} from "./receipt-terms.js";
+import { htmlToText } from "./html-to-text.js";
+import { forEachAccount as _forEachAccount, listMailboxes as _listMailboxes } from "./imap-client.js";
+import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
+import { cleanVendorForFilename, extractMetadata, formatDate, sanitizeFilename } from "./receipt-extraction.js";
+import { applyReceiptFilters } from "./receipt-filters.js";
+import { searchAccountForReceipts } from "./receipt-search-pipeline.js";
+import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_EXCLUSIONS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
+import { matchesVendor } from "./vendor-map.js";
 
 export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
-
 
 /** JSON schema for LLM-based receipt data extraction. */
 export const RECEIPT_EXTRACTION_SCHEMA = {
@@ -35,43 +22,53 @@ export const RECEIPT_EXTRACTION_SCHEMA = {
   properties: {
     vendor: {
       type: "string",
-      description: "The company or merchant that charged the payment. Use their common brand name, cleaned of legal suffixes (Inc, LLC, Ltd, Corp, PBC). Examples: 'Apple', 'GitHub', 'Costco', 'Anthropic', 'Zoom', 'JetBrains'. For payment processors like Paddle or PayPal, use the ACTUAL product vendor if identifiable (e.g. Paddle billing for Tidewave → 'Tidewave'), otherwise use the processor name. For forwarded invoices from individuals, use the business/practice name if present, otherwise the person's full name."
+      description:
+        "The company or merchant that charged the payment. Use their common brand name, cleaned of legal suffixes (Inc, LLC, Ltd, Corp, PBC). Examples: 'Apple', 'GitHub', 'Costco', 'Anthropic', 'Zoom', 'JetBrains'. For payment processors like Paddle or PayPal, use the ACTUAL product vendor if identifiable (e.g. Paddle billing for Tidewave → 'Tidewave'), otherwise use the processor name. For forwarded invoices from individuals, use the business/practice name if present, otherwise the person's full name.",
     },
     service: {
       type: ["string", "null"],
-      description: "The specific product, subscription, plan, or item(s) being paid for. Be as specific as possible using the actual product/plan name from the receipt. Examples: 'ChatGPT Plus', 'Zoom Workplace Pro', 'GitHub Copilot Business', 'iCloud+ 200GB', 'Apple Music Family', 'Suno Pro', 'JetBrains All Products Pack', 'Microsoft 365 Business Standard', 'Apple Pencil Pro for iPad'. For Apple receipts listing multiple subscriptions, join ALL subscription names with commas (e.g. 'Paramount+, Apple Music Family, iCloud+ 200GB'). For retail purchases with line items, list the items. NEVER use generic labels like 'Subtotal', 'Total', 'Subscription', 'Payment', or 'Invoice'. If you truly cannot identify the product name, return null."
+      description:
+        "The specific product, subscription, plan, or item(s) being paid for. Be as specific as possible using the actual product/plan name from the receipt. Examples: 'ChatGPT Plus', 'Zoom Workplace Pro', 'GitHub Copilot Business', 'iCloud+ 200GB', 'Apple Music Family', 'Suno Pro', 'JetBrains All Products Pack', 'Microsoft 365 Business Standard', 'Apple Pencil Pro for iPad'. For Apple receipts listing multiple subscriptions, join ALL subscription names with commas (e.g. 'Paramount+, Apple Music Family, iCloud+ 200GB'). For retail purchases with line items, list the items. NEVER use generic labels like 'Subtotal', 'Total', 'Subscription', 'Payment', or 'Invoice'. If you truly cannot identify the product name, return null.",
     },
     amount: {
       type: ["number", "null"],
-      description: "The subtotal amount BEFORE tax as a number. If the receipt shows a subtotal and tax separately, use the subtotal. If only a grand total is shown with no tax breakdown, use that total. If multiple line items exist, use the overall subtotal/total before tax. ALWAYS extract this — a receipt without an amount is almost useless. Look for dollar amounts near words like 'Total', 'Subtotal', 'Amount Due', 'Amount Charged', 'Price'. Return null ONLY if no monetary amount appears anywhere in the content."
+      description:
+        "The subtotal amount BEFORE tax as a number. If the receipt shows a subtotal and tax separately, use the subtotal. If only a grand total is shown with no tax breakdown, use that total. If multiple line items exist, use the overall subtotal/total before tax. ALWAYS extract this — a receipt without an amount is almost useless. Look for dollar amounts near words like 'Total', 'Subtotal', 'Amount Due', 'Amount Charged', 'Price'. Return null ONLY if no monetary amount appears anywhere in the content.",
     },
     currency: {
       type: ["string", "null"],
-      description: "3-letter ISO currency code (USD, CAD, EUR, GBP, etc.). Determining currency requires judgment: (1) Look for EXPLICIT indicators first: 'US$', 'CA$', 'USD', 'CAD', 'C$' in the receipt. (2) If Canadian sales tax appears (HST, GST, PST, QST) the charge is in CAD. (3) Consider the vendor's billing country: US-headquartered SaaS companies (GitHub, Anthropic, OpenAI, Zoom, Suno, AWS, Lyft, Netflix) typically bill in USD. Canadian companies (Bell, Costco, Canadian Tire, Shoppers Drug Mart, Best Buy Canada) bill in CAD. (4) Payment processors like Paddle may bill in either currency — check the invoice details. (5) If the receipt shows '$' with no country qualifier and no tax info, lean toward the vendor's home currency. ALWAYS provide your best assessment — null only if completely ambiguous."
+      description:
+        "3-letter ISO currency code (USD, CAD, EUR, GBP, etc.). Determining currency requires judgment: (1) Look for EXPLICIT indicators first: 'US$', 'CA$', 'USD', 'CAD', 'C$' in the receipt. (2) If Canadian sales tax appears (HST, GST, PST, QST) the charge is in CAD. (3) Consider the vendor's billing country: US-headquartered SaaS companies (GitHub, Anthropic, OpenAI, Zoom, Suno, AWS, Lyft, Netflix) typically bill in USD. Canadian companies (Bell, Costco, Canadian Tire, Shoppers Drug Mart, Best Buy Canada) bill in CAD. (4) Payment processors like Paddle may bill in either currency — check the invoice details. (5) If the receipt shows '$' with no country qualifier and no tax info, lean toward the vendor's home currency. ALWAYS provide your best assessment — null only if completely ambiguous.",
     },
     tax_amount: {
       type: ["number", "null"],
-      description: "The tax as a DOLLAR AMOUNT (not a percentage). If the receipt says 'HST: $1.56', return 1.56. If tax is shown ONLY as a percentage (e.g. '13%') with no dollar figure, calculate it: subtotal × rate (e.g. $11.99 × 0.13 = 1.56). If multiple tax lines exist (e.g. GST + PST), sum them. Return null if no tax information appears."
+      description:
+        "The tax as a DOLLAR AMOUNT (not a percentage). If the receipt says 'HST: $1.56', return 1.56. If tax is shown ONLY as a percentage (e.g. '13%') with no dollar figure, calculate it: subtotal × rate (e.g. $11.99 × 0.13 = 1.56). If multiple tax lines exist (e.g. GST + PST), sum them. Return null if no tax information appears.",
     },
     tax_type: {
       type: ["string", "null"],
-      description: "The type of tax charged: HST, GST, PST, QST, VAT, Sales Tax. If multiple taxes (e.g. GST + PST), combine as 'GST+PST'. Return null if no tax type is specified."
+      description:
+        "The type of tax charged: HST, GST, PST, QST, VAT, Sales Tax. If multiple taxes (e.g. GST + PST), combine as 'GST+PST'. Return null if no tax type is specified.",
     },
     date: {
       type: ["string", "null"],
-      description: "The billing, invoice, or transaction date in YYYY-MM-DD format. Prefer the date the charge was made (Invoice Date, Billing Date, Transaction Date, Payment Date) over the email send date. If the receipt shows a billing period, use the start date. Return null only if no date appears in the content."
+      description:
+        "The billing, invoice, or transaction date in YYYY-MM-DD format. Prefer the date the charge was made (Invoice Date, Billing Date, Transaction Date, Payment Date) over the email send date. If the receipt shows a billing period, use the start date. Return null only if no date appears in the content.",
     },
     invoice_number: {
       type: ["string", "null"],
-      description: "The invoice number, receipt number, order number, or transaction reference. Use the most specific identifier available. Examples: 'INV-2024-0042', 'MNJ104XT91', '1669669', 'DLAENQQZ0009'. Do NOT include long base64 strings, URLs, or tracking numbers. Must be filesystem-safe (no slashes, backslashes, or special characters beyond hyphens and dots). Return null if no clear identifier exists."
+      description:
+        "The invoice number, receipt number, order number, or transaction reference. Use the most specific identifier available. Examples: 'INV-2024-0042', 'MNJ104XT91', '1669669', 'DLAENQQZ0009'. Do NOT include long base64 strings, URLs, or tracking numbers. Must be filesystem-safe (no slashes, backslashes, or special characters beyond hyphens and dots). Return null if no clear identifier exists.",
     },
     is_invoice: {
       type: "boolean",
-      description: "Is this email an actual invoice, receipt, or payment confirmation that records a completed monetary transaction? Return true for: invoices, receipts, payment confirmations, billing statements, renewal charges. Return false for: payment reminders ('we will charge you on...'), credit-based orders with no dollar amount, trial conversion notices, subscription welcome emails, shipping notifications without prices, account notifications, marketing emails, pricing change announcements, or apology/correction emails. When in doubt, return false."
+      description:
+        "Is this email an actual invoice, receipt, or payment confirmation that records a completed monetary transaction? Return true for: invoices, receipts, payment confirmations, billing statements, renewal charges. Return false for: payment reminders ('we will charge you on...'), credit-based orders with no dollar amount, trial conversion notices, subscription welcome emails, shipping notifications without prices, account notifications, marketing emails, pricing change announcements, or apology/correction emails. When in doubt, return false.",
     },
     confidence: {
       type: "number",
-      description: "Your confidence that this is a real invoice/receipt with accurate extracted data, from 0.0 (no confidence) to 1.0 (certain). Score 0.9+ when you see a clear invoice with amount, date, and vendor. Score 0.5-0.8 when some fields are ambiguous or missing. Score below 0.5 when the email doesn't appear to be an actual invoice/receipt."
+      description:
+        "Your confidence that this is a real invoice/receipt with accurate extracted data, from 0.0 (no confidence) to 1.0 (certain). Score 0.9+ when you see a clear invoice with amount, date, and vendor. Score 0.5-0.8 when some fields are ambiguous or missing. Score below 0.5 when the email doesn't appear to be an actual invoice/receipt.",
     },
   },
   required: ["vendor", "is_invoice", "confidence"],
@@ -136,10 +133,7 @@ Date: ${emailDate instanceof Date ? emailDate.toISOString() : emailDate}
 
 ${truncatedBody}`;
 
-  const messages = [
-    Message.system(LLM_SYSTEM_PROMPT),
-    Message.user(userContent),
-  ];
+  const messages = [Message.system(LLM_SYSTEM_PROMPT), Message.user(userContent)];
 
   const result = await broker.generateObject(messages, RECEIPT_EXTRACTION_SCHEMA);
 
@@ -158,7 +152,9 @@ ${truncatedBody}`;
 
   // Use LLM vendor for metadata, but cleanVendorForFilename is still used for filenames
   const vendor = data.vendor
-    ? sanitizeFilename(data.vendor.replace(/,?\s*\b(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\b\.?\s*/gi, "").trim()) || cleanVendorForFilename(fromAddress, fromName, bodyText, subject)
+    ? sanitizeFilename(
+        data.vendor.replace(/,?\s*\b(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\b\.?\s*/gi, "").trim(),
+      ) || cleanVendorForFilename(fromAddress, fromName, bodyText, subject)
     : cleanVendorForFilename(fromAddress, fromName, bodyText, subject);
 
   return {
@@ -193,10 +189,14 @@ export function pdfToText(pdfPath, fs, subprocess) {
   const tmpDir = join(process.env.TMPDIR || "/tmp", `mailctl-docling-${Date.now()}`);
   try {
     fs.mkdir(tmpDir);
-    subprocess.execFileSync(doclingPath, [pdfPath, "--to", "md", "--image-export-mode", "placeholder", "--output", tmpDir], {
-      timeout: 60000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    subprocess.execFileSync(
+      doclingPath,
+      [pdfPath, "--to", "md", "--image-export-mode", "placeholder", "--output", tmpDir],
+      {
+        timeout: 60000,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
     const files = fs.readdir(tmpDir);
     const mdFile = files.find((f) => f.endsWith(".md"));
     if (mdFile) {
@@ -206,7 +206,9 @@ export function pdfToText(pdfPath, fs, subprocess) {
   } catch {
     return null;
   } finally {
-    try { fs.rm(tmpDir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rm(tmpDir, { recursive: true, force: true });
+    } catch {}
   }
 }
 
@@ -229,7 +231,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
   }
 
   try {
-    const messageCount = client.mailbox && client.mailbox.exists;
+    const messageCount = client.mailbox?.exists;
     onProgress({ type: "mailbox-search-start", mailbox: mailboxPath, messageCount });
     const allUids = new Set();
 
@@ -260,9 +262,15 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
     const results = [];
     const uidRange = [...allUids].join(",");
     try {
-      for await (const msg of client.fetch(uidRange, {
-        envelope: true, headers: ["message-id"], uid: true,
-      }, { uid: true })) {
+      for await (const msg of client.fetch(
+        uidRange,
+        {
+          envelope: true,
+          headers: ["message-id"],
+          uid: true,
+        },
+        { uid: true },
+      )) {
         const env = msg.envelope;
         const from = env.from?.[0];
         results.push({
@@ -363,11 +371,7 @@ export function uniqueBaseName(dir, base, usedPaths, fs) {
   let n = 1;
   const key = (suffix) => `${dir}/${suffix === 1 ? base : `${base}_${suffix}`}`.toLowerCase();
 
-  while (
-    usedPaths.has(key(n)) ||
-    fs.exists(join(dir, `${name}.json`)) ||
-    fs.exists(join(dir, `${name}.pdf`))
-  ) {
+  while (usedPaths.has(key(n)) || fs.exists(join(dir, `${name}.json`)) || fs.exists(join(dir, `${name}.pdf`))) {
     n++;
     name = `${base}_${n}`;
   }
@@ -411,7 +415,15 @@ function resolveReceiptAccounts(accountFilter, loadAccountsFn) {
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<object>} metadata object
  */
-async function extractReceiptMetadata(llm, extractionText, subject, fromAddress, fromName, emailDate, onProgress = () => {}) {
+async function extractReceiptMetadata(
+  llm,
+  extractionText,
+  subject,
+  fromAddress,
+  fromName,
+  emailDate,
+  onProgress = () => {},
+) {
   let metadata;
   if (llm) {
     try {
@@ -453,7 +465,9 @@ function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess, on
   } catch (err) {
     onProgress({ type: "docling-failed", uid, error: err });
   } finally {
-    try { fs.rm(tmpPdfPath, { force: true }); } catch {}
+    try {
+      fs.rm(tmpPdfPath, { force: true });
+    } catch {}
   }
   return bodyText;
 }
@@ -475,7 +489,20 @@ function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess, on
  * @param {function(object): void} [params.onProgress] - receives structured progress events
  * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', metadata: object }}
  */
-function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs, onProgress = () => {} }) {
+function writeReceiptOutput({
+  metadata,
+  pdfAttachments,
+  msg,
+  bodyText,
+  parsed,
+  emailDate,
+  outputDir,
+  dryRun,
+  existingHashes,
+  usedPaths,
+  fs,
+  onProgress = () => {},
+}) {
   const d = emailDate instanceof Date ? emailDate : new Date(emailDate);
   const yyyy = String(d.getFullYear());
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -484,7 +511,10 @@ function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, e
   const vendorClean = cleanVendorForFilename(msg.fromAddress, msg.fromName, bodyText, parsed.subject || msg.subject);
   let rawBase;
   if (metadata.invoice_number) {
-    const safeInvoice = metadata.invoice_number.replace(/[\/\\:*?"<>|]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    const safeInvoice = metadata.invoice_number
+      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
     rawBase = `${vendorClean}-${safeInvoice}`;
   } else {
     rawBase = `${vendorClean}-${metadata.date}`;
@@ -563,7 +593,18 @@ function writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, e
  * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'error', metadata?: object }>}
  */
 async function processReceiptMessage(client, msg, context) {
-  const { accountName, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess, onProgress = () => {} } = context;
+  const {
+    accountName,
+    outputDir,
+    dryRun,
+    llm,
+    existingInvoiceNumbers,
+    existingHashes,
+    usedPaths,
+    fs,
+    subprocess,
+    onProgress = () => {},
+  } = context;
 
   try {
     // Download and parse the full message
@@ -578,12 +619,19 @@ async function processReceiptMessage(client, msg, context) {
 
     // Find PDF attachments early — needed to decide extraction source
     const pdfAttachments = (parsed.attachments || []).filter(
-      (a) => a.contentType === "application/pdf" ||
-        (a.filename && a.filename.toLowerCase().endsWith(".pdf"))
+      (a) => a.contentType === "application/pdf" || a.filename?.toLowerCase().endsWith(".pdf"),
     );
 
     const extractionText = resolveExtractionText(pdfAttachments, bodyText, msg.uid, fs, subprocess, onProgress);
-    const metadata = await extractReceiptMetadata(llm, extractionText, parsed.subject || msg.subject, msg.fromAddress, msg.fromName, emailDate, onProgress);
+    const metadata = await extractReceiptMetadata(
+      llm,
+      extractionText,
+      parsed.subject || msg.subject,
+      msg.fromAddress,
+      msg.fromName,
+      emailDate,
+      onProgress,
+    );
 
     metadata.source_account = accountName.toLowerCase();
     metadata.email_uid = msg.uid;
@@ -605,7 +653,20 @@ async function processReceiptMessage(client, msg, context) {
       return { action: "duplicate" };
     }
 
-    const result = writeReceiptOutput({ metadata, pdfAttachments, msg, bodyText, parsed, emailDate, outputDir, dryRun, existingHashes, usedPaths, fs, onProgress });
+    const result = writeReceiptOutput({
+      metadata,
+      pdfAttachments,
+      msg,
+      bodyText,
+      parsed,
+      emailDate,
+      outputDir,
+      dryRun,
+      existingHashes,
+      usedPaths,
+      fs,
+      onProgress,
+    });
 
     if (result.action === "downloaded" && metadata.invoice_number) {
       existingInvoiceNumbers.add(metadata.invoice_number);
@@ -622,7 +683,6 @@ async function processReceiptMessage(client, msg, context) {
   }
 }
 
-
 /** Singleton gateway instances used in production. */
 const _defaultFs = new FileSystemGateway();
 const _defaultSubprocess = new SubprocessGateway();
@@ -631,11 +691,11 @@ const _defaultSubprocess = new SubprocessGateway();
  * Default production gateways. Tests override individual keys.
  */
 const defaultGateways = {
-  fs:               _defaultFs,
-  subprocess:       _defaultSubprocess,
-  loadAccounts:     _loadAccounts,
-  forEachAccount:   _forEachAccount,
-  listMailboxes:    _listMailboxes,
+  fs: _defaultFs,
+  subprocess: _defaultSubprocess,
+  loadAccounts: _loadAccounts,
+  forEachAccount: _forEachAccount,
+  listMailboxes: _listMailboxes,
   createLlmBroker,
 };
 
@@ -669,7 +729,11 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
 
   const since = opts.since
     ? new Date(opts.since)
-    : (() => { const d = new Date(); d.setMonth(d.getMonth() - months); return d; })();
+    : (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - months);
+        return d;
+      })();
 
   const targetAccounts = resolveReceiptAccounts(accountFilter, loadAccounts);
 
@@ -692,13 +756,24 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     onProgress({ type: "search-account", name: account.name, user: account.user });
 
     // Phase 1: discover receipt emails across all mailboxes
-    const searchResults = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts: (client, accountName, mbPath, since) => searchMailboxForReceipts(client, accountName, mbPath, since, onProgress) });
-    const { filtered: unique, vendorExcluded, subjectExcluded } = applyReceiptFilters(
-      searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS
-    );
+    const searchResults = await searchAccountForReceipts(client, account, since, {
+      listMailboxes,
+      searchMailboxForReceipts: (client, accountName, mbPath, since) =>
+        searchMailboxForReceipts(client, accountName, mbPath, since, onProgress),
+    });
+    const {
+      filtered: unique,
+      vendorExcluded,
+      subjectExcluded,
+    } = applyReceiptFilters(searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS);
 
     if (vendorExcluded > 0) {
-      onProgress({ type: "vendor-filter-applied", matchCount: unique.length, excludedCount: vendorExcluded, vendor: opts.vendor || null });
+      onProgress({
+        type: "vendor-filter-applied",
+        matchCount: unique.length,
+        excludedCount: vendorExcluded,
+        vendor: opts.vendor || null,
+      });
     }
     if (subjectExcluded > 0) {
       onProgress({ type: "subject-exclusions", count: subjectExcluded });
@@ -710,13 +785,32 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     const byMailbox = groupByMailbox(unique);
     await forEachMailboxGroup(client, byMailbox, async (_mailbox, messages) => {
       for (const msg of messages) {
-        const context = { accountName: account.name, outputDir, dryRun, llm, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess, onProgress };
+        const context = {
+          accountName: account.name,
+          outputDir,
+          dryRun,
+          llm,
+          existingInvoiceNumbers,
+          existingHashes,
+          usedPaths,
+          fs,
+          subprocess,
+          onProgress,
+        };
         const { action, metadata } = await processReceiptMessage(client, msg, context);
-        if (action === "downloaded") { stats.downloaded++; records.push(/** @type {object} */ (metadata)); }
-        else if (action === "noPdf")   { stats.noPdf++; records.push(/** @type {object} */ (metadata)); }
-        else if (action === "skipped") { stats.skipped++; }
-        else if (action === "duplicate") { stats.alreadyHave++; }
-        else if (action === "error") { stats.errors++; }
+        if (action === "downloaded") {
+          stats.downloaded++;
+          records.push(/** @type {object} */ (metadata));
+        } else if (action === "noPdf") {
+          stats.noPdf++;
+          records.push(/** @type {object} */ (metadata));
+        } else if (action === "skipped") {
+          stats.skipped++;
+        } else if (action === "duplicate") {
+          stats.alreadyHave++;
+        } else if (action === "error") {
+          stats.errors++;
+        }
       }
     });
   });
@@ -738,18 +832,18 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
  * @returns {Promise<Array<{ vendor: string, address: string, count: number }>>}
  */
 export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = () => {}) {
-  const {
-    loadAccounts,
-    forEachAccount,
-    listMailboxes,
-  } = { ...defaultGateways, ...gateways };
+  const { loadAccounts, forEachAccount, listMailboxes } = { ...defaultGateways, ...gateways };
 
   const months = opts.months ?? 3;
   const accountFilter = opts.account || null;
 
   const since = opts.since
     ? opts.since
-    : (() => { const d = new Date(); d.setMonth(d.getMonth() - months); return d; })();
+    : (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - months);
+        return d;
+      })();
 
   const targetAccounts = resolveReceiptAccounts(accountFilter, loadAccounts);
 
@@ -759,7 +853,11 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
   await forEachAccount(targetAccounts, async (client, account) => {
     onProgress({ type: "search-account", name: account.name, user: account.user });
 
-    const unique = await searchAccountForReceipts(client, account, since, { listMailboxes, searchMailboxForReceipts: (client, accountName, mbPath, since) => searchMailboxForReceipts(client, accountName, mbPath, since, onProgress) });
+    const unique = await searchAccountForReceipts(client, account, since, {
+      listMailboxes,
+      searchMailboxForReceipts: (client, accountName, mbPath, since) =>
+        searchMailboxForReceipts(client, accountName, mbPath, since, onProgress),
+    });
 
     for (const msg of unique) {
       const key = msg.fromAddress;
@@ -807,11 +905,7 @@ export function collectSidecarFiles(outputDir, fs) {
  * @returns {Promise<{reprocessed: number, skipped: number, errors: number, reclassified: number, results: Array}>}
  */
 export async function reprocessReceipts(opts, gateways = {}, onProgress = () => {}) {
-  const {
-    fs,
-    subprocess,
-    createLlmBroker: _createLlmBroker,
-  } = { ...defaultGateways, ...gateways };
+  const { fs, subprocess, createLlmBroker: _createLlmBroker } = { ...defaultGateways, ...gateways };
 
   const outputDir = resolve(opts.outputDir || ".");
   const dryRun = opts.dryRun ?? false;
@@ -844,7 +938,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     // Filter by since date
     if (sinceDate && sidecar.date) {
       const sidecarDate = new Date(sidecar.date);
-      if (!isNaN(sidecarDate.getTime()) && sidecarDate < sinceDate) {
+      if (!Number.isNaN(sidecarDate.getTime()) && sidecarDate < sinceDate) {
         continue;
       }
     }
@@ -894,7 +988,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
         sidecar.subject || "",
         sidecar.source_email || "",
         sidecar.vendor || "",
-        sidecar.date ? new Date(sidecar.date) : new Date()
+        sidecar.date ? new Date(sidecar.date) : new Date(),
       );
 
       if (!metadata) {
@@ -934,7 +1028,13 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     }
   }
 
-  onProgress({ type: "reprocess-summary", reprocessed: stats.reprocessed, skipped: stats.skipped, reclassified: stats.reclassified, errors: stats.errors });
+  onProgress({
+    type: "reprocess-summary",
+    reprocessed: stats.reprocessed,
+    skipped: stats.skipped,
+    reclassified: stats.reclassified,
+    errors: stats.errors,
+  });
 
   return { ...stats, results };
 }

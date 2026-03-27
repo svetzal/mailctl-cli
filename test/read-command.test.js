@@ -1,6 +1,6 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { readCommand } from "../src/read-command.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -19,7 +19,9 @@ function makeClient({ downloadContent = Buffer.from("raw email"), searchResult =
     getMailboxLock: mock(() => Promise.resolve(makeLock())),
     search: mock(() => Promise.resolve(searchResult)),
     download: mock(() => ({
-      content: (async function* () { yield downloadContent; })(),
+      content: (async function* () {
+        yield downloadContent;
+      })(),
     })),
   };
 }
@@ -85,24 +87,24 @@ describe("readCommand", () => {
         // Never calls fn — simulates UID not found
       }),
     });
-    await expect(readCommand("99", {}, deps)).rejects.toThrow(
-      "Could not find UID 99 in any account."
-    );
+    await expect(readCommand("99", {}, deps)).rejects.toThrow("Could not find UID 99 in any account.");
   });
 
   it("throws with context when download fails", async () => {
     const failClient = {
       getMailboxLock: mock(() => Promise.resolve(makeLock())),
       search: mock(() => Promise.resolve([42])),
-      download: mock(() => { throw new Error("Network error"); }),
+      download: mock(() => {
+        throw new Error("Network error");
+      }),
     };
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => { await fn(failClient, makeAccount()); }),
+      forEachAccount: mock(async (_accounts, fn) => {
+        await fn(failClient, makeAccount());
+      }),
       _client: failClient,
     });
-    await expect(readCommand("42", { mailbox: "INBOX" }, deps)).rejects.toThrow(
-      "Could not fetch UID 42"
-    );
+    await expect(readCommand("42", { mailbox: "INBOX" }, deps)).rejects.toThrow("Could not fetch UID 42");
   });
 
   it("skips account when mailbox lock fails", async () => {
@@ -115,7 +117,7 @@ describe("readCommand", () => {
     let callCount = 0;
 
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         await fn(lockFailClient, makeAccount({ name: "First Account" }));
         await fn(makeClient(), successAccount);
       }),
@@ -134,7 +136,7 @@ describe("readCommand", () => {
   it("stops iterating after UID is found in first account", async () => {
     let parseCount = 0;
     const deps = makeDeps({
-      forEachAccount: mock(async (accounts, fn) => {
+      forEachAccount: mock(async (_accounts, fn) => {
         await fn(makeClient(), makeAccount({ name: "First" }));
         await fn(makeClient(), makeAccount({ name: "Second" }));
       }),

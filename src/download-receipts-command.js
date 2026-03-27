@@ -30,11 +30,15 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
     const { getVendorDisplayNames, getVendorDomainMap } = await importVendorMap();
     const sinceDate = opts.since ? parseDate(opts.since) : null;
 
-    const vendors = await listReceiptVendors({
-      months: parseInt(opts.months ?? "12", 10),
-      since: sinceDate || undefined,
-      account: account || null,
-    }, {}, onProgress);
+    const vendors = await listReceiptVendors(
+      {
+        months: parseInt(opts.months ?? "12", 10),
+        since: sinceDate || undefined,
+        account: account || null,
+      },
+      {},
+      onProgress,
+    );
 
     const knownNames = getVendorDisplayNames();
     const knownDomains = getVendorDomainMap();
@@ -47,25 +51,33 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
     const { reprocessReceipts } = await importDownloadReceipts();
     const sinceDate = opts.since ? parseDate(opts.since) : null;
 
-    const result = await reprocessReceipts({
-      outputDir: opts.output ?? ".",
-      vendor: opts.vendor || null,
-      since: sinceDate,
-      dryRun: opts.dryRun ?? false,
-    }, {}, onProgress);
+    const result = await reprocessReceipts(
+      {
+        outputDir: opts.output ?? ".",
+        vendor: opts.vendor || null,
+        since: sinceDate,
+        dryRun: opts.dryRun ?? false,
+      },
+      {},
+      onProgress,
+    );
 
     return { mode: "reprocess", ...result };
   }
 
   const { downloadReceiptEmails } = await importDownloadReceipts();
-  const { stats, records } = await downloadReceiptEmails({
-    outputDir: opts.output ?? ".",
-    months: parseInt(opts.months ?? "12", 10),
-    since: opts.since || null,
-    account: account || null,
-    vendor: opts.vendor || null,
-    dryRun: opts.dryRun ?? false,
-  }, {}, onProgress);
+  const { stats, records } = await downloadReceiptEmails(
+    {
+      outputDir: opts.output ?? ".",
+      months: parseInt(opts.months ?? "12", 10),
+      since: opts.since || null,
+      account: account || null,
+      vendor: opts.vendor || null,
+      dryRun: opts.dryRun ?? false,
+    },
+    {},
+    onProgress,
+  );
 
   return { mode: "download", stats, records };
 }

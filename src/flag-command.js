@@ -4,11 +4,12 @@
  * Extracts the orchestration logic from the cli.js flag handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
-import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
+
 import { filterAccountsByName } from "./cli-helpers.js";
+import { applyFlagChanges, computeFlagChanges } from "./flag-messages.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { detectMailbox } from "./mailbox-detect.js";
-import { computeFlagChanges, applyFlagChanges } from "./flag-messages.js";
+import { groupUidsByAccount, parseUidArgs } from "./move-logic.js";
 
 /**
  * @typedef {object} FlagCommandDeps

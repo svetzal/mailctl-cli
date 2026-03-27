@@ -8,10 +8,10 @@ import { htmlToText } from "./html-to-text.js";
 /**
  * Build reply headers from the original parsed email.
  * @param {object} original - parsed email (from mailparser)
- * @param {string} fromAddress - sender's address (the replying user)
+ * @param {string} _fromAddress - sender's address (the replying user)
  * @returns {{ to: string, subject: string, inReplyTo: string, references: string }}
  */
-export function buildReplyHeaders(original, fromAddress) {
+export function buildReplyHeaders(original, _fromAddress) {
   // Reply-To takes precedence over From
   const replyTo = original.replyTo?.text || original.from?.text || "";
   // Extract just the email address if Reply-To has "Name <addr>" format

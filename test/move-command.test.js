@@ -1,21 +1,17 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { moveCommand } from "../src/move-command.js";
-import { makeLock, makeAccount, makeForEachAccount, makeListMailboxes } from "./helpers.js";
+import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
-function makeClient({ folders = ["INBOX", "Archive"], messageMoveShouldFail = false } = {}) {
+function makeClient({ messageMoveShouldFail = false } = {}) {
   return {
     getMailboxLock: mock(() => Promise.resolve(makeLock())),
-    messageMove: mock(() =>
-      messageMoveShouldFail
-        ? Promise.reject(new Error("Move failed"))
-        : Promise.resolve()
-    ),
+    messageMove: mock(() => (messageMoveShouldFail ? Promise.reject(new Error("Move failed")) : Promise.resolve())),
   };
 }
 
 function makeDeps(overrides = {}) {
   const account = makeAccount();
-  const client = makeClient({ folders: ["INBOX", "Archive"] });
+  const client = makeClient();
 
   const listMailboxes = makeListMailboxes([
     { path: "INBOX", specialUse: "\\Inbox" },
@@ -40,23 +36,21 @@ describe("moveCommand", () => {
   describe("input validation", () => {
     it("throws when no UIDs are provided (empty array)", async () => {
       const deps = makeDeps({ account: "Test Account" });
-      await expect(moveCommand([], { to: "Archive" }, deps)).rejects.toThrow(
-        "No UIDs provided."
-      );
+      await expect(moveCommand([], { to: "Archive" }, deps)).rejects.toThrow("No UIDs provided.");
     });
 
     it("throws when UID has no prefix and no --account is set", async () => {
       const deps = makeDeps({ account: null });
       await expect(moveCommand(["12345"], { to: "Archive" }, deps)).rejects.toThrow(
-        "UID \"12345\" has no account prefix"
+        'UID "12345" has no account prefix',
       );
     });
 
     it("throws when destination folder does not exist", async () => {
       const deps = makeDeps({ account: "Test Account" });
-      await expect(
-        moveCommand(["12345"], { to: "NonExistent" }, deps)
-      ).rejects.toThrow('Destination folder "NonExistent" does not exist');
+      await expect(moveCommand(["12345"], { to: "NonExistent" }, deps)).rejects.toThrow(
+        'Destination folder "NonExistent" does not exist',
+      );
     });
   });
 
@@ -83,11 +77,7 @@ describe("moveCommand", () => {
       const deps = makeDeps({ account: "Test Account" });
       await moveCommand(["12345", "67890"], { to: "Archive" }, deps);
 
-      expect(deps._client.messageMove).toHaveBeenCalledWith(
-        "12345,67890",
-        "Archive",
-        { uid: true }
-      );
+      expect(deps._client.messageMove).toHaveBeenCalledWith("12345,67890", "Archive", { uid: true });
     });
 
     it("uses INBOX as default source mailbox", async () => {
@@ -147,15 +137,10 @@ describe("moveCommand", () => {
       const failingClient = makeClient({ messageMoveShouldFail: true });
       const deps = makeDeps({
         account: "Test Account",
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(failingClient, makeAccount());
         }),
-        listMailboxes: mock(() =>
-          Promise.resolve([
-            { path: "INBOX" },
-            { path: "Archive" },
-          ])
-        ),
+        listMailboxes: mock(() => Promise.resolve([{ path: "INBOX" }, { path: "Archive" }])),
         _client: failingClient,
       });
       const result = await moveCommand(["12345"], { to: "Archive" }, deps);
@@ -171,7 +156,7 @@ describe("moveCommand", () => {
       };
       const deps = makeDeps({
         account: "Test Account",
-        forEachAccount: mock(async (accounts, fn) => {
+        forEachAccount: mock(async (_accounts, fn) => {
           await fn(lockFailClient, makeAccount());
         }),
         _client: lockFailClient,
@@ -195,22 +180,16 @@ describe("moveCommand", () => {
       const deps = makeDeps({
         accounts: [account1, account2],
         account: null,
-        forEachAccount: mock(async (targetAccts, fn) => {
+        forEachAccount: mock(async (_targetAccts, fn) => {
           callIndex++;
           if (callIndex === 1) await fn(client1, account1);
           else await fn(client2, account2);
         }),
-        listMailboxes: mock(() =>
-          Promise.resolve([{ path: "INBOX" }, { path: "Archive" }])
-        ),
+        listMailboxes: mock(() => Promise.resolve([{ path: "INBOX" }, { path: "Archive" }])),
         _client: client1,
       });
 
-      const result = await moveCommand(
-        ["icloud:111", "gmail:222"],
-        { to: "Archive" },
-        deps
-      );
+      const result = await moveCommand(["icloud:111", "gmail:222"], { to: "Archive" }, deps);
 
       // Two forEachAccount calls — one per account
       expect(deps.forEachAccount).toHaveBeenCalledTimes(2);

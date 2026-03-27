@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { classifyMessage, planMoves, BIZ_FOLDER, PERSONAL_FOLDER } from "../src/sort-logic.js";
+import { describe, expect, it } from "bun:test";
+import { BIZ_FOLDER, classifyMessage, PERSONAL_FOLDER, planMoves } from "../src/sort-logic.js";
 
 // ── constants ────────────────────────────────────────────────────────────────
 

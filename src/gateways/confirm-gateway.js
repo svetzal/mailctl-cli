@@ -3,7 +3,7 @@
  * Isolates terminal I/O so tests can inject a mock instead.
  * Contains no logic to test.
  */
-import { createInterface } from "readline";
+import { createInterface } from "node:readline";
 
 export class ConfirmGateway {
   /**

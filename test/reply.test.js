@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { buildReplyHeaders, buildReplyBody, buildEditorTemplate, parseEditorContent } from "../src/reply.js";
+import { describe, expect, it } from "bun:test";
+import { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "../src/reply.js";
 
 /**
  * Create a minimal mock of a mailparser ParsedMail object.

@@ -1,18 +1,17 @@
-import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
-import { mkdirSync, writeFileSync, rmSync } from "fs";
-import { join } from "path";
-import { createHash } from "crypto";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { createHash } from "node:crypto";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
-  walkOutputTree,
-  loadExistingInvoiceNumbers,
-  loadExistingHashes,
-  uniqueBaseName,
-  searchMailboxForReceipts,
-  downloadReceiptEmails,
   collectSidecarFiles,
+  downloadReceiptEmails,
+  loadExistingHashes,
+  loadExistingInvoiceNumbers,
   reprocessReceipts,
+  searchMailboxForReceipts,
+  uniqueBaseName,
+  walkOutputTree,
 } from "../src/download-receipts.js";
-import { RECEIPT_SUBJECT_EXCLUSIONS } from "../src/receipt-terms.js";
 import { FileSystemGateway } from "../src/gateways/fs-gateway.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
@@ -89,7 +88,7 @@ describe("walkOutputTree", () => {
     writeFileSync(join(monthDir, "bad.json"), "{}");
 
     const visited = [];
-    walkOutputTree(tmpDir, REAL_FS, (filePath, fileName) => {
+    walkOutputTree(tmpDir, REAL_FS, (_filePath, fileName) => {
       if (fileName === "bad.json") throw new Error("intentional");
       visited.push(fileName);
     });
@@ -231,10 +230,7 @@ describe("uniqueBaseName", () => {
   });
 
   it("appends _3 when both base and _2 are already taken", () => {
-    const usedPaths = new Set([
-      `${tmpDir}/acme-inv001`,
-      `${tmpDir}/acme-inv001_2`,
-    ]);
+    const usedPaths = new Set([`${tmpDir}/acme-inv001`, `${tmpDir}/acme-inv001_2`]);
     const result = uniqueBaseName(tmpDir, "Acme-INV001", usedPaths, REAL_FS);
     expect(result).toBe("Acme-INV001_3");
   });
@@ -271,7 +267,7 @@ describe("searchMailboxForReceipts", () => {
       getMailboxLock: mock(() => Promise.resolve(lock)),
       search: mock(() => Promise.resolve([])),
       mailbox: { exists: 0 },
-      fetch: mock(() => (async function*() {})()),
+      fetch: mock(() => (async function* () {})()),
     };
     const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
     expect(result).toHaveLength(0);
@@ -279,7 +275,7 @@ describe("searchMailboxForReceipts", () => {
 
   it("deduplicates UIDs across multiple search terms", async () => {
     const lock = { release: mock(() => {}) };
-    const fetchedMessages = [];
+    const _fetchedMessages = [];
     const client = {
       getMailboxLock: mock(() => Promise.resolve(lock)),
       // Return the same UID 42 for both "receipt" and "invoice" terms
@@ -312,7 +308,7 @@ describe("searchMailboxForReceipts", () => {
       getMailboxLock: mock(() => Promise.resolve(lock)),
       search: mock(() => Promise.resolve([])),
       mailbox: { exists: 0 },
-      fetch: mock(() => (async function*() {})()),
+      fetch: mock(() => (async function* () {})()),
     };
     await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
     expect(lock.release).toHaveBeenCalledTimes(1);
@@ -342,7 +338,7 @@ describe("searchMailboxForReceipts", () => {
     };
     const [result] = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
     expect(result.uid).toBe(99);
-    expect(result.fromAddress).toBe("bill@acme.com");  // lowercased
+    expect(result.fromAddress).toBe("bill@acme.com"); // lowercased
     expect(result.fromName).toBe("Acme Billing");
     expect(result.subject).toBe("Invoice #123");
     expect(result.messageId).toBe("msg-99@acme.com");
@@ -402,7 +398,9 @@ function makeEmailClient(pdfContent = FAKE_PDF) {
       return gen();
     }),
     download: mock(() => {
-      async function* gen() { yield rawBuffer; }
+      async function* gen() {
+        yield rawBuffer;
+      }
       return Promise.resolve({ content: gen() });
     }),
   };
@@ -422,7 +420,9 @@ function makeMockFs(existingFiles = {}) {
       readJson: mock((p) => existingFiles[p]?.content ?? {}),
       readBuffer: mock((p) => existingFiles[p]?.content ?? Buffer.alloc(0)),
       readText: mock((p) => (existingFiles[p]?.content ?? "").toString()),
-      writeFile: mock((p, data) => { written[p] = data; }),
+      writeFile: mock((p, data) => {
+        written[p] = data;
+      }),
       mkdir: mock(() => {}),
       rm: mock(() => {}),
     },
@@ -434,28 +434,34 @@ describe("downloadReceiptEmails", () => {
   it("throws when no accounts are configured", async () => {
     const { mockFs } = makeMockFs();
     await expect(
-      downloadReceiptEmails({}, {
-        fs: mockFs,
-        subprocess: { execFileSync: mock(() => {}) },
-        loadAccounts: () => [],
-        forEachAccount: async () => {},
-        listMailboxes: async () => [],
-        createLlmBroker: () => null,
-      })
+      downloadReceiptEmails(
+        {},
+        {
+          fs: mockFs,
+          subprocess: { execFileSync: mock(() => {}) },
+          loadAccounts: () => [],
+          forEachAccount: async () => {},
+          listMailboxes: async () => [],
+          createLlmBroker: () => null,
+        },
+      ),
     ).rejects.toThrow("No email accounts configured");
   });
 
   it("throws when the specified account is not found", async () => {
     const { mockFs } = makeMockFs();
     await expect(
-      downloadReceiptEmails({ account: "nonexistent" }, {
-        fs: mockFs,
-        subprocess: { execFileSync: mock(() => {}) },
-        loadAccounts: () => [{ name: "Personal", user: "a@b.com" }],
-        forEachAccount: async () => {},
-        listMailboxes: async () => [],
-        createLlmBroker: () => null,
-      })
+      downloadReceiptEmails(
+        { account: "nonexistent" },
+        {
+          fs: mockFs,
+          subprocess: { execFileSync: mock(() => {}) },
+          loadAccounts: () => [{ name: "Personal", user: "a@b.com" }],
+          forEachAccount: async () => {},
+          listMailboxes: async () => [],
+          createLlmBroker: () => null,
+        },
+      ),
     ).rejects.toThrow('Account "nonexistent" not found');
   });
 
@@ -463,14 +469,17 @@ describe("downloadReceiptEmails", () => {
     const client = makeEmailClient();
     const { mockFs } = makeMockFs();
 
-    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, {
-      fs: mockFs,
-      subprocess: { execFileSync: mock(() => {}) },
-      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
-      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
-      createLlmBroker: () => null,
-    });
+    const { stats } = await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+      },
+    );
 
     expect(stats.found).toBeGreaterThan(0);
   });
@@ -479,14 +488,17 @@ describe("downloadReceiptEmails", () => {
     const client = makeEmailClient();
     const { mockFs, written } = makeMockFs();
 
-    await downloadReceiptEmails({ outputDir: tmpDir }, {
-      fs: mockFs,
-      subprocess: { execFileSync: mock(() => {}) },
-      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
-      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
-      createLlmBroker: () => null,
-    });
+    await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+      },
+    );
 
     const pdfKeys = Object.keys(written).filter((k) => k.endsWith(".pdf"));
     expect(pdfKeys.length).toBeGreaterThan(0);
@@ -496,14 +508,17 @@ describe("downloadReceiptEmails", () => {
     const client = makeEmailClient();
     const { mockFs, written } = makeMockFs();
 
-    await downloadReceiptEmails({ outputDir: tmpDir }, {
-      fs: mockFs,
-      subprocess: { execFileSync: mock(() => {}) },
-      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
-      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
-      createLlmBroker: () => null,
-    });
+    await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+      },
+    );
 
     const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
     expect(jsonKeys.length).toBeGreaterThan(0);
@@ -513,14 +528,17 @@ describe("downloadReceiptEmails", () => {
     const client = makeEmailClient();
     const { mockFs, written } = makeMockFs();
 
-    await downloadReceiptEmails({ outputDir: tmpDir, dryRun: true }, {
-      fs: mockFs,
-      subprocess: { execFileSync: mock(() => {}) },
-      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
-      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
-      createLlmBroker: () => null,
-    });
+    await downloadReceiptEmails(
+      { outputDir: tmpDir, dryRun: true },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+      },
+    );
 
     // No files should be written inside the output directory
     const outputWrites = Object.keys(written).filter((p) => p.startsWith(tmpDir));
@@ -529,7 +547,7 @@ describe("downloadReceiptEmails", () => {
 
   it("deduplicates messages with the same message-id across mailboxes", async () => {
     const emailDate = new Date("2025-03-07");
-    const boundary = "----=_Part_boundary";
+    const _boundary = "----=_Part_boundary";
     const emailBody = [
       `From: billing@acme.com`,
       `Subject: Invoice`,
@@ -562,24 +580,29 @@ describe("downloadReceiptEmails", () => {
         return gen();
       }),
       download: mock(() => {
-        async function* gen() { yield rawBuffer; }
+        async function* gen() {
+          yield rawBuffer;
+        }
         return Promise.resolve({ content: gen() });
       }),
     };
 
     const { mockFs } = makeMockFs();
-    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, {
-      fs: mockFs,
-      subprocess: { execFileSync: mock(() => {}) },
-      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
-      // Two mailboxes — same message appears in both
-      listMailboxes: async () => [
-        { path: "INBOX",   specialUse: null, flags: new Set() },
-        { path: "Archive", specialUse: null, flags: new Set() },
-      ],
-      createLlmBroker: () => null,
-    });
+    const { stats } = await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        // Two mailboxes — same message appears in both
+        listMailboxes: async () => [
+          { path: "INBOX", specialUse: null, flags: new Set() },
+          { path: "Archive", specialUse: null, flags: new Set() },
+        ],
+        createLlmBroker: () => null,
+      },
+    );
 
     // Processed as unique=1 despite appearing in 2 mailboxes
     expect(stats.found).toBe(1);
@@ -618,20 +641,25 @@ describe("downloadReceiptEmails", () => {
         return gen();
       }),
       download: mock(() => {
-        async function* gen() { yield rawBuffer; }
+        async function* gen() {
+          yield rawBuffer;
+        }
         return Promise.resolve({ content: gen() });
       }),
     };
 
     const { mockFs } = makeMockFs();
-    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, {
-      fs: mockFs,
-      subprocess: { execFileSync: mock(() => {}) },
-      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
-      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
-      createLlmBroker: () => null,
-    });
+    const { stats } = await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+      },
+    );
 
     // The message should be excluded, so found=0 and nothing processed
     expect(stats.found).toBe(0);
@@ -676,7 +704,9 @@ function makeNoPdfEmailClient(bodyText = "Your payment of $9.99 has been process
       return gen();
     }),
     download: mock(() => {
-      async function* gen() { yield rawBuffer; }
+      async function* gen() {
+        yield rawBuffer;
+      }
       return Promise.resolve({ content: gen() });
     }),
   };
@@ -739,7 +769,15 @@ describe("source_body_snippet", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
-      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf", source_body_snippet: "old body text" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: {
+        json: {
+          vendor: "Stripe",
+          date: "2026-01-15",
+          source_email: "billing@stripe.com",
+          receipt_file: "Stripe-INV-123.pdf",
+          source_body_snippet: "old body text",
+        },
+      },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -794,7 +832,9 @@ function makeReprocessFs(files = {}) {
       }),
       readBuffer: mock((p) => fileMap[p]?.buffer ?? Buffer.alloc(0)),
       readText: mock(() => "Invoice #123\nTotal: $49.00\nDate: 2026-01-15"),
-      writeFile: mock((p, data) => { written[p] = data; }),
+      writeFile: mock((p, data) => {
+        written[p] = data;
+      }),
       mkdir: mock(() => {}),
       rm: mock(() => {}),
     },
@@ -803,10 +843,7 @@ function makeReprocessFs(files = {}) {
 }
 
 function makeReprocessGateways(mockFs, opts = {}) {
-  const {
-    llmFails = false,
-    doclingFails = false,
-  } = opts;
+  const { llmFails = false, doclingFails = false } = opts;
 
   return {
     fs: mockFs,
@@ -819,7 +856,17 @@ function makeReprocessGateways(mockFs, opts = {}) {
       broker: {
         generateObject: mock(async () => {
           if (llmFails) return { ok: false, error: "LLM error" };
-          return { ok: true, value: { vendor: "Stripe", amount: 49, date: "2026-01-15", invoice_number: "INV-123", is_invoice: true, confidence: 0.9 } };
+          return {
+            ok: true,
+            value: {
+              vendor: "Stripe",
+              amount: 49,
+              date: "2026-01-15",
+              invoice_number: "INV-123",
+              is_invoice: true,
+              confidence: 0.9,
+            },
+          };
         }),
       },
       gateway: {},
@@ -834,7 +881,14 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
-      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: {
+        json: {
+          vendor: "Stripe",
+          date: "2026-01-15",
+          source_email: "billing@stripe.com",
+          receipt_file: "Stripe-INV-123.pdf",
+        },
+      },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -851,7 +905,14 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
-      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: {
+        json: {
+          vendor: "Stripe",
+          date: "2026-01-15",
+          source_email: "billing@stripe.com",
+          receipt_file: "Stripe-INV-123.pdf",
+        },
+      },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -871,7 +932,9 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["NoPdf-receipt.json"] },
-      [`${outputDir}/2026/01/NoPdf-receipt.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com" } },
+      [`${outputDir}/2026/01/NoPdf-receipt.json`]: {
+        json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com" },
+      },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
 
@@ -888,7 +951,15 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["02"] },
       [`${outputDir}/2026/02`]: { isDir: true, entries: ["Anthropic-2655.json"] },
-      [`${outputDir}/2026/02/Anthropic-2655.json`]: { json: { vendor: "Anthropic", date: "2026-02-01", source_email: "billing@anthropic.com", receipt_file: "Anthropic-2655.pdf", downloadedAt: "2026-03-01T12:00:00Z" } },
+      [`${outputDir}/2026/02/Anthropic-2655.json`]: {
+        json: {
+          vendor: "Anthropic",
+          date: "2026-02-01",
+          source_email: "billing@anthropic.com",
+          receipt_file: "Anthropic-2655.pdf",
+          downloadedAt: "2026-03-01T12:00:00Z",
+        },
+      },
       [`${outputDir}/2026/02/Anthropic-2655.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -908,7 +979,14 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
-      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: {
+        json: {
+          vendor: "Stripe",
+          date: "2026-01-15",
+          source_email: "billing@stripe.com",
+          receipt_file: "Stripe-INV-123.pdf",
+        },
+      },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -926,19 +1004,36 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01", "03"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Old-receipt.json"] },
-      [`${outputDir}/2026/01/Old-receipt.json`]: { json: { vendor: "OldVendor", date: "2026-01-10", source_email: "old@vendor.com", receipt_file: "Old-receipt.pdf" } },
+      [`${outputDir}/2026/01/Old-receipt.json`]: {
+        json: {
+          vendor: "OldVendor",
+          date: "2026-01-10",
+          source_email: "old@vendor.com",
+          receipt_file: "Old-receipt.pdf",
+        },
+      },
       [`${outputDir}/2026/01/Old-receipt.pdf`]: { buffer: FAKE_PDF },
       [`${outputDir}/2026/03`]: { isDir: true, entries: ["New-receipt.json"] },
-      [`${outputDir}/2026/03/New-receipt.json`]: { json: { vendor: "NewVendor", date: "2026-03-01", source_email: "new@vendor.com", receipt_file: "New-receipt.pdf" } },
+      [`${outputDir}/2026/03/New-receipt.json`]: {
+        json: {
+          vendor: "NewVendor",
+          date: "2026-03-01",
+          source_email: "new@vendor.com",
+          receipt_file: "New-receipt.pdf",
+        },
+      },
       [`${outputDir}/2026/03/New-receipt.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
 
     const gateways = makeReprocessGateways(mockFs);
-    const result = await reprocessReceipts({
-      outputDir,
-      since: new Date("2026-02-01"),
-    }, gateways);
+    const result = await reprocessReceipts(
+      {
+        outputDir,
+        since: new Date("2026-02-01"),
+      },
+      gateways,
+    );
 
     expect(result.reprocessed).toBe(1);
   });
@@ -949,7 +1044,14 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Fail-receipt.json"] },
-      [`${outputDir}/2026/01/Fail-receipt.json`]: { json: { vendor: "FailVendor", date: "2026-01-15", source_email: "fail@vendor.com", receipt_file: "Fail-receipt.pdf" } },
+      [`${outputDir}/2026/01/Fail-receipt.json`]: {
+        json: {
+          vendor: "FailVendor",
+          date: "2026-01-15",
+          source_email: "fail@vendor.com",
+          receipt_file: "Fail-receipt.pdf",
+        },
+      },
       [`${outputDir}/2026/01/Fail-receipt.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -969,9 +1071,23 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-1.json", "GitHub-GH-2.json"] },
-      [`${outputDir}/2026/01/Stripe-INV-1.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-1.pdf" } },
+      [`${outputDir}/2026/01/Stripe-INV-1.json`]: {
+        json: {
+          vendor: "Stripe",
+          date: "2026-01-15",
+          source_email: "billing@stripe.com",
+          receipt_file: "Stripe-INV-1.pdf",
+        },
+      },
       [`${outputDir}/2026/01/Stripe-INV-1.pdf`]: { buffer: FAKE_PDF },
-      [`${outputDir}/2026/01/GitHub-GH-2.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "billing@github.com", receipt_file: "GitHub-GH-2.pdf" } },
+      [`${outputDir}/2026/01/GitHub-GH-2.json`]: {
+        json: {
+          vendor: "GitHub",
+          date: "2026-01-20",
+          source_email: "billing@github.com",
+          receipt_file: "GitHub-GH-2.pdf",
+        },
+      },
       [`${outputDir}/2026/01/GitHub-GH-2.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -991,7 +1107,15 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["GitHub-receipt.json"] },
-      [`${outputDir}/2026/01/GitHub-receipt.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com", receipt_file: null, source_body_snippet: snippet } },
+      [`${outputDir}/2026/01/GitHub-receipt.json`]: {
+        json: {
+          vendor: "GitHub",
+          date: "2026-01-20",
+          source_email: "noreply@github.com",
+          receipt_file: null,
+          source_body_snippet: snippet,
+        },
+      },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
 
@@ -1002,7 +1126,16 @@ describe("reprocessReceipts", () => {
         broker: {
           generateObject: mock(async (messages) => {
             llmCalledWith = messages;
-            return { ok: true, value: { vendor: "GitHub", amount: 9.99, invoice_number: "GH-2026-001", is_invoice: true, confidence: 0.9 } };
+            return {
+              ok: true,
+              value: {
+                vendor: "GitHub",
+                amount: 9.99,
+                invoice_number: "GH-2026-001",
+                is_invoice: true,
+                confidence: 0.9,
+              },
+            };
           }),
         },
         gateway: {},
@@ -1017,7 +1150,7 @@ describe("reprocessReceipts", () => {
     const updated = JSON.parse(written[jsonPath]);
     expect(updated.reprocessedAt).toBeDefined();
     // Verify the LLM was called with the body snippet
-    const userMsg = llmCalledWith.find(m => m.role === "user");
+    const userMsg = llmCalledWith.find((m) => m.role === "user");
     expect(userMsg.content).toContain(snippet);
   });
 
@@ -1027,7 +1160,9 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["NoPdf-receipt.json"] },
-      [`${outputDir}/2026/01/NoPdf-receipt.json`]: { json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com", receipt_file: null } },
+      [`${outputDir}/2026/01/NoPdf-receipt.json`]: {
+        json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com", receipt_file: null },
+      },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
 
@@ -1036,7 +1171,7 @@ describe("reprocessReceipts", () => {
 
     expect(result.skipped).toBe(1);
     expect(result.reprocessed).toBe(0);
-    const skipResult = result.results.find(r => r.file === "NoPdf-receipt.json");
+    const skipResult = result.results.find((r) => r.file === "NoPdf-receipt.json");
     expect(skipResult.reason).toBe("no PDF and no body snippet");
   });
 
@@ -1047,7 +1182,15 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["NotInvoice.json"] },
-      [`${outputDir}/2026/01/NotInvoice.json`]: { json: { vendor: "SomeVendor", date: "2026-01-20", source_email: "billing@vendor.com", receipt_file: null, source_body_snippet: snippet } },
+      [`${outputDir}/2026/01/NotInvoice.json`]: {
+        json: {
+          vendor: "SomeVendor",
+          date: "2026-01-20",
+          source_email: "billing@vendor.com",
+          receipt_file: null,
+          source_body_snippet: snippet,
+        },
+      },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
 
@@ -1081,7 +1224,15 @@ describe("reprocessReceipts", () => {
       [outputDir]: { isDir: true, entries: ["2026"] },
       [`${outputDir}/2026`]: { isDir: true, entries: ["01"] },
       [`${outputDir}/2026/01`]: { isDir: true, entries: ["Stripe-INV-123.json"] },
-      [`${outputDir}/2026/01/Stripe-INV-123.json`]: { json: { vendor: "Stripe", date: "2026-01-15", source_email: "billing@stripe.com", receipt_file: "Stripe-INV-123.pdf", source_body_snippet: "email body text" } },
+      [`${outputDir}/2026/01/Stripe-INV-123.json`]: {
+        json: {
+          vendor: "Stripe",
+          date: "2026-01-15",
+          source_email: "billing@stripe.com",
+          receipt_file: "Stripe-INV-123.pdf",
+          source_body_snippet: "email body text",
+        },
+      },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
       [join(process.env.HOME, ".local/bin/docling")]: {},
     });
@@ -1093,7 +1244,17 @@ describe("reprocessReceipts", () => {
         broker: {
           generateObject: mock(async (messages) => {
             llmCalledWith = messages;
-            return { ok: true, value: { vendor: "Stripe", amount: 49, date: "2026-01-15", invoice_number: "INV-123", is_invoice: true, confidence: 0.9 } };
+            return {
+              ok: true,
+              value: {
+                vendor: "Stripe",
+                amount: 49,
+                date: "2026-01-15",
+                invoice_number: "INV-123",
+                is_invoice: true,
+                confidence: 0.9,
+              },
+            };
           }),
         },
         gateway: {},
@@ -1102,19 +1263,22 @@ describe("reprocessReceipts", () => {
     await reprocessReceipts({ outputDir }, gateways);
 
     // The LLM should have been called with the docling output, not the body snippet
-    const userMsg = llmCalledWith.find(m => m.role === "user");
-    expect(userMsg.content).toContain("Invoice #123");  // from the mock readText (docling output)
+    const userMsg = llmCalledWith.find((m) => m.role === "user");
+    expect(userMsg.content).toContain("Invoice #123"); // from the mock readText (docling output)
     expect(userMsg.content).not.toContain("email body text");
   });
 
   it("throws when OPENAI_API_KEY is not set (no LLM broker)", async () => {
     const { mockFs } = makeReprocessFs({});
     await expect(
-      reprocessReceipts({ outputDir: "/fake" }, {
-        fs: mockFs,
-        subprocess: { execFileSync: mock(() => {}) },
-        createLlmBroker: () => null,
-      })
+      reprocessReceipts(
+        { outputDir: "/fake" },
+        {
+          fs: mockFs,
+          subprocess: { execFileSync: mock(() => {}) },
+          createLlmBroker: () => null,
+        },
+      ),
     ).rejects.toThrow("OPENAI_API_KEY not set");
   });
 });

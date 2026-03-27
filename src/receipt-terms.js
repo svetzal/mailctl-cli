@@ -54,10 +54,4 @@ export const RECEIPT_SUBJECT_EXCLUSIONS = [
  * Sender address patterns indicating billing/payment emails (substring match
  * against the From address).
  */
-export const BILLING_SENDER_PATTERNS = [
-  "stripe.com",
-  "paddle.com",
-  "billing@",
-  "invoice@",
-  "noreply@orders.",
-];
+export const BILLING_SENDER_PATTERNS = ["stripe.com", "paddle.com", "billing@", "invoice@", "noreply@orders."];

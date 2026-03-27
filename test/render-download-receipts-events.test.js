@@ -1,24 +1,22 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { renderDownloadReceiptsEvent } from "../src/render-download-receipts-events.js";
 
 describe("renderDownloadReceiptsEvent", () => {
   it("renders llm-enabled message", () => {
     expect(renderDownloadReceiptsEvent({ type: "llm-enabled" })).toBe(
-      "Using LLM (gpt-5-mini) for receipt data extraction"
+      "Using LLM (gpt-5-mini) for receipt data extraction",
     );
   });
 
   it("renders llm-disabled message", () => {
     expect(renderDownloadReceiptsEvent({ type: "llm-disabled" })).toBe(
-      "OPENAI_API_KEY not set — using pattern-based extraction"
+      "OPENAI_API_KEY not set — using pattern-based extraction",
     );
   });
 
   it("renders llm-not-configured with error message", () => {
     const event = { type: "llm-not-configured", error: { message: "bad key" } };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "   Warning: Could not initialize LLM broker: bad key"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("   Warning: Could not initialize LLM broker: bad key");
   });
 
   it("renders search-account with name and user", () => {
@@ -48,9 +46,7 @@ describe("renderDownloadReceiptsEvent", () => {
       excludedCount: 7,
       vendor: "Acme Corp",
     };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      `   Filtered to 3 of 10 messages matching vendor "Acme Corp"`
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe(`   Filtered to 3 of 10 messages matching vendor "Acme Corp"`);
   });
 
   it("renders subject-exclusions with count", () => {
@@ -65,9 +61,7 @@ describe("renderDownloadReceiptsEvent", () => {
 
   it("renders using-pdf-content with uid", () => {
     const event = { type: "using-pdf-content", uid: 123 };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "      Using PDF content for extraction (UID 123)"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("      Using PDF content for extraction (UID 123)");
   });
 
   it("renders docling-failed with uid and error", () => {
@@ -83,22 +77,20 @@ describe("renderDownloadReceiptsEvent", () => {
   it("renders skip-non-invoice with confidence when present", () => {
     const event = { type: "skip-non-invoice", vendor: "Spam Corp", confidence: 0.85 };
     expect(renderDownloadReceiptsEvent(event)).toBe(
-      "   Skipping Spam Corp — classified as non-invoice (confidence: 0.85)"
+      "   Skipping Spam Corp — classified as non-invoice (confidence: 0.85)",
     );
   });
 
   it("renders skip-non-invoice with 0.00 when confidence is undefined", () => {
     const event = { type: "skip-non-invoice", vendor: "Spam Corp", confidence: undefined };
     expect(renderDownloadReceiptsEvent(event)).toBe(
-      "   Skipping Spam Corp — classified as non-invoice (confidence: 0.00)"
+      "   Skipping Spam Corp — classified as non-invoice (confidence: 0.00)",
     );
   });
 
   it("renders skip-low-confidence with confidence", () => {
     const event = { type: "skip-low-confidence", vendor: "Sketchy Inc", confidence: 0.4 };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "   Skipping Sketchy Inc — low confidence 0.40"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("   Skipping Sketchy Inc — low confidence 0.40");
   });
 
   it("renders skip-existing-invoice with vendor and invoice number", () => {
@@ -174,37 +166,27 @@ describe("renderDownloadReceiptsEvent", () => {
 
   it("renders reprocess-dry-run-body with filename", () => {
     const event = { type: "reprocess-dry-run-body", filename: "receipt.pdf" };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "  [DRY RUN] receipt.pdf — would reprocess (body snippet)"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("  [DRY RUN] receipt.pdf — would reprocess (body snippet)");
   });
 
   it("renders reprocess-using-body with filename", () => {
     const event = { type: "reprocess-using-body", filename: "receipt.pdf" };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "      Using stored body snippet for extraction (receipt.pdf)"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("      Using stored body snippet for extraction (receipt.pdf)");
   });
 
   it("renders reprocess-skipped with filename", () => {
     const event = { type: "reprocess-skipped", filename: "receipt.pdf" };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "  ⏭️  receipt.pdf — no PDF and no body snippet, skipped"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("  ⏭️  receipt.pdf — no PDF and no body snippet, skipped");
   });
 
   it("renders reprocess-no-data with filename", () => {
     const event = { type: "reprocess-no-data", filename: "receipt.pdf" };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "  ❌ receipt.pdf — LLM extraction returned no data"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("  ❌ receipt.pdf — LLM extraction returned no data");
   });
 
   it("renders reprocess-reclassified with filename", () => {
     const event = { type: "reprocess-reclassified", filename: "receipt.pdf" };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "  🗑️  receipt.pdf — reclassified as non-invoice, removing"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("  🗑️  receipt.pdf — reclassified as non-invoice, removing");
   });
 
   it("renders reprocess-updated with filename", () => {
@@ -214,9 +196,7 @@ describe("renderDownloadReceiptsEvent", () => {
 
   it("renders reprocess-error with filename and error message", () => {
     const event = { type: "reprocess-error", filename: "receipt.pdf", error: { message: "failed" } };
-    expect(renderDownloadReceiptsEvent(event)).toBe(
-      "  ❌ receipt.pdf — extraction failed: failed"
-    );
+    expect(renderDownloadReceiptsEvent(event)).toBe("  ❌ receipt.pdf — extraction failed: failed");
   });
 
   it("renders reprocess-summary with all stats", () => {

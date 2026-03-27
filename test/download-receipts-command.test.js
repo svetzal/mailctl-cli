@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { downloadReceiptsCommand } from "../src/download-receipts-command.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ describe("downloadReceiptsCommand", () => {
       expect(listReceiptVendors).toHaveBeenCalledWith(
         expect.objectContaining({ months: 6 }),
         expect.anything(),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
@@ -99,7 +99,10 @@ describe("downloadReceiptsCommand", () => {
     });
 
     it("passes account filter to downloadReceiptEmails", async () => {
-      const downloadReceiptEmails = mock(async () => ({ stats: { found: 0, downloaded: 0, noPdf: 0, alreadyHave: 0, errors: 0 }, records: [] }));
+      const downloadReceiptEmails = mock(async () => ({
+        stats: { found: 0, downloaded: 0, noPdf: 0, alreadyHave: 0, errors: 0 },
+        records: [],
+      }));
       const deps = makeDeps({
         account: "icloud",
         importDownloadReceipts: mock(async () => ({
@@ -114,12 +117,15 @@ describe("downloadReceiptsCommand", () => {
       expect(downloadReceiptEmails).toHaveBeenCalledWith(
         expect.objectContaining({ account: "icloud" }),
         expect.anything(),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
     it("passes vendor filter when --vendor is set", async () => {
-      const downloadReceiptEmails = mock(async () => ({ stats: { found: 0, downloaded: 0, noPdf: 0, alreadyHave: 0, errors: 0 }, records: [] }));
+      const downloadReceiptEmails = mock(async () => ({
+        stats: { found: 0, downloaded: 0, noPdf: 0, alreadyHave: 0, errors: 0 },
+        records: [],
+      }));
       const deps = makeDeps({
         importDownloadReceipts: mock(async () => ({
           listReceiptVendors: mock(async () => []),
@@ -133,7 +139,7 @@ describe("downloadReceiptsCommand", () => {
       expect(downloadReceiptEmails).toHaveBeenCalledWith(
         expect.objectContaining({ vendor: "Amazon" }),
         expect.anything(),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
   });

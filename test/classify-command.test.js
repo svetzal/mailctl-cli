@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { classifyCommand } from "../src/classify-command.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -6,8 +6,20 @@ import { classifyCommand } from "../src/classify-command.js";
 function makeSenders() {
   return [
     { address: "vendor@amazon.com", name: "Amazon", count: 5, accounts: ["iCloud"], sampleSubjects: ["Your order"] },
-    { address: "receipt@stripe.com", name: "Stripe", count: 2, accounts: ["Gmail"], sampleSubjects: ["Payment receipt"] },
-    { address: "noreply@netflix.com", name: "Netflix", count: 12, accounts: ["iCloud"], sampleSubjects: ["Your Netflix invoice"] },
+    {
+      address: "receipt@stripe.com",
+      name: "Stripe",
+      count: 2,
+      accounts: ["Gmail"],
+      sampleSubjects: ["Payment receipt"],
+    },
+    {
+      address: "noreply@netflix.com",
+      name: "Netflix",
+      count: 12,
+      accounts: ["iCloud"],
+      sampleSubjects: ["Your Netflix invoice"],
+    },
   ];
 }
 
@@ -16,7 +28,7 @@ function makeDeps(overrides = {}) {
   const classifications = { "vendor@amazon.com": "business" }; // Amazon already classified
 
   const fsGateway = {
-    exists: mock((path) => path.includes("senders")),  // senders.json exists, classifications.json doesn't
+    exists: mock((path) => path.includes("senders")), // senders.json exists, classifications.json doesn't
     readJson: mock((path) => {
       if (path.includes("senders")) return senders;
       return classifications;
@@ -41,7 +53,7 @@ describe("classifyCommand", () => {
     });
 
     expect(() => classifyCommand("/data/senders.json", "/data/classifications.json", deps)).toThrow(
-      "Run 'scan' first to generate sender data."
+      "Run 'scan' first to generate sender data.",
     );
   });
 
@@ -128,9 +140,7 @@ describe("classifyCommand", () => {
     const deps = makeDeps({
       fsGateway: {
         exists: mock((path) => path.includes("senders")),
-        readJson: mock(() => [
-          { address: "a@b.com", name: "A", count: 1, accounts: [], sampleSubjects: [] },
-        ]),
+        readJson: mock(() => [{ address: "a@b.com", name: "A", count: 1, accounts: [], sampleSubjects: [] }]),
       },
     });
 

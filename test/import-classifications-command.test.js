@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { importClassificationsCommand } from "../src/import-classifications-command.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -99,7 +99,9 @@ describe("importClassificationsCommand", () => {
           if (path.includes("output")) return existing;
           return newEntries;
         }),
-        writeJson: mock((path, data) => { writtenData = data; }),
+        writeJson: mock((_path, data) => {
+          writtenData = data;
+        }),
       },
     });
 

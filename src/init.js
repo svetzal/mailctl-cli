@@ -1,10 +1,10 @@
-import { mkdir } from "fs/promises";
-import { homedir } from "os";
-import { join } from "path";
+import { mkdir } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 // Embed skill content at build time via Bun text imports
 // Source of truth lives in skills/ — .claude/skills/ is the installed copy
-// @ts-ignore — Bun text import
+// @ts-expect-error — Bun text import
 import SKILL_MD from "../skills/mailctl/SKILL.md" with { type: "text" };
 
 /**
@@ -35,7 +35,7 @@ import SKILL_MD from "../skills/mailctl/SKILL.md" with { type: "text" };
 export function stampVersion(content, version) {
   const closingIndex = content.indexOf("\n---", 1);
   if (closingIndex === -1) return content;
-  return content.slice(0, closingIndex) + `\nmailctl-version: ${version}` + content.slice(closingIndex);
+  return `${content.slice(0, closingIndex)}\nmailctl-version: ${version}${content.slice(closingIndex)}`;
 }
 
 /**

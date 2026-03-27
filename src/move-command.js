@@ -4,8 +4,9 @@
  * Extracts the orchestration logic from the cli.js move handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
-import { parseUidArgs, groupUidsByAccount } from "./move-logic.js";
+
 import { filterAccountsByName } from "./cli-helpers.js";
+import { groupUidsByAccount, parseUidArgs } from "./move-logic.js";
 
 /**
  * @typedef {object} MoveCommandDeps
@@ -62,9 +63,7 @@ export async function moveCommand(uids, opts, deps) {
       const folderExists = folders.some((f) => f.path === destination);
       if (!folderExists) {
         const available = folders.map((f) => f.path).join(", ");
-        throw new Error(
-          `Destination folder "${destination}" does not exist on ${acct.name}. Available: ${available}`
-        );
+        throw new Error(`Destination folder "${destination}" does not exist on ${acct.name}. Available: ${available}`);
       }
 
       // Lock source mailbox

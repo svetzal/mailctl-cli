@@ -26,7 +26,10 @@ export function parseUidArgs(uidArgs, defaultAccount) {
   const parsed = [];
 
   for (const arg of uidArgs) {
-    for (const part of arg.split(",").map((s) => s.trim()).filter(Boolean)) {
+    for (const part of arg
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)) {
       const colonIdx = part.indexOf(":");
       const hasAccountPrefix = colonIdx > 0 && !/^\d+$/.test(part.substring(0, colonIdx));
 
@@ -38,7 +41,7 @@ export function parseUidArgs(uidArgs, defaultAccount) {
       } else {
         if (!defaultAccount) {
           throw new Error(
-            `UID "${part}" has no account prefix. Use --account <name> or prefix UIDs like "icloud:${part}".`
+            `UID "${part}" has no account prefix. Use --account <name> or prefix UIDs like "icloud:${part}".`,
           );
         }
         parsed.push({ account: defaultAccount, uid: part });

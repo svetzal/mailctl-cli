@@ -4,8 +4,9 @@
  * Extracts the orchestration logic from the cli.js scan handler so it can
  * be tested independently. All I/O is injected via deps.
  */
-import { scanAllAccounts, aggregateBySender } from "./scanner.js";
+
 import { ensureDataDir, saveScanResults } from "./scan-data.js";
+import { aggregateBySender, scanAllAccounts } from "./scanner.js";
 
 /**
  * @typedef {object} ScanCommandDeps
@@ -25,20 +26,28 @@ import { ensureDataDir, saveScanResults } from "./scan-data.js";
 export async function scanCommand(opts, deps, onProgress = () => {}) {
   const { account, dataDir, fsGateway } = deps;
 
-  const results = await scanAllAccounts({
-    months: parseInt(opts.months ?? "12", 10),
-    allMailboxes: opts.allMailboxes ?? false,
-    account: account || null,
-  }, {}, onProgress);
+  const results = await scanAllAccounts(
+    {
+      months: parseInt(opts.months ?? "12", 10),
+      allMailboxes: opts.allMailboxes ?? false,
+      account: account || null,
+    },
+    {},
+    onProgress,
+  );
 
   const senders = aggregateBySender(results);
 
   ensureDataDir(dataDir, fsGateway);
-  const { rawPath, summaryPath } = saveScanResults(dataDir, {
-    scanResults: results,
-    senders,
-    rawPath: opts.output || undefined,
-  }, fsGateway);
+  const { rawPath, summaryPath } = saveScanResults(
+    dataDir,
+    {
+      scanResults: results,
+      senders,
+      rawPath: opts.output || undefined,
+    },
+    fsGateway,
+  );
 
   return { total: results.length, senders, rawPath, summaryPath };
 }

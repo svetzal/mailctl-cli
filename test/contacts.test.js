@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { aggregateContacts } from "../src/contacts.js";
 
 /** @typedef {{address: string, name: string, date: Date, direction: 'sent'|'received'}} Entry */
@@ -23,7 +23,7 @@ describe("aggregateContacts", () => {
   it("uses most recent non-empty name", () => {
     const entries = [
       recv("bob@example.com", "Bob Old", new Date("2026-01-01")),
-      recv("bob@example.com", "",        new Date("2026-02-01")),
+      recv("bob@example.com", "", new Date("2026-02-01")),
       recv("bob@example.com", "Bob New", new Date("2026-03-01")),
     ];
     const result = aggregateContacts(entries);
@@ -32,7 +32,7 @@ describe("aggregateContacts", () => {
 
   it("sorts by count descending", () => {
     const entries = [
-      recv("rare@example.com",   "Rare",   new Date("2026-01-01")),
+      recv("rare@example.com", "Rare", new Date("2026-01-01")),
       recv("common@example.com", "Common", new Date("2026-01-01")),
       recv("common@example.com", "Common", new Date("2026-01-02")),
       recv("common@example.com", "Common", new Date("2026-01-03")),
@@ -59,8 +59,8 @@ describe("aggregateContacts", () => {
   it("filters by search string matching name or address", () => {
     const entries = [
       recv("alice@example.com", "Alice Smith", new Date("2026-01-01")),
-      recv("bob@example.com",   "Bob Jones",   new Date("2026-01-01")),
-      recv("salman@ort.com",    "Salman",      new Date("2026-01-01")),
+      recv("bob@example.com", "Bob Jones", new Date("2026-01-01")),
+      recv("salman@ort.com", "Salman", new Date("2026-01-01")),
     ];
     const byName = aggregateContacts(entries, { search: "alice" });
     expect(byName.length).toBe(1);
@@ -83,9 +83,9 @@ describe("aggregateContacts", () => {
 
   it("excludes self addresses", () => {
     const entries = [
-      recv("me@example.com",    "Me",    new Date("2026-01-01")),
+      recv("me@example.com", "Me", new Date("2026-01-01")),
       recv("other@example.com", "Other", new Date("2026-01-01")),
-      sent("ME@Example.com",    "Me",    new Date("2026-01-02")),
+      sent("ME@Example.com", "Me", new Date("2026-01-02")),
     ];
     const result = aggregateContacts(entries, { selfAddresses: ["me@example.com"] });
     expect(result.length).toBe(1);

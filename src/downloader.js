@@ -1,18 +1,18 @@
-import {
-  scanForReceipts as _scanForReceipts,
-  listMailboxes as _listMailboxes,
-  filterScanMailboxes as _filterScanMailboxes,
-  forEachAccount as _forEachAccount,
-} from "./imap-client.js";
+import { createHash } from "node:crypto";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { findPdfParts } from "./attachment-parts.js";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { createHash } from "crypto";
-import { getVendorDisplayNames } from "./vendor-map.js";
-import { groupByMailbox, forEachMailboxGroup } from "./imap-orchestration.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
+import {
+  filterScanMailboxes as _filterScanMailboxes,
+  forEachAccount as _forEachAccount,
+  listMailboxes as _listMailboxes,
+  scanForReceipts as _scanForReceipts,
+} from "./imap-client.js";
+import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
 import { requireClassificationsData } from "./scan-data.js";
+import { getVendorDisplayNames } from "./vendor-map.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
@@ -50,7 +50,10 @@ export function vendorName(address, senderName) {
 
   // Truncate at word boundary if too long
   if (name.length > 30) {
-    name = name.slice(0, 30).replace(/\s+\S*$/, "").trim();
+    name = name
+      .slice(0, 30)
+      .replace(/\s+\S*$/, "")
+      .trim();
   }
 
   return name || address.split("@")[0];
@@ -61,11 +64,11 @@ export function vendorName(address, senderName) {
  * Matches the convention in the 2025 receipts folder.
  * @param {string} vendor
  * @param {Date|string} date
- * @param {string|null} attachmentName
+ * @param {string|null} _attachmentName
  * @param {Set<string>} existingFiles - lowercase filenames already used
  * @returns {string}
  */
-export function buildFilename(vendor, date, attachmentName, existingFiles) {
+export function buildFilename(vendor, date, _attachmentName, existingFiles) {
   const d = date instanceof Date ? date : new Date(date);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -103,11 +106,11 @@ function saveManifest(manifest) {
  * Default implementations used in production. Tests override individual keys.
  */
 const defaultGateways = {
-  loadAccounts:        _loadAccounts,
-  forEachAccount:      _forEachAccount,
-  listMailboxes:       _listMailboxes,
+  loadAccounts: _loadAccounts,
+  forEachAccount: _forEachAccount,
+  listMailboxes: _listMailboxes,
   filterScanMailboxes: _filterScanMailboxes,
-  scanForReceipts:     _scanForReceipts,
+  scanForReceipts: _scanForReceipts,
   loadClassifications: () => requireClassificationsData(DATA_DIR, new FileSystemGateway()),
   loadManifest,
   saveManifest,

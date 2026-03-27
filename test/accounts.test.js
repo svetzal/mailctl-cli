@@ -1,9 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-
-// We need to mock getConfigAccounts before importing accounts.js
-// Use bun's module mocking
-import { loadAccounts, discoverAccountsFromEnv } from "../src/accounts.js";
-import * as config from "../src/config.js";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 describe("loadAccounts", () => {
   let originalEnv;
@@ -96,9 +91,7 @@ describe("loadAccounts", () => {
 
   it("skips accounts with no user in config or env", () => {
     mock.module("../src/config.js", () => ({
-      getConfigAccounts: () => [
-        { prefix: "TEST", name: "No User Account", host: "imap.test.com", port: 993 },
-      ],
+      getConfigAccounts: () => [{ prefix: "TEST", name: "No User Account", host: "imap.test.com", port: 993 }],
     }));
     // No TEST_USER env var either
     process.env.TEST_PASS = "secret";
@@ -111,9 +104,7 @@ describe("loadAccounts", () => {
 
   it("falls back to env var for user when config has no user", () => {
     mock.module("../src/config.js", () => ({
-      getConfigAccounts: () => [
-        { prefix: "TEST", name: "Test", host: "imap.test.com", port: 993 },
-      ],
+      getConfigAccounts: () => [{ prefix: "TEST", name: "Test", host: "imap.test.com", port: 993 }],
     }));
     process.env.TEST_USER = "envuser@test.com";
     process.env.TEST_PASS = "secret";

@@ -12,7 +12,7 @@
  */
 export function sanitizeString(str) {
   if (typeof str !== "string") return str;
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional — strips raw control characters from email data
   return str.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
 }
 
@@ -26,7 +26,7 @@ export function headerValueToString(value) {
   if (value instanceof Date) return value.toISOString();
   if (value?.text) return value.text;
   if (value?.value) return value.value;
-  if (Array.isArray(value)) return /** @type {string[]} */ (value.map(headerValueToString).flat());
+  if (Array.isArray(value)) return /** @type {string[]} */ (value.flatMap(headerValueToString));
   return String(value);
 }
 
@@ -38,7 +38,10 @@ export function headerValueToString(value) {
  * @returns {string[]}
  */
 export function collectValues(value, previous) {
-  const items = value.split(",").map((s) => s.trim()).filter(Boolean);
+  const items = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return previous.concat(items);
 }
 
@@ -83,7 +86,10 @@ export function filterAccountsByName(accounts, name) {
  * @param {CommandContextDeps} deps - injected resolver functions (for testability)
  * @returns {CommandContext}
  */
-export function resolveCommandContext(opts, { resolveJson, resolveAccount, requireAccounts, filterAccountsByName: filterAccounts }) {
+export function resolveCommandContext(
+  opts,
+  { resolveJson, resolveAccount, requireAccounts, filterAccountsByName: filterAccounts },
+) {
   const json = resolveJson(opts);
   const account = resolveAccount(opts);
   const accounts = requireAccounts();

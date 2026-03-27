@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { filterScanMailboxes, filterSearchMailboxes } from "../src/mailbox-filters.js";
 
 /** Build a minimal mailbox descriptor. */
@@ -48,10 +48,7 @@ describe("filterScanMailboxes", () => {
   });
 
   it("excludes paths starting with an excludePaths prefix", () => {
-    const result = filterScanMailboxes(
-      [mb("Receipts/Business"), mb("INBOX")],
-      { excludePaths: ["Receipts/"] }
-    );
+    const result = filterScanMailboxes([mb("Receipts/Business"), mb("INBOX")], { excludePaths: ["Receipts/"] });
     expect(result).not.toContain("Receipts/Business");
     expect(result).toContain("INBOX");
   });
@@ -99,29 +96,20 @@ describe("filterSearchMailboxes", () => {
   });
 
   it("excludes exact path match in excludePaths", () => {
-    const result = filterSearchMailboxes(
-      [mb("Trash", "\\Trash"), mb("INBOX")],
-      { excludePaths: ["Trash"] }
-    );
+    const result = filterSearchMailboxes([mb("Trash", "\\Trash"), mb("INBOX")], { excludePaths: ["Trash"] });
     expect(result).not.toContain("Trash");
     expect(result).toContain("INBOX");
   });
 
   it("excludes sub-paths of an excludePaths entry", () => {
-    const result = filterSearchMailboxes(
-      [mb("Archive/2024"), mb("INBOX")],
-      { excludePaths: ["Archive"] }
-    );
+    const result = filterSearchMailboxes([mb("Archive/2024"), mb("INBOX")], { excludePaths: ["Archive"] });
     expect(result).not.toContain("Archive/2024");
     expect(result).toContain("INBOX");
   });
 
   it("does not exclude a path that merely starts with an excludePaths entry without a slash separator", () => {
     // "Arch" should not exclude "Archive" — only exact match or slash-separated sub-path
-    const result = filterSearchMailboxes(
-      [mb("Archive"), mb("INBOX")],
-      { excludePaths: ["Arch"] }
-    );
+    const result = filterSearchMailboxes([mb("Archive"), mb("INBOX")], { excludePaths: ["Arch"] });
     expect(result).toContain("Archive");
   });
 

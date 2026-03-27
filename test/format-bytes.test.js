@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { formatKB } from "../src/format-bytes.js";
 
 describe("formatKB", () => {

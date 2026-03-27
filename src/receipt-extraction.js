@@ -2,23 +2,56 @@
  * Pure functions for extracting structured metadata from receipt/invoice emails.
  * No I/O, no side effects — all inputs are plain values, outputs are plain objects.
  */
-import { getVendorFilenameNames, getVendorDomainMap } from "./vendor-map.js";
-import { getConfigSelfAddresses, getConfigInvoiceBlocklist, getConfigCanadianDomains } from "./config.js";
+
+import { getConfigCanadianDomains, getConfigInvoiceBlocklist, getConfigSelfAddresses } from "./config.js";
+import { getVendorDomainMap, getVendorFilenameNames } from "./vendor-map.js";
 
 /** Local parts that indicate a generic/no-reply sender. */
 export const GENERIC_SENDER_PREFIXES = new Set([
-  "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
-  "orderstatus", "service", "billing", "notice", "notification",
-  "deliverystatus", "info", "support", "orders", "receipts",
-  "invoice", "sales", "accounting", "customerservice", "forms",
-  "hello", "confirm", "confirmation", "alerts", "mailer",
+  "noreply",
+  "no-reply",
+  "no_reply",
+  "donotreply",
+  "do-not-reply",
+  "orderstatus",
+  "service",
+  "billing",
+  "notice",
+  "notification",
+  "deliverystatus",
+  "info",
+  "support",
+  "orders",
+  "receipts",
+  "invoice",
+  "sales",
+  "accounting",
+  "customerservice",
+  "forms",
+  "hello",
+  "confirm",
+  "confirmation",
+  "alerts",
+  "mailer",
 ]);
 
 /** Domain prefixes to strip when deriving vendor name from domain. */
 export const DOMAIN_STRIP_PREFIXES = [
-  "sys.", "e.", "email.", "mail.", "info.", "order.", "orders.",
-  "ora.", "marketing.", "notification.", "system.", "logistics.",
-  "noreply.", "tm.", "am.",
+  "sys.",
+  "e.",
+  "email.",
+  "mail.",
+  "info.",
+  "order.",
+  "orders.",
+  "ora.",
+  "marketing.",
+  "notification.",
+  "system.",
+  "logistics.",
+  "noreply.",
+  "tm.",
+  "am.",
 ];
 
 /**
@@ -52,7 +85,7 @@ export function titleCase(s) {
  */
 export function sanitizeFilename(str) {
   return str
-    .replace(/[\/\\:*?"<>|,]/g, "")
+    .replace(/[/\\:*?"<>|,]/g, "")
     .replace(/\.+$/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
@@ -95,10 +128,10 @@ export function vendorFromDomain(domain, vendorDomainMap) {
 /**
  * Try to extract a vendor name from subject or body for self-sent emails.
  * @param {string} subject
- * @param {string} bodyText
+ * @param {string} _bodyText
  * @returns {string|null}
  */
-export function extractVendorFromContent(subject, bodyText) {
+export function extractVendorFromContent(subject, _bodyText) {
   const patterns = [
     /(?:from|by)\s+([A-Z][A-Za-z0-9 &.-]{2,30})(?:\s*[-–|]|\n)/i,
     /^(?:Fwd?:\s*)?(?:Receipt|Invoice|Order)\s+(?:from|for)\s+([A-Za-z][A-Za-z0-9 &.-]{2,30})/i,
@@ -133,8 +166,8 @@ export function extractForwardedSender(bodyText) {
   if (fwdStart === -1) return null;
 
   const afterMarker = bodyText.slice(fwdStart, fwdStart + 1000);
-  const fromMatch = afterMarker.match(/From:\s*(?:([^<\n]+?)\s*)?<([^>\n]+)>/i)
-    || afterMarker.match(/From:\s*(\S+@\S+)/i);
+  const fromMatch =
+    afterMarker.match(/From:\s*(?:([^<\n]+?)\s*)?<([^>\n]+)>/i) || afterMarker.match(/From:\s*(\S+@\S+)/i);
 
   if (!fromMatch) return null;
 
@@ -174,7 +207,9 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
       const fwdDomain = fwdSender.address.split("@")[1];
       if (fwdDomain && vendorDomainMap[fwdDomain]) return vendorDomainMap[fwdDomain];
       if (fwdSender.name) {
-        const cleaned = sanitizeFilename(fwdSender.name.replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi, "").trim());
+        const cleaned = sanitizeFilename(
+          fwdSender.name.replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi, "").trim(),
+        );
         if (cleaned.length >= 2) return cleaned.slice(0, 30).replace(/[-._]+$/, "");
       }
       if (fwdDomain) return vendorFromDomain(fwdDomain, vendorDomainMap);
@@ -195,10 +230,11 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
 
   const localNormalized = localPart.replace(/[._]/g, "").toLowerCase();
   const localBase = localPart.split(/[._+]/)[0].toLowerCase();
-  const isGenericSender = !name
-    || GENERIC_SENDER_PREFIXES.has(localPart.toLowerCase())
-    || GENERIC_SENDER_PREFIXES.has(localNormalized)
-    || GENERIC_SENDER_PREFIXES.has(localBase);
+  const isGenericSender =
+    !name ||
+    GENERIC_SENDER_PREFIXES.has(localPart.toLowerCase()) ||
+    GENERIC_SENDER_PREFIXES.has(localNormalized) ||
+    GENERIC_SENDER_PREFIXES.has(localBase);
   if (isGenericSender && domain) {
     return vendorFromDomain(domain, vendorDomainMap);
   }
@@ -337,12 +373,12 @@ export function extractInvoiceNumber(subject, bodyText, overrides = {}) {
  */
 export function extractAmount(text) {
   const totalMatch = text.match(
-    /(?:total|amount\s*(?:due|charged|paid)?|charged?|payment)\s*:?\s*(?:(CAD|USD|EUR|GBP|AUD)\s*)?\$?\s*([\d,]+\.\d{2})\s*(?:(CAD|USD|EUR|GBP|AUD))?/i
+    /(?:total|amount\s*(?:due|charged|paid)?|charged?|payment)\s*:?\s*(?:(CAD|USD|EUR|GBP|AUD)\s*)?\$?\s*([\d,]+\.\d{2})\s*(?:(CAD|USD|EUR|GBP|AUD))?/i,
   );
   if (totalMatch) {
     const amount = parseFloat(totalMatch[2].replace(/,/g, ""));
     const currency = (totalMatch[1] || totalMatch[3] || "").toUpperCase() || inferCurrency(text);
-    if (!isNaN(amount) && amount > 0) {
+    if (!Number.isNaN(amount) && amount > 0) {
       return { amount, currency };
     }
   }
@@ -385,7 +421,7 @@ export function extractTax(text) {
         amtStr = match[2];
       }
       const amount = parseFloat(amtStr.replace(/,/g, ""));
-      if (!isNaN(amount) && amount > 0) {
+      if (!Number.isNaN(amount) && amount > 0) {
         return { amount, type: type.toUpperCase() };
       }
     }
