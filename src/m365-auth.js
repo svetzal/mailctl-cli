@@ -6,24 +6,18 @@ const TOKEN_PATH = join(homedir(), ".newt", "m365-tokens.json");
 const SCOPE = "https://outlook.office365.com/IMAP.AccessAsUser.All offline_access";
 
 /**
- * Load cached tokens from disk.
- * @returns {{ access_token: string, refresh_token: string, expires_at: number } | null}
+ * @typedef {{ access_token: string, refresh_token: string, expires_at: number }} TokenSet
  */
-function loadTokens() {
-  try {
-    return JSON.parse(readFileSync(TOKEN_PATH, "utf-8"));
-  } catch {
-    return null;
-  }
-}
 
 /**
- * Save tokens to disk.
+ * @typedef {{
+ *   loadTokens: () => TokenSet | null,
+ *   saveTokens: (tokens: TokenSet) => void,
+ *   fetch: (url: string, init?: RequestInit) => Promise<Response>,
+ *   now: () => number,
+ *   sleep: (ms: number) => Promise<void>,
+ * }} M365AuthDeps
  */
-function saveTokens(tokens) {
-  mkdirSync(join(homedir(), ".newt"), { recursive: true });
-  writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2), { mode: 0o600 });
-}
 
 /**
  * Refresh an expired access token using the refresh_token.
@@ -31,10 +25,11 @@ function saveTokens(tokens) {
  * @param {string} tenantId
  * @param {string} _clientSecret
  * @param {string} refreshToken
- * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{ access_token: string, refresh_token: string, expires_at: number } | null>}
+ * @param {function(object): void} onProgress - receives structured progress events
+ * @param {M365AuthDeps} deps
+ * @returns {Promise<TokenSet | null>}
  */
-async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToken, onProgress = () => {}) {
+async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToken, onProgress, deps) {
   const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const body = new URLSearchParams({
     client_id: clientId,
@@ -43,7 +38,7 @@ async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToke
     scope: SCOPE,
   });
 
-  const res = await fetch(url, {
+  const res = await deps.fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -59,9 +54,9 @@ async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToke
   const tokens = {
     access_token: data.access_token,
     refresh_token: data.refresh_token || refreshToken,
-    expires_at: Date.now() + data.expires_in * 1000,
+    expires_at: deps.now() + data.expires_in * 1000,
   };
-  saveTokens(tokens);
+  deps.saveTokens(tokens);
   return tokens;
 }
 
@@ -71,12 +66,13 @@ async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToke
  * @param {string} clientId
  * @param {string} tenantId
  * @param {string} _clientSecret
- * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{ access_token: string, refresh_token: string, expires_at: number }>}
+ * @param {function(object): void} onProgress - receives structured progress events
+ * @param {M365AuthDeps} deps
+ * @returns {Promise<TokenSet>}
  */
-async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress = () => {}) {
+async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, deps) {
   const deviceUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/devicecode`;
-  const deviceRes = await fetch(deviceUrl, {
+  const deviceRes = await deps.fetch(deviceUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -101,12 +97,12 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress = ()
 
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const pollInterval = (interval || 5) * 1000;
-  const deadline = Date.now() + expires_in * 1000;
+  const deadline = deps.now() + expires_in * 1000;
 
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+  while (deps.now() < deadline) {
+    await deps.sleep(pollInterval);
 
-    const tokenRes = await fetch(tokenUrl, {
+    const tokenRes = await deps.fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -126,7 +122,7 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress = ()
     }
 
     if (tokenData.error === "slow_down") {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await deps.sleep(5000);
       continue;
     }
 
@@ -137,9 +133,9 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress = ()
     const tokens = {
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
-      expires_at: Date.now() + tokenData.expires_in * 1000,
+      expires_at: deps.now() + tokenData.expires_in * 1000,
     };
-    saveTokens(tokens);
+    deps.saveTokens(tokens);
     onProgress({ type: "auth-success" });
     return tokens;
   }
@@ -153,20 +149,32 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress = ()
  *
  * @param {{ clientId: string, tenantId: string, clientSecret: string }} creds
  * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {M365AuthDeps} [deps] - injectable dependencies (defaults to real implementations)
  * @returns {Promise<string>} access token
  */
-export async function getM365AccessToken({ clientId, tenantId, clientSecret }, onProgress = () => {}) {
-  const cached = loadTokens();
+export async function getM365AccessToken(
+  { clientId, tenantId, clientSecret },
+  onProgress = () => {},
+  deps = defaultDeps,
+) {
+  const cached = deps.loadTokens();
 
   if (cached) {
     // Token still valid (with 5-minute buffer)
-    if (cached.access_token && cached.expires_at > Date.now() + 5 * 60 * 1000) {
+    if (cached.access_token && cached.expires_at > deps.now() + 5 * 60 * 1000) {
       return cached.access_token;
     }
 
     // Try refresh
     if (cached.refresh_token) {
-      const refreshed = await refreshAccessToken(clientId, tenantId, clientSecret, cached.refresh_token, onProgress);
+      const refreshed = await refreshAccessToken(
+        clientId,
+        tenantId,
+        clientSecret,
+        cached.refresh_token,
+        onProgress,
+        deps,
+      );
       if (refreshed) {
         return refreshed.access_token;
       }
@@ -174,6 +182,37 @@ export async function getM365AccessToken({ clientId, tenantId, clientSecret }, o
   }
 
   // Fall back to interactive device code flow
-  const tokens = await deviceCodeFlow(clientId, tenantId, clientSecret, onProgress);
+  const tokens = await deviceCodeFlow(clientId, tenantId, clientSecret, onProgress, deps);
   return tokens.access_token;
 }
+
+/**
+ * Real filesystem implementations for loading and saving tokens.
+ */
+function realLoadTokens() {
+  try {
+    return JSON.parse(readFileSync(TOKEN_PATH, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {TokenSet} tokens
+ */
+function realSaveTokens(tokens) {
+  mkdirSync(join(homedir(), ".newt"), { recursive: true });
+  writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2), { mode: 0o600 });
+}
+
+/**
+ * Default (real) dependency implementations.
+ * @type {M365AuthDeps}
+ */
+const defaultDeps = {
+  loadTokens: realLoadTokens,
+  saveTokens: realSaveTokens,
+  fetch: (url, init) => fetch(url, init),
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
