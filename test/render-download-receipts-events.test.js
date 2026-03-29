@@ -39,6 +39,16 @@ describe("renderDownloadReceiptsEvent", () => {
     expect(renderDownloadReceiptsEvent(event)).toBe("      Fetch failed: timeout");
   });
 
+  it("renders mailbox-lock-failed with mailbox and error message", () => {
+    const event = { type: "mailbox-lock-failed", mailbox: "INBOX", error: { message: "access denied" } };
+    expect(renderDownloadReceiptsEvent(event)).toBe("   Could not lock mailbox INBOX: access denied");
+  });
+
+  it("renders search-term-error with mailbox and error message", () => {
+    const event = { type: "search-term-error", mailbox: "INBOX", error: { message: "server error" } };
+    expect(renderDownloadReceiptsEvent(event)).toBe("   Search error in INBOX: server error");
+  });
+
   it("renders vendor-filter-applied with totals and vendor from event", () => {
     const event = {
       type: "vendor-filter-applied",

@@ -26,6 +26,10 @@ export function renderDownloadReceiptsEvent(event) {
       return `      ${event.count} candidates`;
     case "mailbox-fetch-error":
       return `      Fetch failed: ${event.error.message}`;
+    case "mailbox-lock-failed":
+      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
+    case "search-term-error":
+      return `   Search error in ${event.mailbox}: ${event.error.message}`;
     case "vendor-filter-applied":
       return `   Filtered to ${event.matchCount} of ${event.matchCount + event.excludedCount} messages matching vendor "${event.vendor}"`;
     case "subject-exclusions":

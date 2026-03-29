@@ -203,12 +203,15 @@ export function pdfToText(pdfPath, fs, subprocess) {
       return fs.readText(join(tmpDir, mdFile)).trim();
     }
     return null;
-  } catch {
+  } catch (err) {
+    console.error(`mailctl: docling conversion failed for ${pdfPath}: ${err.message}`);
     return null;
   } finally {
     try {
       fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {}
+    } catch (err) {
+      console.error(`mailctl: failed to clean up temp dir ${tmpDir}: ${err.message}`);
+    }
   }
 }
 
@@ -226,7 +229,8 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
     return [];
   }
 
@@ -242,7 +246,9 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
       try {
         const uids = await client.search(criteria, { uid: true });
         if (uids) for (const uid of uids) allUids.add(uid);
-      } catch {}
+      } catch (err) {
+        onProgress({ type: "search-term-error", mailbox: mailboxPath, term, error: err });
+      }
     }
 
     // Sender-based search
@@ -252,7 +258,9 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
       try {
         const uids = await client.search(criteria, { uid: true });
         if (uids) for (const uid of uids) allUids.add(uid);
-      } catch {}
+      } catch (err) {
+        onProgress({ type: "search-term-error", mailbox: mailboxPath, pattern, error: err });
+      }
     }
 
     if (allUids.size === 0) return [];
@@ -300,8 +308,9 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
  * @param {string} outputDir
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(filePath: string, fileName: string) => void} visitor
+ * @param {(err: Error, context: object) => void} [onError] - called when any directory read or visitor invocation fails
  */
-export function walkOutputTree(outputDir, fs, visitor) {
+export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
   if (!fs.exists(outputDir)) return;
 
   try {
@@ -315,13 +324,21 @@ export function walkOutputTree(outputDir, fs, visitor) {
             for (const file of fs.readdir(monthPath)) {
               try {
                 visitor(join(monthPath, file), file);
-              } catch {}
+              } catch (err) {
+                onError(err, { path: join(monthPath, file), level: "file" });
+              }
             }
-          } catch {}
+          } catch (err) {
+            onError(err, { path: monthPath, level: "month" });
+          }
         }
-      } catch {}
+      } catch (err) {
+        onError(err, { path: yearPath, level: "year" });
+      }
     }
-  } catch {}
+  } catch (err) {
+    onError(err, { path: outputDir, level: "root" });
+  }
 }
 
 /**
@@ -333,11 +350,16 @@ export function walkOutputTree(outputDir, fs, visitor) {
  */
 export function loadExistingInvoiceNumbers(outputDir, fs) {
   const numbers = new Set();
-  walkOutputTree(outputDir, fs, (filePath, fileName) => {
-    if (!fileName.endsWith(".json")) return;
-    const data = /** @type {any} */ (fs.readJson(filePath));
-    if (data.invoice_number) numbers.add(data.invoice_number);
-  });
+  walkOutputTree(
+    outputDir,
+    fs,
+    (filePath, fileName) => {
+      if (!fileName.endsWith(".json")) return;
+      const data = /** @type {any} */ (fs.readJson(filePath));
+      if (data.invoice_number) numbers.add(data.invoice_number);
+    },
+    (err, ctx) => console.error(`mailctl: error reading output tree at ${ctx.path} (${ctx.level}): ${err.message}`),
+  );
   return numbers;
 }
 
@@ -349,11 +371,16 @@ export function loadExistingInvoiceNumbers(outputDir, fs) {
  */
 export function loadExistingHashes(outputDir, fs) {
   const hashes = new Set();
-  walkOutputTree(outputDir, fs, (filePath, fileName) => {
-    if (!fileName.toLowerCase().endsWith(".pdf")) return;
-    const buf = fs.readBuffer(filePath);
-    hashes.add(createHash("sha256").update(buf).digest("hex"));
-  });
+  walkOutputTree(
+    outputDir,
+    fs,
+    (filePath, fileName) => {
+      if (!fileName.toLowerCase().endsWith(".pdf")) return;
+      const buf = fs.readBuffer(filePath);
+      hashes.add(createHash("sha256").update(buf).digest("hex"));
+    },
+    (err, ctx) => console.error(`mailctl: error reading output tree at ${ctx.path} (${ctx.level}): ${err.message}`),
+  );
   return hashes;
 }
 
@@ -467,7 +494,9 @@ function resolveExtractionText(pdfAttachments, bodyText, uid, fs, subprocess, on
   } finally {
     try {
       fs.rm(tmpPdfPath, { force: true });
-    } catch {}
+    } catch (err) {
+      console.error(`mailctl: failed to clean up temp file ${tmpPdfPath}: ${err.message}`);
+    }
   }
   return bodyText;
 }
@@ -881,15 +910,21 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
  * Returns an array of { jsonPath, sidecar } for each valid sidecar found.
  * @param {string} outputDir
  * @param {FileSystemGateway} fs
+ * @param {(err: Error, context: object) => void} [onError] - called when a file or directory cannot be read
  * @returns {Array<{ jsonPath: string, sidecar: object }>}
  */
-export function collectSidecarFiles(outputDir, fs) {
+export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
   const results = [];
-  walkOutputTree(outputDir, fs, (filePath, fileName) => {
-    if (!fileName.endsWith(".json")) return;
-    const sidecar = /** @type {any} */ (fs.readJson(filePath));
-    results.push({ jsonPath: filePath, sidecar });
-  });
+  walkOutputTree(
+    outputDir,
+    fs,
+    (filePath, fileName) => {
+      if (!fileName.endsWith(".json")) return;
+      const sidecar = /** @type {any} */ (fs.readJson(filePath));
+      results.push({ jsonPath: filePath, sidecar });
+    },
+    onError,
+  );
   return results;
 }
 
@@ -919,7 +954,9 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
 
   onProgress({ type: "reprocess-start", outputDir });
 
-  const sidecars = collectSidecarFiles(outputDir, fs);
+  const sidecars = collectSidecarFiles(outputDir, fs, (err, ctx) =>
+    onProgress({ type: "process-error", uid: ctx.path, error: err }),
+  );
   const stats = { reprocessed: 0, skipped: 0, errors: 0, reclassified: 0 };
   const results = [];
 

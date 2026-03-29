@@ -81,7 +81,7 @@ describe("walkOutputTree", () => {
     expect(fileNames).toContain("b.json");
   });
 
-  it("silently skips files that cause visitor errors", () => {
+  it("continues past files that cause visitor errors (default no-op onError)", () => {
     const monthDir = join(tmpDir, "2025", "03");
     mkdirSync(monthDir, { recursive: true });
     writeFileSync(join(monthDir, "good.json"), "{}");
@@ -95,6 +95,26 @@ describe("walkOutputTree", () => {
 
     expect(visited).toContain("good.json");
     expect(visited).not.toContain("bad.json");
+  });
+
+  it("calls onError with the error and file context when visitor throws", () => {
+    const monthDir = join(tmpDir, "2025", "03");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(join(monthDir, "bad.json"), "{}");
+
+    const errors = [];
+    walkOutputTree(
+      tmpDir,
+      REAL_FS,
+      (_filePath, fileName) => {
+        if (fileName === "bad.json") throw new Error("visitor-fail");
+      },
+      (err, ctx) => errors.push({ err, ctx }),
+    );
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0].err.message).toBe("visitor-fail");
+    expect(errors[0].ctx.level).toBe("file");
   });
 });
 
@@ -258,6 +278,37 @@ describe("searchMailboxForReceipts", () => {
       getMailboxLock: mock(() => Promise.reject(new Error("no such mailbox"))),
     };
     const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
+    expect(result).toHaveLength(0);
+  });
+
+  it("emits mailbox-lock-failed event when getMailboxLock throws", async () => {
+    const lockErr = new Error("no such mailbox");
+    const client = {
+      getMailboxLock: mock(() => Promise.reject(lockErr)),
+    };
+    const events = [];
+    await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date(), (e) => events.push(e));
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("mailbox-lock-failed");
+    expect(events[0].mailbox).toBe("INBOX");
+    expect(events[0].error).toBe(lockErr);
+  });
+
+  it("emits search-term-error and continues when a subject search throws", async () => {
+    const lock = { release: mock(() => {}) };
+    const searchErr = new Error("search failed");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve(lock)),
+      search: mock(() => Promise.reject(searchErr)),
+      mailbox: { exists: 0 },
+      fetch: mock(() => (async function* () {})()),
+    };
+    const events = [];
+    const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date(), (e) => events.push(e));
+    const errorEvents = events.filter((e) => e.type === "search-term-error");
+    expect(errorEvents.length).toBeGreaterThan(0);
+    expect(errorEvents[0].mailbox).toBe("INBOX");
+    expect(errorEvents[0].error).toBe(searchErr);
     expect(result).toHaveLength(0);
   });
 
