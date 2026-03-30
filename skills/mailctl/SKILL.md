@@ -3,7 +3,7 @@ name: mailctl
 description: Email management via the mailctl CLI — search, read, organize, and manage receipts across IMAP accounts
 metadata:
   version: "0.7.3"
-  author: svetzal
+  author: Stacey Vetzal
 ---
 
 # mailctl — Email Management CLI
