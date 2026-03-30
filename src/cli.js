@@ -110,7 +110,7 @@ function renderAuthProgress(event) {
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-  .version("0.7.2")
+  .version("0.7.3")
   .option("--account <name>", "email account to use (searches all if omitted)")
   .option("--json", "output results as JSON");
 

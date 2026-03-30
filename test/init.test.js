@@ -9,6 +9,15 @@ describe("stampVersion", () => {
     expect(result).toBe("---\ndescription: test\nmailctl-version: 0.7.0\n---\n\n# Body");
   });
 
+  it("updates metadata.version when present in frontmatter", () => {
+    const content = '---\nname: mailctl\nmetadata:\n  version: "0.7.2"\n  author: svetzal\n---\n\n# Body';
+    const result = stampVersion(content, "0.7.3");
+
+    expect(result).toBe(
+      '---\nname: mailctl\nmetadata:\n  version: "0.7.3"\n  author: svetzal\nmailctl-version: 0.7.3\n---\n\n# Body',
+    );
+  });
+
   it("returns content unchanged if no closing frontmatter delimiter", () => {
     const content = "No frontmatter here";
     const result = stampVersion(content, "0.7.0");
@@ -25,7 +34,14 @@ describe("stripVersionInfo", () => {
     expect(result).toBe("---\ndescription: test\n---\n\n# Body");
   });
 
-  it("returns content unchanged if no version line present", () => {
+  it("normalizes metadata.version to placeholder", () => {
+    const content = '---\nmetadata:\n  version: "0.7.3"\nmailctl-version: 0.7.3\n---\n\n# Body';
+    const result = stripVersionInfo(content);
+
+    expect(result).toBe('---\nmetadata:\n  version: "0.0.0"\n---\n\n# Body');
+  });
+
+  it("returns content unchanged if no version info present", () => {
     const content = "---\ndescription: test\n---\n\n# Body";
     const result = stripVersionInfo(content);
 

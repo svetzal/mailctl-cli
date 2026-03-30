@@ -35,7 +35,10 @@ import SKILL_MD from "../skills/mailctl/SKILL.md" with { type: "text" };
 export function stampVersion(content, version) {
   const closingIndex = content.indexOf("\n---", 1);
   if (closingIndex === -1) return content;
-  return `${content.slice(0, closingIndex)}\nmailctl-version: ${version}${content.slice(closingIndex)}`;
+  let stamped = `${content.slice(0, closingIndex)}\nmailctl-version: ${version}${content.slice(closingIndex)}`;
+  // Also update metadata.version if present in frontmatter
+  stamped = stamped.replace(/(\n\s+version:\s*)"[^"]*"/, `$1"${version}"`);
+  return stamped;
 }
 
 /**
@@ -44,7 +47,7 @@ export function stampVersion(content, version) {
  * @returns {string}
  */
 export function stripVersionInfo(content) {
-  return content.replace(/\nmailctl-version: .+/g, "");
+  return content.replace(/\nmailctl-version: .+/g, "").replace(/(\n\s+version:\s*)"[^"]*"/, '$1"0.0.0"');
 }
 
 /**
