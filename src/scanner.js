@@ -1,4 +1,5 @@
 import { loadAccounts as _loadAccounts } from "./accounts.js";
+import { resolveAccounts } from "./cli-helpers.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
   forEachAccount as _forEachAccount,
@@ -48,19 +49,7 @@ export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () 
   const since = new Date();
   since.setMonth(since.getMonth() - months);
 
-  const allAccounts = loadAccounts();
-  if (allAccounts.length === 0) {
-    throw new Error("No accounts configured. Check keychain credentials and bin/run wrapper.");
-  }
-
-  const accountFilter = opts.account || null;
-  const accounts = accountFilter
-    ? allAccounts.filter((a) => a.name.toLowerCase() === accountFilter.toLowerCase())
-    : allAccounts;
-
-  if (accounts.length === 0) {
-    throw new Error(`Account "${accountFilter}" not found.`);
-  }
+  const accounts = resolveAccounts(opts.account || null, loadAccounts);
 
   const allResults = [];
 

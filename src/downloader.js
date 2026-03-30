@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { findPdfParts } from "./attachment-parts.js";
+import { resolveAccounts } from "./cli-helpers.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -154,19 +155,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
   }
 
   const manifest = loadManifest();
-  const allAccounts = loadAccounts();
-
-  const accountFilter = opts.account || null;
-  const accounts = accountFilter
-    ? allAccounts.filter((a) => a.name.toLowerCase() === accountFilter.toLowerCase())
-    : allAccounts;
-
-  if (accounts.length === 0) {
-    if (allAccounts.length === 0) {
-      throw new Error("No accounts configured.");
-    }
-    throw new Error(`Account "${accountFilter}" not found.`);
-  }
+  const accounts = resolveAccounts(opts.account || null, loadAccounts);
 
   const stats = { downloaded: 0, skipped: 0, noPdf: 0, alreadyHave: 0 };
 

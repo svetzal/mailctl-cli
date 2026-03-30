@@ -62,6 +62,27 @@ export function filterAccountsByName(accounts, name) {
 }
 
 /**
+ * Load, validate, and optionally filter accounts.
+ * Throws if no accounts are configured, or if an explicit filter matches nothing.
+ *
+ * @template {{ name: string }} T
+ * @param {string|null|undefined} accountFilter - account name to filter by, or null/undefined for all
+ * @param {() => T[]} loadAccountsFn - function that returns all configured accounts
+ * @returns {T[]}
+ */
+export function resolveAccounts(accountFilter, loadAccountsFn) {
+  const accounts = loadAccountsFn();
+  if (accounts.length === 0) {
+    throw new Error("No accounts configured. Check keychain credentials and bin/run wrapper.");
+  }
+  const targetAccounts = filterAccountsByName(accounts, accountFilter);
+  if (accountFilter && targetAccounts.length === 0) {
+    throw new Error(`Account "${accountFilter}" not found.`);
+  }
+  return targetAccounts;
+}
+
+/**
  * @typedef {object} CommandContextDeps
  * @property {(opts: object) => boolean} resolveJson
  * @property {(opts: object) => string|undefined} resolveAccount

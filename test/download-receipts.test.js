@@ -496,7 +496,7 @@ describe("downloadReceiptEmails", () => {
           createLlmBroker: () => null,
         },
       ),
-    ).rejects.toThrow("No email accounts configured");
+    ).rejects.toThrow("No accounts configured");
   });
 
   it("throws when the specified account is not found", async () => {

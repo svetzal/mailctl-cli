@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { simpleParser } from "mailparser";
 import { isOk, LlmBroker, Message, OpenAIGateway } from "mojentic";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
+import { resolveAccounts } from "./cli-helpers.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
 import { htmlToText } from "./html-to-text.js";
@@ -408,29 +409,6 @@ export function uniqueBaseName(dir, base, usedPaths, fs) {
 }
 
 /**
- * Load and filter accounts for receipt operations.
- * @param {string|null} accountFilter - account name to filter to, or null for all
- * @param {() => Array<any>} loadAccountsFn - account loader function
- * @returns {Array<any>} filtered accounts
- */
-function resolveReceiptAccounts(accountFilter, loadAccountsFn) {
-  const accounts = loadAccountsFn();
-  if (accounts.length === 0) {
-    throw new Error("No email accounts configured. Check keychain credentials and bin/run wrapper.");
-  }
-
-  const targetAccounts = accountFilter
-    ? accounts.filter((a) => a.name.toLowerCase() === accountFilter.toLowerCase())
-    : accounts;
-
-  if (targetAccounts.length === 0) {
-    throw new Error(`Account "${accountFilter}" not found.`);
-  }
-
-  return targetAccounts;
-}
-
-/**
  * Extract receipt metadata from text content.
  * Tries LLM extraction first; falls back to regex pattern matching.
  * @param {{ broker: any }|null} llm
@@ -764,7 +742,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
         return d;
       })();
 
-  const targetAccounts = resolveReceiptAccounts(accountFilter, loadAccounts);
+  const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
   const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs);
   const existingHashes = loadExistingHashes(outputDir, fs);
@@ -874,7 +852,7 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
         return d;
       })();
 
-  const targetAccounts = resolveReceiptAccounts(accountFilter, loadAccounts);
+  const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
   /** @type {Map<string, { vendor: string, address: string, count: number }>} */
   const vendorCounts = new Map();

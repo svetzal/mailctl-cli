@@ -3,6 +3,7 @@ import {
   collectValues,
   filterAccountsByName,
   headerValueToString,
+  resolveAccounts,
   resolveCommandContext,
   sanitizeString,
 } from "../src/cli-helpers.js";
@@ -119,6 +120,35 @@ describe("filterAccountsByName", () => {
 
   it("returns an empty array when no account matches", () => {
     expect(filterAccountsByName(accounts, "nonexistent")).toEqual([]);
+  });
+});
+
+// ── resolveAccounts ────────────────────────────────────────────────────────────
+
+describe("resolveAccounts", () => {
+  const allAccounts = [{ name: "iCloud" }, { name: "Gmail" }];
+  const loadAll = () => allAccounts;
+  const loadNone = () => [];
+
+  it("returns all accounts when accountFilter is null", () => {
+    expect(resolveAccounts(null, loadAll)).toEqual(allAccounts);
+  });
+
+  it("filters to the matching account when a name is given", () => {
+    const result = resolveAccounts("iCloud", loadAll);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("iCloud");
+  });
+
+  it("throws when no accounts are configured", () => {
+    expect(() => resolveAccounts(null, loadNone)).toThrow(
+      "No accounts configured. Check keychain credentials and bin/run wrapper.",
+    );
+  });
+
+  it("throws when the account filter matches no configured account", () => {
+    expect(() => resolveAccounts("NoSuchAccount", loadAll)).toThrow('Account "NoSuchAccount" not found.');
   });
 });
 
