@@ -1,3 +1,5 @@
+import { debug } from "./debug.js";
+
 /**
  * Find which mailbox contains a given UID.
  * Tries INBOX first, then scans all provided mailbox paths.
@@ -36,14 +38,18 @@ async function searchMailboxForUid(client, mailboxPath, uid) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("mailbox-detect", "mailbox lock failed, skipping", err);
     return false;
   }
 
   try {
     const found = await client.search({ uid }, { uid: true });
     return found && found.length > 0;
-  } catch {
+  } catch (err) {
+    // Search failed — return empty results
+    debug("mailbox-detect", "search failed, returning empty", err);
     return false;
   } finally {
     lock.release();

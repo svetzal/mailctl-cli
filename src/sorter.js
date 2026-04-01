@@ -2,6 +2,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
+import { debug } from "./debug.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -27,7 +28,9 @@ async function ensureFolders(client, onProgress) {
       await client.mailboxOpen(folder);
       await client.mailboxClose();
       onProgress({ type: "folder-exists", folder });
-    } catch {
+    } catch (err) {
+      // Folder doesn't exist — fall through to create it
+      debug("sorter", "folder not found, will create", err);
       try {
         await client.mailboxCreate(folder);
         onProgress({ type: "folder-created", folder });

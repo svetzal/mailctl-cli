@@ -6,6 +6,7 @@
  */
 import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
+import { debug } from "./debug.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { detectMailbox } from "./mailbox-detect.js";
@@ -54,7 +55,9 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps)
     let lock;
     try {
       lock = await client.getMailboxLock(mailbox);
-    } catch {
+    } catch (err) {
+      // Mailbox inaccessible — skip gracefully
+      debug("extract-attachment", "mailbox lock failed, skipping", err);
       return;
     }
 
@@ -65,7 +68,9 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps)
         for await (const fetched of client.fetch(String(uid), { bodyStructure: true }, { uid: true })) {
           bodyStructure = fetched.bodyStructure;
         }
-      } catch {
+      } catch (err) {
+        // Search failed — return empty results
+        debug("extract-attachment", "search failed, returning empty", err);
         return;
       }
 

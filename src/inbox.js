@@ -1,6 +1,7 @@
 /**
  * Inbox overview — fetch recent messages from INBOX with read/unread status.
  */
+import { debug } from "./debug.js";
 
 /**
  * Fetch recent inbox messages for a connected IMAP client.
@@ -19,7 +20,9 @@ export async function fetchInbox(client, accountName, opts) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailbox);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("inbox", "mailbox lock failed, skipping", err);
     return [];
   }
 
@@ -36,7 +39,9 @@ export async function fetchInbox(client, accountName, opts) {
       uids = hasAnyCriteria
         ? await client.search(criteria, { uid: true })
         : await client.search({ all: true }, { uid: true });
-    } catch {
+    } catch (err) {
+      // Search failed — return empty results
+      debug("inbox", "search failed, returning empty", err);
       return [];
     }
 

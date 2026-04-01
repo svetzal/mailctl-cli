@@ -2,6 +2,7 @@
  * Email search logic — IMAP mailbox search with deduplication.
  * Extracted from cli.js to keep the shell thin and this logic testable.
  */
+import { debug } from "./debug.js";
 
 /**
  * Search a single mailbox within an already-connected IMAP client.
@@ -29,7 +30,9 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("search", "mailbox lock failed, skipping", err);
     return [];
   }
 

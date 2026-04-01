@@ -4,6 +4,7 @@
  * with a subject-based fallback when header search is limited.
  */
 
+import { debug } from "./debug.js";
 import { htmlToText } from "./html-to-text.js";
 
 /**
@@ -46,7 +47,9 @@ async function searchMailboxForThread(client, mailboxPath, messageIds) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("thread", "mailbox lock failed, skipping", err);
     return [];
   }
 
@@ -90,14 +93,18 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("thread", "mailbox lock failed, skipping", err);
     return [];
   }
 
   try {
     const uids = await client.search({ subject: baseSubject }, { uid: true });
     return uids && uids.length > 0 ? [...uids] : [];
-  } catch {
+  } catch (err) {
+    // Search failed — return empty results
+    debug("thread", "search failed, returning empty", err);
     return [];
   } finally {
     lock.release();
@@ -120,7 +127,9 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("thread", "mailbox lock failed, skipping", err);
     return [];
   }
 
@@ -192,7 +201,9 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("thread", "mailbox lock failed, skipping", err);
     return { messages: [], fallback: false };
   }
 

@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { debug } from "./debug.js";
 
 const TOKEN_PATH = join(homedir(), ".newt", "m365-tokens.json");
 const SCOPE = "https://outlook.office365.com/IMAP.AccessAsUser.All offline_access";
@@ -192,7 +193,9 @@ export async function getM365AccessToken(
 function realLoadTokens() {
   try {
     return JSON.parse(readFileSync(TOKEN_PATH, "utf-8"));
-  } catch {
+  } catch (err) {
+    // Token file missing or unreadable — treat as no cached token
+    debug("m365-auth", "token file missing or unreadable, returning null", err);
     return null;
   }
 }

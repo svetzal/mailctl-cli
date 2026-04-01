@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { debug } from "./debug.js";
 
 const DEFAULT_CONFIG_PATH = join(homedir(), ".config", "mailctl", "config.json");
 
@@ -34,7 +35,9 @@ export function loadConfig(fs = realFs, configPath = DEFAULT_CONFIG_PATH) {
   if (cachedConfig !== undefined) return cachedConfig;
   try {
     cachedConfig = /** @type {object} */ (fs.readJson(configPath));
-  } catch {
+  } catch (err) {
+    // Config file missing or unreadable — return null
+    debug("config", "config file unreadable, using null", err);
     cachedConfig = null;
   }
   return cachedConfig;

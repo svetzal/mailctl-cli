@@ -2,6 +2,7 @@
  * Contact extraction — scan envelopes from recent messages to build a frequency-ranked contact list.
  */
 
+import { debug } from "./debug.js";
 import { listMailboxes } from "./imap-client.js";
 
 /**
@@ -55,7 +56,9 @@ async function scanMailboxContacts(client, mailboxPath, since, direction) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
-  } catch {
+  } catch (err) {
+    // Mailbox inaccessible — skip gracefully
+    debug("contacts", "mailbox lock failed, skipping", err);
     return entries;
   }
 
@@ -63,7 +66,9 @@ async function scanMailboxContacts(client, mailboxPath, since, direction) {
     let uids;
     try {
       uids = await client.search({ since }, { uid: true });
-    } catch {
+    } catch (err) {
+      // Search failed — return empty results
+      debug("contacts", "search failed, returning empty", err);
       return entries;
     }
 

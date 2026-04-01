@@ -6,6 +6,8 @@
  * and flag commands. This module extracts the common cross-account UID lookup
  * so each orchestrator doesn't repeat the same boilerplate.
  */
+
+import { debug } from "./debug.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { detectMailbox } from "./mailbox-detect.js";
 
@@ -54,7 +56,9 @@ export async function withMessage(uid, opts, deps, fn) {
     let lock;
     try {
       lock = await client.getMailboxLock(mailbox);
-    } catch {
+    } catch (err) {
+      // Mailbox inaccessible — skip gracefully
+      debug("find-message", "mailbox lock failed, skipping", err);
       return;
     }
 
