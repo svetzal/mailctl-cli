@@ -90,7 +90,7 @@ function withErrorHandling(fn) {
 function requireAccounts() {
   const accounts = loadAccounts();
   if (accounts.length === 0) {
-    throw new Error("No accounts configured. Check keychain credentials and bin/run wrapper.");
+    throw new Error("No accounts configured. Ensure IMAP credentials are available as environment variables.");
   }
   return accounts;
 }

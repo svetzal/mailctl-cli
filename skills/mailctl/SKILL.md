@@ -12,10 +12,10 @@ mailctl is a command-line tool for managing email across multiple IMAP accounts.
 
 ## Running Commands
 
-All commands must be run through the `bin/run` wrapper, which injects macOS Keychain credentials securely:
+Use the `mailctl` binary directly:
 
 ```bash
-bin/run <command> [options]
+mailctl <command> [options]
 ```
 
 All commands support `--json` for machine-readable output and `--account <name>` to target a specific email account.
@@ -26,96 +26,96 @@ All commands support `--json` for machine-readable output and `--account <name>`
 
 ```bash
 # Search across all accounts
-bin/run search "query"
-bin/run search --from "sender@example.com" "query"
-bin/run search --subject "invoice" --since 2025-01-01
-bin/run search --mailbox INBOX "query"
-bin/run search --exclude-mailbox Trash "query"
-bin/run search --months 3 "query"
+mailctl search "query"
+mailctl search --from "sender@example.com" "query"
+mailctl search --subject "invoice" --since 2025-01-01
+mailctl search --mailbox INBOX "query"
+mailctl search --exclude-mailbox Trash "query"
+mailctl search --months 3 "query"
 
 # Read a specific email by UID
-bin/run read <uid>
-bin/run read <uid> --mailbox "Sent Messages"
-bin/run read <uid> --raw          # full raw output
-bin/run read <uid> --headers      # include all headers
+mailctl read <uid>
+mailctl read <uid> --mailbox "Sent Messages"
+mailctl read <uid> --raw          # full raw output
+mailctl read <uid> --headers      # include all headers
 
 # View recent inbox messages
-bin/run inbox
-bin/run inbox --unread --limit 20
-bin/run inbox --since 3d
+mailctl inbox
+mailctl inbox --unread --limit 20
+mailctl inbox --since 3d
 
 # View a conversation thread
-bin/run thread <uid>
-bin/run thread <uid> --full       # show full bodies
+mailctl thread <uid>
+mailctl thread <uid> --full       # show full bodies
 ```
 
 ### Managing Messages
 
 ```bash
 # Move emails to a folder
-bin/run move <uid...> --to "Archive"
-bin/run move icloud:123,gmail:456 --to "Archive"
-bin/run move <uid> --to Trash --dry-run
+mailctl move <uid...> --to "Archive"
+mailctl move icloud:123,gmail:456 --to "Archive"
+mailctl move <uid> --to Trash --dry-run
 
 # Flag messages (read/unread, star/unstar)
-bin/run flag <uid...> --read
-bin/run flag <uid...> --unread
-bin/run flag <uid...> --star
-bin/run flag <uid...> --unstar
+mailctl flag <uid...> --read
+mailctl flag <uid...> --unread
+mailctl flag <uid...> --star
+mailctl flag <uid...> --unstar
 
 # Reply to an email
-bin/run reply <uid> --message "Thanks!"
-bin/run reply <uid> --message-file response.txt
-bin/run reply <uid> --edit        # open in editor
-bin/run reply <uid> --dry-run     # preview without sending
+mailctl reply <uid> --message "Thanks!"
+mailctl reply <uid> --message-file response.txt
+mailctl reply <uid> --edit        # open in editor
+mailctl reply <uid> --dry-run     # preview without sending
 ```
 
 ### Folders & Contacts
 
 ```bash
 # List all IMAP folders per account
-bin/run list-folders
+mailctl list-folders
 
 # Extract frequent contacts
-bin/run contacts
-bin/run contacts --sent            # from sent mail only
-bin/run contacts --search "john"
+mailctl contacts
+mailctl contacts --sent            # from sent mail only
+mailctl contacts --search "john"
 ```
 
 ### Attachments
 
 ```bash
 # List attachments on an email
-bin/run extract-attachment <uid> --list
+mailctl extract-attachment <uid> --list
 
 # Save a specific attachment (by index)
-bin/run extract-attachment <uid> 0
-bin/run extract-attachment <uid> 0 -o ~/Desktop
+mailctl extract-attachment <uid> 0
+mailctl extract-attachment <uid> 0 -o ~/Desktop
 ```
 
 ### Receipt Management
 
 ```bash
 # Scan for receipt-like messages
-bin/run scan
-bin/run scan --months 6
+mailctl scan
+mailctl scan --months 6
 
 # Classify senders as business/personal
-bin/run classify
+mailctl classify
 
 # Sort receipts into Business/Personal folders
-bin/run sort
-bin/run sort --dry-run
+mailctl sort
+mailctl sort --dry-run
 
 # Download receipt PDF attachments
-bin/run download
-bin/run download --dry-run
+mailctl download
+mailctl download --dry-run
 
 # Advanced: LLM-based receipt extraction with metadata
-bin/run download-receipts
-bin/run download-receipts --vendor "Amazon"
-bin/run download-receipts --list-vendors
-bin/run download-receipts --dry-run
+mailctl download-receipts
+mailctl download-receipts --vendor "Amazon"
+mailctl download-receipts --list-vendors
+mailctl download-receipts --dry-run
 ```
 
 ## Common Workflows
@@ -123,32 +123,32 @@ bin/run download-receipts --dry-run
 ### Check for new important emails
 
 ```bash
-bin/run inbox --unread
-bin/run read <uid>                 # read a specific one
-bin/run flag <uid> --read          # mark as read
+mailctl inbox --unread
+mailctl read <uid>                 # read a specific one
+mailctl flag <uid> --read          # mark as read
 ```
 
 ### Find and organize emails
 
 ```bash
-bin/run search "project update" --months 1
-bin/run move <uid> --to "Projects/Active"
+mailctl search "project update" --months 1
+mailctl move <uid> --to "Projects/Active"
 ```
 
 ### Process receipts
 
 ```bash
-bin/run scan --months 1            # find receipt senders
-bin/run classify                   # classify new senders
-bin/run sort                       # move to Business/Personal
-bin/run download                   # download PDF attachments
+mailctl scan --months 1            # find receipt senders
+mailctl classify                   # classify new senders
+mailctl sort                       # move to Business/Personal
+mailctl download                   # download PDF attachments
 ```
 
 ### Reply to a message
 
 ```bash
-bin/run read <uid>                 # review the email
-bin/run reply <uid> --message "Got it, thanks!"
+mailctl read <uid>                 # review the email
+mailctl reply <uid> --message "Got it, thanks!"
 ```
 
 ## Key Details

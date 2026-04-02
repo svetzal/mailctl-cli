@@ -3,7 +3,7 @@
  *
  * Non-secret fields (host, port, user, name) come from ~/.config/mailctl/config.json.
  * Secret fields (passwords, OAuth2 credentials) come from environment variables
- * injected by bin/run from the macOS Keychain.
+ * (injected by bin/run during development, or set externally for installed binary).
  *
  * Falls back to pure env-var discovery if no config.json exists.
  */

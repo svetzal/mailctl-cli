@@ -73,7 +73,7 @@ export function filterAccountsByName(accounts, name) {
 export function resolveAccounts(accountFilter, loadAccountsFn) {
   const accounts = loadAccountsFn();
   if (accounts.length === 0) {
-    throw new Error("No accounts configured. Check keychain credentials and bin/run wrapper.");
+    throw new Error("No accounts configured. Ensure IMAP credentials are available as environment variables.");
   }
   const targetAccounts = filterAccountsByName(accounts, accountFilter);
   if (accountFilter && targetAccounts.length === 0) {
