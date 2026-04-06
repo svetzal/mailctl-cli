@@ -7,17 +7,22 @@ function makePart(overrides = {}) {
 }
 
 describe("buildAttachmentListing", () => {
-  it("maps attachment parts to listing format", () => {
+  describe("maps attachment parts to listing format", () => {
     const parts = [makePart({ filename: "receipt.pdf", type: "application/pdf", size: 2048, part: "2" })];
     const listing = buildAttachmentListing(parts);
 
-    expect(listing).toHaveLength(1);
-    expect(listing[0]).toEqual({
-      index: 0,
-      filename: "receipt.pdf",
-      contentType: "application/pdf",
-      size: 2048,
-      part: "2",
+    it("returns one listing item", () => {
+      expect(listing).toHaveLength(1);
+    });
+
+    it("listing item matches the expected shape", () => {
+      expect(listing[0]).toEqual({
+        index: 0,
+        filename: "receipt.pdf",
+        contentType: "application/pdf",
+        size: 2048,
+        part: "2",
+      });
     });
   });
 
@@ -39,12 +44,17 @@ describe("buildAttachmentListing", () => {
     expect(listing[0].size).toBe(0);
   });
 
-  it("assigns sequential 0-based index values", () => {
+  describe("assigns sequential 0-based index values", () => {
     const parts = [makePart({ part: "2" }), makePart({ part: "3" })];
     const listing = buildAttachmentListing(parts);
 
-    expect(listing[0].index).toBe(0);
-    expect(listing[1].index).toBe(1);
+    it("first item has index 0", () => {
+      expect(listing[0].index).toBe(0);
+    });
+
+    it("second item has index 1", () => {
+      expect(listing[1].index).toBe(1);
+    });
   });
 
   it("returns an empty array for empty input", () => {

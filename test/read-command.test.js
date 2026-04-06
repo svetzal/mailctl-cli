@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { readCommand } from "../src/read-command.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
@@ -48,13 +48,24 @@ function makeDeps(overrides = {}) {
 // ── readCommand ────────────────────────────────────────────────────────────────
 
 describe("readCommand", () => {
-  it("returns parsed email with account and mailbox context", async () => {
+  describe("returns parsed email with account and mailbox context", () => {
     const deps = makeDeps();
-    const result = await readCommand("42", {}, deps);
+    let result;
+    beforeAll(async () => {
+      result = await readCommand("42", {}, deps);
+    });
 
-    expect(result.account.name).toBe("Test Account");
-    expect(result.uid).toBe("42");
-    expect(result.parsed).toBeDefined();
+    it("account name is Test Account", async () => {
+      expect(result.account.name).toBe("Test Account");
+    });
+
+    it("uid is 42", async () => {
+      expect(result.uid).toBe("42");
+    });
+
+    it("parsed is defined", async () => {
+      expect(result.parsed).toBeDefined();
+    });
   });
 
   it("returns the detected mailbox in the result", async () => {
@@ -65,13 +76,20 @@ describe("readCommand", () => {
     expect(result.mailbox).toBe("INBOX");
   });
 
-  it("uses explicit --mailbox option without detection when provided", async () => {
+  describe("uses explicit --mailbox option without detection when provided", () => {
     const deps = makeDeps();
-    const result = await readCommand("42", { mailbox: "Archive" }, deps);
+    let result;
+    beforeAll(async () => {
+      result = await readCommand("42", { mailbox: "Archive" }, deps);
+    });
 
-    // detectMailbox was not called, mailbox used directly
-    expect(result.mailbox).toBe("Archive");
-    expect(deps._client.search).not.toHaveBeenCalled();
+    it("mailbox is Archive", async () => {
+      expect(result.mailbox).toBe("Archive");
+    });
+
+    it("detectMailbox not called (search not called)", async () => {
+      expect(deps._client.search).not.toHaveBeenCalled();
+    });
   });
 
   it("calls simpleParser with the downloaded buffer", async () => {
@@ -114,7 +132,7 @@ describe("readCommand", () => {
       download: mock(() => ({ content: (async function* () {})() })),
     };
     const successAccount = makeAccount({ name: "Second Account" });
-    let callCount = 0;
+    let _callCount = 0;
 
     const deps = makeDeps({
       forEachAccount: mock(async (_accounts, fn) => {
@@ -122,7 +140,7 @@ describe("readCommand", () => {
         await fn(makeClient(), successAccount);
       }),
       simpleParser: mock(async () => {
-        callCount++;
+        _callCount++;
         return makeParsedEmail();
       }),
     });
@@ -130,7 +148,31 @@ describe("readCommand", () => {
     const result = await readCommand("42", { mailbox: "INBOX" }, deps);
 
     expect(result.account.name).toBe("Second Account");
-    expect(callCount).toBe(1); // only parsed once (second account)
+  });
+
+  it("parses only once when skipping account on lock failure", async () => {
+    const lockFailClient = {
+      getMailboxLock: mock(() => Promise.reject(new Error("Lock failed"))),
+      search: mock(() => Promise.resolve([42])),
+      download: mock(() => ({ content: (async function* () {})() })),
+    };
+    const successAccount2 = makeAccount({ name: "Second Account 2" });
+    let callCount2 = 0;
+
+    const deps2 = makeDeps({
+      forEachAccount: mock(async (_accounts, fn) => {
+        await fn(lockFailClient, makeAccount({ name: "First Account" }));
+        await fn(makeClient(), successAccount2);
+      }),
+      simpleParser: mock(async () => {
+        callCount2++;
+        return makeParsedEmail();
+      }),
+    });
+
+    await readCommand("42", { mailbox: "INBOX" }, deps2);
+
+    expect(callCount2).toBe(1);
   });
 
   it("stops iterating after UID is found in first account", async () => {

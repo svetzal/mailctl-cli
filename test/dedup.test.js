@@ -19,16 +19,23 @@ describe("deduplicateByMessageId", () => {
     expect(deduplicateByMessageId(results)).toEqual(results);
   });
 
-  it("removes items with duplicate messageId", () => {
+  describe("removes items with duplicate messageId", () => {
     const first = makeResult({ messageId: "same@example.com", uid: "1" });
     const duplicate = makeResult({ messageId: "same@example.com", uid: "2", mailbox: "All Mail" });
     const other = makeResult({ messageId: "other@example.com", uid: "3" });
-
     const result = deduplicateByMessageId([first, duplicate, other]);
 
-    expect(result).toHaveLength(2);
-    expect(result[0]).toBe(first);
-    expect(result[1]).toBe(other);
+    it("returns two items", () => {
+      expect(result).toHaveLength(2);
+    });
+
+    it("first item is the original first result", () => {
+      expect(result[0]).toBe(first);
+    });
+
+    it("second item is the non-duplicate other result", () => {
+      expect(result[1]).toBe(other);
+    });
   });
 
   it("keeps items with different messageIds", () => {
@@ -41,16 +48,23 @@ describe("deduplicateByMessageId", () => {
     expect(deduplicateByMessageId(results)).toHaveLength(3);
   });
 
-  it("falls back to account:mailbox:uid key when messageId is falsy", () => {
+  describe("falls back to account:mailbox:uid key when messageId is falsy", () => {
     const first = makeResult({ messageId: "", account: "icloud", mailbox: "INBOX", uid: "42" });
     const duplicate = makeResult({ messageId: "", account: "icloud", mailbox: "INBOX", uid: "42" });
     const different = makeResult({ messageId: "", account: "gmail", mailbox: "INBOX", uid: "42" });
-
     const result = deduplicateByMessageId([first, duplicate, different]);
 
-    expect(result).toHaveLength(2);
-    expect(result[0]).toBe(first);
-    expect(result[1]).toBe(different);
+    it("returns two items", () => {
+      expect(result).toHaveLength(2);
+    });
+
+    it("first item is the original first result", () => {
+      expect(result[0]).toBe(first);
+    });
+
+    it("second item is the item with a different account", () => {
+      expect(result[1]).toBe(different);
+    });
   });
 
   it("preserves order — first occurrence wins", () => {

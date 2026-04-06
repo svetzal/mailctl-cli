@@ -94,7 +94,7 @@ describe("searchMailbox", () => {
     expect(results).toHaveLength(1);
   });
 
-  it("maps envelope fields correctly onto the result object", async () => {
+  describe("maps envelope fields correctly onto the result object", () => {
     const date = makeDate("2025-06-15");
     const client = makeClient({
       searchUids: [7],
@@ -110,17 +110,47 @@ describe("searchMailbox", () => {
         },
       ],
     });
+    let result;
 
-    const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+    it("sets uid", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.uid).toBe(7);
+    });
 
-    expect(result.uid).toBe(7);
-    expect(result.account).toBe("MyAccount");
-    expect(result.mailbox).toBe("INBOX");
-    expect(result.from).toBe("Bill@Vendor.com");
-    expect(result.fromName).toBe("Vendor Billing");
-    expect(result.subject).toBe("Your receipt");
-    expect(result.messageId).toBe("msg-7@vendor.com");
-    expect(result.date).toBe(date);
+    it("sets account", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.account).toBe("MyAccount");
+    });
+
+    it("sets mailbox", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.mailbox).toBe("INBOX");
+    });
+
+    it("sets from", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.from).toBe("Bill@Vendor.com");
+    });
+
+    it("sets fromName", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.fromName).toBe("Vendor Billing");
+    });
+
+    it("sets subject", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.subject).toBe("Your receipt");
+    });
+
+    it("sets messageId", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.messageId).toBe("msg-7@vendor.com");
+    });
+
+    it("sets date", async () => {
+      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      expect(result.date).toBe(date);
+    });
   });
 
   it("limits results to the most recent N UIDs", async () => {
@@ -298,7 +328,7 @@ describe("searchMailbox", () => {
     expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", to: "bob@example.com" }, { uid: true });
   });
 
-  it("includes to and toName fields in result objects", async () => {
+  describe("includes to and toName fields in result objects", () => {
     const date = makeDate("2026-03-01");
     const client = makeClient({
       searchUids: [15],
@@ -316,10 +346,15 @@ describe("searchMailbox", () => {
       ],
     });
 
-    const [result] = await searchMailbox(client, "Account", "INBOX", "Test");
+    it("sets to address", async () => {
+      const [result] = await searchMailbox(client, "Account", "INBOX", "Test");
+      expect(result.to).toBe("bob@example.com");
+    });
 
-    expect(result.to).toBe("bob@example.com");
-    expect(result.toName).toBe("Bob");
+    it("sets toName", async () => {
+      const [result] = await searchMailbox(client, "Account", "INBOX", "Test");
+      expect(result.toName).toBe("Bob");
+    });
   });
 
   it("uses field criteria path when query and --to are both provided", async () => {

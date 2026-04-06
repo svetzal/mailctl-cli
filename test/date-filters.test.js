@@ -2,56 +2,115 @@ import { describe, expect, it } from "bun:test";
 import { resolveDateFilters } from "../src/date-filters.js";
 
 describe("resolveDateFilters", () => {
-  it("returns undefined for both dates when no options are provided", () => {
+  describe("returns undefined for both dates when no options are provided", () => {
     const result = resolveDateFilters({});
 
-    expect(result.since).toBeUndefined();
-    expect(result.before).toBeUndefined();
-    expect(result.warnings).toEqual([]);
+    it("since is undefined", () => {
+      expect(result.since).toBeUndefined();
+    });
+
+    it("before is undefined", () => {
+      expect(result.before).toBeUndefined();
+    });
+
+    it("warnings is empty", () => {
+      expect(result.warnings).toEqual([]);
+    });
   });
 
-  it("computes a date N months ago at midnight when only --months is provided", () => {
+  describe("computes a date N months ago at midnight when only --months is provided", () => {
     const result = resolveDateFilters({ months: "3" });
-
-    expect(result.since).toBeInstanceOf(Date);
-    expect(result.before).toBeUndefined();
-
-    // Should be approximately 3 months ago
     const expected = new Date();
     expected.setMonth(expected.getMonth() - 3);
     const expectedMidnight = new Date(expected.getFullYear(), expected.getMonth(), expected.getDate());
-    expect(result.since?.getTime()).toBe(expectedMidnight.getTime());
+
+    it("since is a Date instance", () => {
+      expect(result.since).toBeInstanceOf(Date);
+    });
+
+    it("before is undefined", () => {
+      expect(result.before).toBeUndefined();
+    });
+
+    it("since is approximately 3 months ago at midnight", () => {
+      expect(result.since?.getTime()).toBe(expectedMidnight.getTime());
+    });
   });
 
-  it("parses --since date string correctly", () => {
+  describe("parses --since date string correctly", () => {
     const result = resolveDateFilters({ since: "2026-01-15" });
 
-    expect(result.since).toBeInstanceOf(Date);
-    expect(result.since?.getFullYear()).toBe(2026);
-    expect(result.since?.getMonth()).toBe(0); // January
-    expect(result.since?.getDate()).toBe(15);
-    expect(result.before).toBeUndefined();
-    expect(result.warnings).toEqual([]);
+    it("since is a Date instance", () => {
+      expect(result.since).toBeInstanceOf(Date);
+    });
+
+    it("since has the correct year", () => {
+      expect(result.since?.getFullYear()).toBe(2026);
+    });
+
+    it("since has the correct month (January)", () => {
+      expect(result.since?.getMonth()).toBe(0);
+    });
+
+    it("since has the correct day", () => {
+      expect(result.since?.getDate()).toBe(15);
+    });
+
+    it("before is undefined", () => {
+      expect(result.before).toBeUndefined();
+    });
+
+    it("warnings is empty", () => {
+      expect(result.warnings).toEqual([]);
+    });
   });
 
-  it("lets --since take precedence over --months and includes a warning", () => {
+  describe("lets --since take precedence over --months and includes a warning", () => {
     const result = resolveDateFilters({ months: "3", since: "2026-01-15" });
 
-    expect(result.since).toBeInstanceOf(Date);
-    expect(result.since?.getFullYear()).toBe(2026);
-    expect(result.since?.getDate()).toBe(15);
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain("--since takes precedence over --months");
+    it("since is a Date instance", () => {
+      expect(result.since).toBeInstanceOf(Date);
+    });
+
+    it("since has the correct year", () => {
+      expect(result.since?.getFullYear()).toBe(2026);
+    });
+
+    it("since has the correct day", () => {
+      expect(result.since?.getDate()).toBe(15);
+    });
+
+    it("includes exactly one warning", () => {
+      expect(result.warnings).toHaveLength(1);
+    });
+
+    it("warning mentions --since takes precedence over --months", () => {
+      expect(result.warnings[0]).toContain("--since takes precedence over --months");
+    });
   });
 
-  it("parses --before date string correctly", () => {
+  describe("parses --before date string correctly", () => {
     const result = resolveDateFilters({ before: "2026-03-01" });
 
-    expect(result.before).toBeInstanceOf(Date);
-    expect(result.before?.getFullYear()).toBe(2026);
-    expect(result.before?.getMonth()).toBe(2); // March
-    expect(result.before?.getDate()).toBe(1);
-    expect(result.since).toBeUndefined();
+    it("before is a Date instance", () => {
+      expect(result.before).toBeInstanceOf(Date);
+    });
+
+    it("before has the correct year", () => {
+      expect(result.before?.getFullYear()).toBe(2026);
+    });
+
+    it("before has the correct month (March)", () => {
+      expect(result.before?.getMonth()).toBe(2);
+    });
+
+    it("before has the correct day", () => {
+      expect(result.before?.getDate()).toBe(1);
+    });
+
+    it("since is undefined", () => {
+      expect(result.since).toBeUndefined();
+    });
   });
 
   it("throws when --since is on or after --before", () => {
@@ -66,11 +125,19 @@ describe("resolveDateFilters", () => {
     );
   });
 
-  it("combines --months and --before without conflict or warnings", () => {
+  describe("combines --months and --before without conflict or warnings", () => {
     const result = resolveDateFilters({ months: "1", before: "2026-12-31" });
 
-    expect(result.since).toBeInstanceOf(Date);
-    expect(result.before).toBeInstanceOf(Date);
-    expect(result.warnings).toEqual([]);
+    it("since is a Date instance", () => {
+      expect(result.since).toBeInstanceOf(Date);
+    });
+
+    it("before is a Date instance", () => {
+      expect(result.before).toBeInstanceOf(Date);
+    });
+
+    it("warnings is empty", () => {
+      expect(result.warnings).toEqual([]);
+    });
   });
 });

@@ -117,12 +117,24 @@ function imageWithoutCid() {
 }
 
 describe("findAttachmentParts", () => {
-  it("returns only the PDF when message has inline CID image + PDF attachment", () => {
+  describe("returns only the PDF when message has inline CID image + PDF attachment", () => {
     const parts = findAttachmentParts(m365InlineImagePlusPdf());
-    expect(parts.length).toBe(1);
-    expect(parts[0].type).toBe("application/pdf");
-    expect(parts[0].part).toBe("2");
-    expect(parts[0].filename).toBe("Invoice_509320833.pdf");
+
+    it("returns one part", () => {
+      expect(parts.length).toBe(1);
+    });
+
+    it("the part has type application/pdf", () => {
+      expect(parts[0].type).toBe("application/pdf");
+    });
+
+    it("the part is part 2", () => {
+      expect(parts[0].part).toBe("2");
+    });
+
+    it("the part has the correct filename", () => {
+      expect(parts[0].filename).toBe("Invoice_509320833.pdf");
+    });
   });
 
   it("returns empty array for plain text message", () => {
@@ -135,11 +147,20 @@ describe("findAttachmentParts", () => {
     expect(parts.length).toBe(0);
   });
 
-  it("includes images without CID as attachments", () => {
+  describe("includes images without CID as attachments", () => {
     const parts = findAttachmentParts(imageWithoutCid());
-    expect(parts.length).toBe(1);
-    expect(parts[0].type).toBe("image/png");
-    expect(parts[0].filename).toBe("screenshot.png");
+
+    it("returns one part", () => {
+      expect(parts.length).toBe(1);
+    });
+
+    it("the part has type image/png", () => {
+      expect(parts[0].type).toBe("image/png");
+    });
+
+    it("the part has the correct filename", () => {
+      expect(parts[0].filename).toBe("screenshot.png");
+    });
   });
 
   it("returns empty array for null structure", () => {
@@ -148,18 +169,36 @@ describe("findAttachmentParts", () => {
 });
 
 describe("findPdfParts", () => {
-  it("finds PDF in M365 inline image + PDF structure", () => {
+  describe("finds PDF in M365 inline image + PDF structure", () => {
     const parts = findPdfParts(m365InlineImagePlusPdf());
-    expect(parts.length).toBe(1);
-    expect(parts[0].part).toBe("2");
-    expect(parts[0].filename).toBe("Invoice_509320833.pdf");
+
+    it("returns one part", () => {
+      expect(parts.length).toBe(1);
+    });
+
+    it("the part is part 2", () => {
+      expect(parts[0].part).toBe("2");
+    });
+
+    it("the part has the correct filename", () => {
+      expect(parts[0].filename).toBe("Invoice_509320833.pdf");
+    });
   });
 
-  it("detects PDF via Content-Type parameters name when dispositionParameters is missing", () => {
+  describe("detects PDF via Content-Type parameters name when dispositionParameters is missing", () => {
     const parts = findPdfParts(pdfFilenameOnlyInContentType());
-    expect(parts.length).toBe(1);
-    expect(parts[0].part).toBe("2");
-    expect(parts[0].filename).toBe("receipt.pdf");
+
+    it("returns one part", () => {
+      expect(parts.length).toBe(1);
+    });
+
+    it("the part is part 2", () => {
+      expect(parts[0].part).toBe("2");
+    });
+
+    it("the part has the correct filename", () => {
+      expect(parts[0].filename).toBe("receipt.pdf");
+    });
   });
 
   it("returns empty array when no PDF present", () => {

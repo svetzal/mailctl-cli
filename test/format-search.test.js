@@ -11,25 +11,50 @@ describe("formatSearchResultsText", () => {
     subject: "Hello there",
   };
 
-  it("formats a single result correctly", () => {
+  describe("formats a single result correctly", () => {
     const text = formatSearchResultsText([result]);
 
-    expect(text).toContain("[INBOX]");
-    expect(text).toContain("UID:42");
-    expect(text).toContain("2026-01-15");
-    expect(text).toContain("Alice");
-    expect(text).toContain("alice@example.com");
-    expect(text).toContain("Hello there");
+    it("contains mailbox label", () => {
+      expect(text).toContain("[INBOX]");
+    });
+
+    it("contains uid", () => {
+      expect(text).toContain("UID:42");
+    });
+
+    it("contains date", () => {
+      expect(text).toContain("2026-01-15");
+    });
+
+    it("contains sender name", () => {
+      expect(text).toContain("Alice");
+    });
+
+    it("contains from address", () => {
+      expect(text).toContain("alice@example.com");
+    });
+
+    it("contains subject", () => {
+      expect(text).toContain("Hello there");
+    });
   });
 
-  it("formats multiple results, one per line", () => {
+  describe("formats multiple results, one per line", () => {
     const second = { ...result, uid: 99, mailbox: "Sent", subject: "Re: Hello" };
     const text = formatSearchResultsText([result, second]);
-
     const lines = text.split("\n");
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain("INBOX");
-    expect(lines[1]).toContain("Sent");
+
+    it("produces two lines", () => {
+      expect(lines).toHaveLength(2);
+    });
+
+    it("first line contains INBOX", () => {
+      expect(lines[0]).toContain("INBOX");
+    });
+
+    it("second line contains Sent", () => {
+      expect(lines[1]).toContain("Sent");
+    });
   });
 
   it("returns an empty string when results array is empty", () => {
@@ -43,13 +68,17 @@ describe("formatSearchResultsText", () => {
     expect(text).toContain("<alice@example.com>");
   });
 
-  it("handles missing from address gracefully", () => {
+  describe("handles missing from address gracefully", () => {
     const noFrom = { ...result, from: undefined };
     const text = formatSearchResultsText([noFrom]);
 
-    // Should not throw and should still contain the other fields
-    expect(text).toContain("[INBOX]");
-    expect(text).toContain("Hello there");
+    it("still contains mailbox label", () => {
+      expect(text).toContain("[INBOX]");
+    });
+
+    it("still contains the subject", () => {
+      expect(text).toContain("Hello there");
+    });
   });
 
   it("handles missing subject gracefully", () => {
@@ -59,11 +88,16 @@ describe("formatSearchResultsText", () => {
     expect(text).toContain("[INBOX]");
   });
 
-  it("handles missing date gracefully", () => {
+  describe("handles missing date gracefully", () => {
     const noDate = { ...result, date: undefined };
     const text = formatSearchResultsText([noDate]);
 
-    expect(text).toContain("[INBOX]");
-    expect(text).toContain("UID:42");
+    it("still contains mailbox label", () => {
+      expect(text).toContain("[INBOX]");
+    });
+
+    it("still contains uid", () => {
+      expect(text).toContain("UID:42");
+    });
   });
 });

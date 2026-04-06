@@ -106,12 +106,18 @@ describe("replyCommand", () => {
   });
 
   describe("--message (inline text)", () => {
-    it("sends reply with inline message and returns sent result", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await replyCommand("42", { message: "Hello back!" }, deps));
+    describe("sends reply with inline message and returns sent result", () => {
+      it("result.sent is true", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await replyCommand("42", { message: "Hello back!" }, deps));
+        expect(result.sent).toBe(true);
+      });
 
-      expect(result.sent).toBe(true);
-      expect(result.messageId).toBe("<sent-1@test.com>");
+      it("result.messageId matches sent message id", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await replyCommand("42", { message: "Hello back!" }, deps));
+        expect(result.messageId).toBe("<sent-1@test.com>");
+      });
     });
 
     it("builds correct To address from original From field", async () => {
@@ -167,13 +173,20 @@ describe("replyCommand", () => {
   });
 
   describe("--message-file", () => {
-    it("reads message text from fsGateway.readText", async () => {
-      const deps = makeDeps();
-      deps.fsGateway.readText = mock(() => "  File message  ");
-      const result = /** @type {any} */ (await replyCommand("42", { messageFile: "/tmp/msg.txt" }, deps));
+    describe("reads message text from fsGateway.readText", () => {
+      it("result.sent is true", async () => {
+        const deps = makeDeps();
+        deps.fsGateway.readText = mock(() => "  File message  ");
+        const result = /** @type {any} */ (await replyCommand("42", { messageFile: "/tmp/msg.txt" }, deps));
+        expect(result.sent).toBe(true);
+      });
 
-      expect(result.sent).toBe(true);
-      expect(deps.fsGateway.readText).toHaveBeenCalledTimes(1);
+      it("calls fsGateway.readText once", async () => {
+        const deps = makeDeps();
+        deps.fsGateway.readText = mock(() => "  File message  ");
+        await replyCommand("42", { messageFile: "/tmp/msg.txt" }, deps);
+        expect(deps.fsGateway.readText).toHaveBeenCalledTimes(1);
+      });
     });
 
     it("trims whitespace from file content", async () => {
@@ -237,32 +250,56 @@ describe("replyCommand", () => {
       expect(deps.confirmGateway.confirm).not.toHaveBeenCalled();
     });
 
-    it("does not send when user confirms but --dry-run is set", async () => {
-      const deps = makeDeps();
-      deps.editorGateway.editTempFile = mock(() => "Real message");
-      const result = /** @type {any} */ (await replyCommand("42", { edit: true, dryRun: true }, deps));
+    describe("does not send when user confirms but --dry-run is set", () => {
+      it("result.dryRun is true", async () => {
+        const deps = makeDeps();
+        deps.editorGateway.editTempFile = mock(() => "Real message");
+        const result = /** @type {any} */ (await replyCommand("42", { edit: true, dryRun: true }, deps));
+        expect(result.dryRun).toBe(true);
+      });
 
-      expect(result.dryRun).toBe(true);
-      expect(deps.smtpGateway.send).not.toHaveBeenCalled();
+      it("does not call smtpGateway.send", async () => {
+        const deps = makeDeps();
+        deps.editorGateway.editTempFile = mock(() => "Real message");
+        await replyCommand("42", { edit: true, dryRun: true }, deps);
+        expect(deps.smtpGateway.send).not.toHaveBeenCalled();
+      });
     });
   });
 
   describe("--dry-run", () => {
-    it("returns dryRun: true with composed message, without sending", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await replyCommand("42", { message: "Preview", dryRun: true }, deps));
+    describe("returns dryRun: true with composed message, without sending", () => {
+      it("result.dryRun is true", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await replyCommand("42", { message: "Preview", dryRun: true }, deps));
+        expect(result.dryRun).toBe(true);
+      });
 
-      expect(result.dryRun).toBe(true);
-      expect(result.message).toBeDefined();
-      expect(deps.smtpGateway.send).not.toHaveBeenCalled();
+      it("result.message is defined", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await replyCommand("42", { message: "Preview", dryRun: true }, deps));
+        expect(result.message).toBeDefined();
+      });
+
+      it("does not call smtpGateway.send", async () => {
+        const deps = makeDeps();
+        await replyCommand("42", { message: "Preview", dryRun: true }, deps);
+        expect(deps.smtpGateway.send).not.toHaveBeenCalled();
+      });
     });
 
-    it("includes message fields in dry-run result", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await replyCommand("42", { message: "Hello", dryRun: true }, deps));
+    describe("includes message fields in dry-run result", () => {
+      it("message.from is the account user", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await replyCommand("42", { message: "Hello", dryRun: true }, deps));
+        expect(result.message.from).toBe("user@test.com");
+      });
 
-      expect(result.message.from).toBe("user@test.com");
-      expect(result.message.subject).toBe("Re: Hello world");
+      it("message.subject has Re: prepended", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await replyCommand("42", { message: "Hello", dryRun: true }, deps));
+        expect(result.message.subject).toBe("Re: Hello world");
+      });
     });
   });
 
@@ -293,6 +330,36 @@ describe("replyCommand", () => {
     it("tries next account when UID not found in current one", async () => {
       const account1 = makeAccount({ name: "Account 1", smtp: undefined });
       const account2 = makeAccount({ name: "Account 2", smtp: { host: "smtp.test.com", port: 587, secure: false } });
+      let _callCount = 0;
+
+      const failClient = {
+        getMailboxLock: mock(() => Promise.resolve(makeLock())),
+        search: mock(() => Promise.resolve([])),
+        download: mock(() => {
+          throw new Error("UID not found");
+        }),
+      };
+      const successClient = makeImapClient();
+
+      const deps = makeDeps({
+        forEachAccount: mock(async (_accounts, fn) => {
+          await fn(failClient, account1);
+          await fn(successClient, account2);
+        }),
+        simpleParser: mock(async () => {
+          _callCount++;
+          return makeParsedEmail();
+        }),
+      });
+
+      const result = /** @type {any} */ (await replyCommand("42", { message: "Reply" }, deps));
+
+      expect(result.sent).toBe(true);
+    });
+
+    it("calls simpleParser once (only for the matching account)", async () => {
+      const account1 = makeAccount({ name: "Account 1", smtp: undefined });
+      const account2 = makeAccount({ name: "Account 2", smtp: { host: "smtp.test.com", port: 587, secure: false } });
       let callCount = 0;
 
       const failClient = {
@@ -315,10 +382,9 @@ describe("replyCommand", () => {
         }),
       });
 
-      const result = /** @type {any} */ (await replyCommand("42", { message: "Reply" }, deps));
+      await replyCommand("42", { message: "Reply" }, deps);
 
-      expect(result.sent).toBe(true);
-      expect(callCount).toBe(1); // only succeeded on second account
+      expect(callCount).toBe(1);
     });
   });
 });

@@ -9,15 +9,24 @@ const recv = (addr, name, date) => ({ address: addr, name, date, direction: "rec
 const sent = (addr, name, date) => ({ address: addr, name, date, direction: "sent" });
 
 describe("aggregateContacts", () => {
-  it("deduplicates by lowercase address", () => {
+  describe("deduplicates by lowercase address", () => {
     const entries = [
       recv("Alice@Example.com", "Alice", new Date("2026-01-01")),
       recv("alice@example.com", "Alice", new Date("2026-01-02")),
     ];
     const result = aggregateContacts(entries);
-    expect(result.length).toBe(1);
-    expect(result[0].count).toBe(2);
-    expect(result[0].address).toBe("alice@example.com");
+
+    it("returns one contact", () => {
+      expect(result.length).toBe(1);
+    });
+
+    it("counts both occurrences", () => {
+      expect(result[0].count).toBe(2);
+    });
+
+    it("uses lowercase address", () => {
+      expect(result[0].address).toBe("alice@example.com");
+    });
   });
 
   it("uses most recent non-empty name", () => {
@@ -30,7 +39,7 @@ describe("aggregateContacts", () => {
     expect(result[0].name).toBe("Bob New");
   });
 
-  it("sorts by count descending", () => {
+  describe("sorts by count descending", () => {
     const entries = [
       recv("rare@example.com", "Rare", new Date("2026-01-01")),
       recv("common@example.com", "Common", new Date("2026-01-01")),
@@ -38,11 +47,17 @@ describe("aggregateContacts", () => {
       recv("common@example.com", "Common", new Date("2026-01-03")),
     ];
     const result = aggregateContacts(entries);
-    expect(result[0].address).toBe("common@example.com");
-    expect(result[1].address).toBe("rare@example.com");
+
+    it("first result is the more common address", () => {
+      expect(result[0].address).toBe("common@example.com");
+    });
+
+    it("second result is the rarer address", () => {
+      expect(result[1].address).toBe("rare@example.com");
+    });
   });
 
-  it("tracks direction as sent, received, or both", () => {
+  describe("tracks direction as sent, received, or both", () => {
     const entries = [
       recv("a@example.com", "A", new Date("2026-01-01")),
       sent("b@example.com", "B", new Date("2026-01-01")),
@@ -51,24 +66,46 @@ describe("aggregateContacts", () => {
     ];
     const result = aggregateContacts(entries);
     const byAddr = Object.fromEntries(result.map((c) => [c.address, c.direction]));
-    expect(byAddr["a@example.com"]).toBe("received");
-    expect(byAddr["b@example.com"]).toBe("sent");
-    expect(byAddr["c@example.com"]).toBe("both");
+
+    it("marks received-only as received", () => {
+      expect(byAddr["a@example.com"]).toBe("received");
+    });
+
+    it("marks sent-only as sent", () => {
+      expect(byAddr["b@example.com"]).toBe("sent");
+    });
+
+    it("marks both-direction as both", () => {
+      expect(byAddr["c@example.com"]).toBe("both");
+    });
   });
 
-  it("filters by search string matching name or address", () => {
+  describe("filters by search string matching name or address", () => {
     const entries = [
       recv("alice@example.com", "Alice Smith", new Date("2026-01-01")),
       recv("bob@example.com", "Bob Jones", new Date("2026-01-01")),
       recv("salman@ort.com", "Salman", new Date("2026-01-01")),
     ];
-    const byName = aggregateContacts(entries, { search: "alice" });
-    expect(byName.length).toBe(1);
-    expect(byName[0].address).toBe("alice@example.com");
 
-    const byAddr = aggregateContacts(entries, { search: "ort.com" });
-    expect(byAddr.length).toBe(1);
-    expect(byAddr[0].address).toBe("salman@ort.com");
+    it("filters by name match returns one result", () => {
+      const byName = aggregateContacts(entries, { search: "alice" });
+      expect(byName.length).toBe(1);
+    });
+
+    it("filters by name match returns the correct address", () => {
+      const byName = aggregateContacts(entries, { search: "alice" });
+      expect(byName[0].address).toBe("alice@example.com");
+    });
+
+    it("filters by address domain returns one result", () => {
+      const byAddr = aggregateContacts(entries, { search: "ort.com" });
+      expect(byAddr.length).toBe(1);
+    });
+
+    it("filters by address domain returns the correct address", () => {
+      const byAddr = aggregateContacts(entries, { search: "ort.com" });
+      expect(byAddr[0].address).toBe("salman@ort.com");
+    });
   });
 
   it("respects limit", () => {
@@ -81,25 +118,37 @@ describe("aggregateContacts", () => {
     expect(result.length).toBe(2);
   });
 
-  it("excludes self addresses", () => {
+  describe("excludes self addresses", () => {
     const entries = [
       recv("me@example.com", "Me", new Date("2026-01-01")),
       recv("other@example.com", "Other", new Date("2026-01-01")),
       sent("ME@Example.com", "Me", new Date("2026-01-02")),
     ];
     const result = aggregateContacts(entries, { selfAddresses: ["me@example.com"] });
-    expect(result.length).toBe(1);
-    expect(result[0].address).toBe("other@example.com");
+
+    it("returns only one contact", () => {
+      expect(result.length).toBe(1);
+    });
+
+    it("the remaining contact is not the self address", () => {
+      expect(result[0].address).toBe("other@example.com");
+    });
   });
 
-  it("breaks count ties by lastSeen descending", () => {
+  describe("breaks count ties by lastSeen descending", () => {
     const entries = [
       recv("old@example.com", "Old", new Date("2026-01-01")),
       recv("new@example.com", "New", new Date("2026-03-01")),
     ];
     const result = aggregateContacts(entries);
-    expect(result[0].address).toBe("new@example.com");
-    expect(result[1].address).toBe("old@example.com");
+
+    it("more recently seen contact is first", () => {
+      expect(result[0].address).toBe("new@example.com");
+    });
+
+    it("older contact is second", () => {
+      expect(result[1].address).toBe("old@example.com");
+    });
   });
 
   it("returns empty array for empty input", () => {

@@ -12,16 +12,27 @@ describe("formatScanSummaryText", () => {
     sampleSubjects: ["Your order #1234", "Your order #5678"],
   };
 
-  it("formats a single sender correctly", () => {
+  describe("formats a single sender correctly", () => {
     const text = formatScanSummaryText([sender], 5);
 
-    expect(text).toContain("Shop Example (5 emails)");
-    expect(text).toContain("Address:  receipts@shop.example.com");
-    expect(text).toContain("Accounts: iCloud");
-    expect(text).toContain("Example:  Your order #1234");
+    it("shows sender name and count", () => {
+      expect(text).toContain("Shop Example (5 emails)");
+    });
+
+    it("shows sender address", () => {
+      expect(text).toContain("Address:  receipts@shop.example.com");
+    });
+
+    it("shows accounts", () => {
+      expect(text).toContain("Accounts: iCloud");
+    });
+
+    it("shows example subject", () => {
+      expect(text).toContain("Example:  Your order #1234");
+    });
   });
 
-  it("formats multiple senders in the order provided", () => {
+  describe("formats multiple senders in the order provided", () => {
     const second = {
       address: "billing@vendor.example.com",
       name: "Vendor",
@@ -31,8 +42,13 @@ describe("formatScanSummaryText", () => {
     };
     const text = formatScanSummaryText([sender, second], 7);
 
-    expect(text).toContain("Shop Example");
-    expect(text).toContain("Vendor");
+    it("shows first sender", () => {
+      expect(text).toContain("Shop Example");
+    });
+
+    it("shows second sender", () => {
+      expect(text).toContain("Vendor");
+    });
   });
 
   it("includes the total count in output", () => {
@@ -41,11 +57,16 @@ describe("formatScanSummaryText", () => {
     expect(text).toContain("Total: 42 receipt emails from 1 unique senders");
   });
 
-  it("shows zero results with empty senders list", () => {
+  describe("shows zero results with empty senders list", () => {
     const text = formatScanSummaryText([], 0);
 
-    expect(text).toContain("=== Receipt Senders Found ===");
-    expect(text).toContain("Total: 0 receipt emails from 0 unique senders");
+    it("shows header", () => {
+      expect(text).toContain("=== Receipt Senders Found ===");
+    });
+
+    it("shows zero total", () => {
+      expect(text).toContain("Total: 0 receipt emails from 0 unique senders");
+    });
   });
 
   it("falls back to address when sender has no display name", () => {
@@ -77,11 +98,16 @@ describe("formatUnclassifiedText", () => {
     },
   ];
 
-  it("formats a list of unclassified senders", () => {
+  describe("formats a list of unclassified senders", () => {
     const text = formatUnclassifiedText(unclassified);
 
-    expect(text).toContain("billing@example.com");
-    expect(text).toContain("senders need classification");
+    it("shows sender address", () => {
+      expect(text).toContain("billing@example.com");
+    });
+
+    it("shows classification prompt", () => {
+      expect(text).toContain("senders need classification");
+    });
   });
 
   it("returns all-classified message when list is empty", () => {

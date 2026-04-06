@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { withMessage } from "../src/find-message.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
@@ -30,25 +30,42 @@ function makeDeps(overrides = {}) {
 // ── withMessage ────────────────────────────────────────────────────────────────
 
 describe("withMessage", () => {
-  it("calls fn with client, account, and detected mailbox", async () => {
+  describe("calls fn with client, account, and detected mailbox", () => {
     const deps = makeDeps();
     const fnMock = mock(async (_client, _acct, _mailbox) => "result value");
+    let resolved;
+    beforeAll(async () => {
+      resolved = await withMessage("42", {}, deps, fnMock);
+    });
 
-    const { result, account, mailbox } = await withMessage("42", {}, deps, fnMock);
+    it("result is the fn return value", async () => {
+      expect(resolved.result).toBe("result value");
+    });
 
-    expect(result).toBe("result value");
-    expect(account.name).toBe("Test Account");
-    expect(mailbox).toBe("INBOX"); // detectMailbox finds UID in INBOX first
+    it("account is the test account", async () => {
+      expect(resolved.account.name).toBe("Test Account");
+    });
+
+    it("mailbox is INBOX", async () => {
+      expect(resolved.mailbox).toBe("INBOX");
+    });
   });
 
-  it("uses explicit --mailbox option without detection when provided", async () => {
+  describe("uses explicit --mailbox option without detection when provided", () => {
     const deps = makeDeps();
     const fnMock = mock(async () => "ok");
+    let resolved;
+    beforeAll(async () => {
+      resolved = await withMessage("42", { mailbox: "Archive" }, deps, fnMock);
+    });
 
-    const { mailbox } = await withMessage("42", { mailbox: "Archive" }, deps, fnMock);
+    it("mailbox is Archive", async () => {
+      expect(resolved.mailbox).toBe("Archive");
+    });
 
-    expect(mailbox).toBe("Archive");
-    expect(deps._client.search).not.toHaveBeenCalled(); // detectMailbox skipped
+    it("detectMailbox is skipped (search not called)", async () => {
+      expect(deps._client.search).not.toHaveBeenCalled();
+    });
   });
 
   it("throws when UID is not found in any account", async () => {
@@ -63,7 +80,7 @@ describe("withMessage", () => {
     );
   });
 
-  it("tries next account when UID not found in current one (mailbox detection returns null)", async () => {
+  describe("tries next account when UID not found in current one (mailbox detection returns null)", () => {
     const account1 = makeAccount({ name: "First" });
     const account2 = makeAccount({ name: "Second" });
     const client1 = makeClient({ searchResult: [] }); // UID not found — detectMailbox returns null
@@ -77,14 +94,21 @@ describe("withMessage", () => {
       }),
       _client: client1,
     });
-
-    const { account } = await withMessage("42", {}, deps, async (_c, acct) => {
-      foundAccount = acct.name;
-      return "ok";
+    let resolved;
+    beforeAll(async () => {
+      resolved = await withMessage("42", {}, deps, async (_c, acct) => {
+        foundAccount = acct.name;
+        return "ok";
+      });
     });
 
-    expect(account.name).toBe("Second");
-    expect(foundAccount).toBe("Second");
+    it("account is the second account", async () => {
+      expect(resolved.account.name).toBe("Second");
+    });
+
+    it("fn was called with the second account", async () => {
+      expect(foundAccount).toBe("Second");
+    });
   });
 
   it("skips account when mailbox lock fails", async () => {
@@ -108,7 +132,7 @@ describe("withMessage", () => {
     expect(account.name).toBe("Second Account");
   });
 
-  it("releases lock even when fn throws", async () => {
+  it("rejects with fn error when fn throws", async () => {
     const lock = makeLock();
     const errorClient = {
       getMailboxLock: mock(() => Promise.resolve(lock)),
@@ -126,6 +150,28 @@ describe("withMessage", () => {
         throw new Error("fn error");
       }),
     ).rejects.toThrow("fn error");
+  });
+
+  it("releases lock even when fn throws", async () => {
+    const lock = makeLock();
+    const errorClient = {
+      getMailboxLock: mock(() => Promise.resolve(lock)),
+      search: mock(() => Promise.resolve([42])),
+    };
+    const deps = makeDeps({
+      forEachAccount: mock(async (_accounts, fn) => {
+        await fn(errorClient, makeAccount());
+      }),
+      _client: errorClient,
+    });
+
+    try {
+      await withMessage("42", { mailbox: "INBOX" }, deps, async () => {
+        throw new Error("fn error");
+      });
+    } catch {
+      // expected
+    }
 
     expect(lock.release).toHaveBeenCalledTimes(1);
   });

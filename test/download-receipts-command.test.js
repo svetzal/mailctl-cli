@@ -33,13 +33,24 @@ function makeDeps(overrides = {}) {
 
 describe("downloadReceiptsCommand", () => {
   describe("list vendors mode", () => {
-    it("returns mode: listVendors with vendor lists", async () => {
-      const deps = makeDeps();
-      const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+    describe("returns mode: listVendors with vendor lists", () => {
+      it("mode is listVendors", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+        expect(result.mode).toBe("listVendors");
+      });
 
-      expect(result.mode).toBe("listVendors");
-      expect(result.recentVendors).toBeDefined();
-      expect(result.configVendors).toBeDefined();
+      it("recentVendors is defined", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+        expect(result.recentVendors).toBeDefined();
+      });
+
+      it("configVendors is defined", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+        expect(result.configVendors).toBeDefined();
+      });
     });
 
     it("calls listReceiptVendors with months option", async () => {
@@ -60,23 +71,40 @@ describe("downloadReceiptsCommand", () => {
       );
     });
 
-    it("merges vendor names and domains into configVendors", async () => {
-      const deps = makeDeps();
-      const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+    describe("merges vendor names and domains into configVendors", () => {
+      it("configVendors contains Amazon", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+        expect(result.configVendors).toContain("Amazon");
+      });
 
-      expect(result.configVendors).toContain("Amazon");
-      expect(result.configVendors).toContain("Stripe");
+      it("configVendors contains Stripe", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+        expect(result.configVendors).toContain("Stripe");
+      });
     });
   });
 
   describe("reprocess mode", () => {
-    it("returns mode: reprocess with stats", async () => {
-      const deps = makeDeps();
-      const result = await downloadReceiptsCommand({ reprocess: true, output: "." }, deps);
+    describe("returns mode: reprocess with stats", () => {
+      it("mode is reprocess", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ reprocess: true, output: "." }, deps);
+        expect(result.mode).toBe("reprocess");
+      });
 
-      expect(result.mode).toBe("reprocess");
-      expect(result.reprocessed).toBe(3);
-      expect(result.skipped).toBe(1);
+      it("reprocessed count is 3", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ reprocess: true, output: "." }, deps);
+        expect(result.reprocessed).toBe(3);
+      });
+
+      it("skipped count is 1", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ reprocess: true, output: "." }, deps);
+        expect(result.skipped).toBe(1);
+      });
     });
 
     it("does not call downloadReceiptEmails in reprocess mode", async () => {
@@ -89,13 +117,24 @@ describe("downloadReceiptsCommand", () => {
   });
 
   describe("normal download mode", () => {
-    it("returns mode: download with stats and records", async () => {
-      const deps = makeDeps();
-      const result = await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
+    describe("returns mode: download with stats and records", () => {
+      it("mode is download", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
+        expect(result.mode).toBe("download");
+      });
 
-      expect(result.mode).toBe("download");
-      expect(result.stats.found).toBe(5);
-      expect(result.records).toBeDefined();
+      it("stats.found is 5", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
+        expect(result.stats.found).toBe(5);
+      });
+
+      it("records is defined", async () => {
+        const deps = makeDeps();
+        const result = await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
+        expect(result.records).toBeDefined();
+      });
     });
 
     it("passes account filter to downloadReceiptEmails", async () => {

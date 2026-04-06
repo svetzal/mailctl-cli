@@ -75,112 +75,162 @@ function makeBaseDeps(client, overrides = {}) {
 }
 
 describe("downloadReceipts", () => {
-  it("downloads PDF for a business-classified receipt", async () => {
-    const client = makeMockClient();
-    const deps = makeBaseDeps(client);
-
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
-
-    expect(stats.downloaded).toBe(1);
-    expect(deps.fs.writeFile).toHaveBeenCalledTimes(1);
-  });
-
-  it("does NOT download PDF for a personal-classified receipt", async () => {
-    const client = makeMockClient();
-    const deps = makeBaseDeps(client, {
-      loadClassifications: () => ({ "billing@vendor.com": "personal" }),
+  describe("downloads PDF for a business-classified receipt", () => {
+    it("increments downloaded count", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(stats.downloaded).toBe(1);
     });
 
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
-
-    expect(stats.downloaded).toBe(0);
-    expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    it("calls writeFile once", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(deps.fs.writeFile).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it("does NOT download PDF for an unclassified receipt", async () => {
-    const client = makeMockClient();
-    const deps = makeBaseDeps(client, {
-      loadClassifications: () => ({}),
+  describe("does NOT download PDF for a personal-classified receipt", () => {
+    it("reports zero downloads", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client, { loadClassifications: () => ({ "billing@vendor.com": "personal" }) });
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(stats.downloaded).toBe(0);
     });
 
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
-
-    expect(stats.downloaded).toBe(0);
-    expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    it("does not call writeFile", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client, { loadClassifications: () => ({ "billing@vendor.com": "personal" }) });
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    });
   });
 
-  it("skips message already recorded in the manifest", async () => {
-    const client = makeMockClient();
-    const manifestKey = "test@example.com:INBOX:1";
-    const deps = makeBaseDeps(client, {
-      loadManifest: () => ({ [manifestKey]: { status: "downloaded", filename: "old.pdf" } }),
+  describe("does NOT download PDF for an unclassified receipt", () => {
+    it("reports zero downloads", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client, { loadClassifications: () => ({}) });
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(stats.downloaded).toBe(0);
     });
 
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
-
-    expect(stats.alreadyHave).toBe(1);
-    expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    it("does not call writeFile", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client, { loadClassifications: () => ({}) });
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    });
   });
 
-  it("skips file that has duplicate content hash", async () => {
-    const client = makeMockClient();
+  describe("skips message already recorded in the manifest", () => {
+    it("increments alreadyHave count", async () => {
+      const client = makeMockClient();
+      const manifestKey = "test@example.com:INBOX:1";
+      const deps = makeBaseDeps(client, {
+        loadManifest: () => ({ [manifestKey]: { status: "downloaded", filename: "old.pdf" } }),
+      });
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(stats.alreadyHave).toBe(1);
+    });
 
-    const deps = makeBaseDeps(client);
-    deps.fs.exists = mock(() => true);
-    deps.fs.readdir = mock(() => ["existing.pdf"]);
-    deps.fs.readBuffer = mock(() => PDF_BYTES);
-
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
-
-    expect(stats.alreadyHave).toBe(1);
-    expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    it("does not call writeFile", async () => {
+      const client = makeMockClient();
+      const manifestKey = "test@example.com:INBOX:1";
+      const deps = makeBaseDeps(client, {
+        loadManifest: () => ({ [manifestKey]: { status: "downloaded", filename: "old.pdf" } }),
+      });
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    });
   });
 
-  it("increments noPdf when email has no PDF attachment", async () => {
-    const clientNoPdf = {
-      getMailboxLock: mock(() => Promise.resolve(makeLock())),
-      fetch: mock(() => {
-        async function* gen() {
-          yield {
-            bodyStructure: {
-              type: "text/plain",
-              part: "1",
-              size: 100,
-            },
-          };
-        }
-        return gen();
-      }),
-      download: mock(() => Promise.resolve({ content: (async function* () {})() })),
-    };
+  describe("skips file that has duplicate content hash", () => {
+    it("increments alreadyHave count", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      deps.fs.exists = mock(() => true);
+      deps.fs.readdir = mock(() => ["existing.pdf"]);
+      deps.fs.readBuffer = mock(() => PDF_BYTES);
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(stats.alreadyHave).toBe(1);
+    });
 
-    const deps = makeBaseDeps(clientNoPdf);
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
-
-    expect(stats.noPdf).toBe(1);
-    expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    it("does not call writeFile", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      deps.fs.exists = mock(() => true);
+      deps.fs.readdir = mock(() => ["existing.pdf"]);
+      deps.fs.readBuffer = mock(() => PDF_BYTES);
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    });
   });
 
-  it("does not write files in dry-run mode", async () => {
-    const client = makeMockClient();
-    const deps = makeBaseDeps(client);
+  describe("increments noPdf when email has no PDF attachment", () => {
+    function makeNoPdfClient() {
+      return {
+        getMailboxLock: mock(() => Promise.resolve(makeLock())),
+        fetch: mock(() => {
+          async function* gen() {
+            yield { bodyStructure: { type: "text/plain", part: "1", size: 100 } };
+          }
+          return gen();
+        }),
+        download: mock(() => Promise.resolve({ content: (async function* () {})() })),
+      };
+    }
 
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl", dryRun: true }, deps);
+    it("increments noPdf count", async () => {
+      const deps = makeBaseDeps(makeNoPdfClient());
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(stats.noPdf).toBe(1);
+    });
 
-    // Dry-run counts downloads but doesn't write
-    expect(stats.downloaded).toBe(1);
-    expect(deps.fs.writeFile).not.toHaveBeenCalled();
-    expect(deps.saveManifest).not.toHaveBeenCalled();
+    it("does not call writeFile", async () => {
+      const deps = makeBaseDeps(makeNoPdfClient());
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    });
   });
 
-  it("rejects non-PDF content that starts with wrong bytes", async () => {
-    const client = makeMockClient(OTHER_BYTES);
-    const deps = makeBaseDeps(client);
+  describe("does not write files in dry-run mode", () => {
+    it("still counts downloaded", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl", dryRun: true }, deps);
+      expect(stats.downloaded).toBe(1);
+    });
 
-    const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+    it("does not call writeFile", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      await downloadReceipts({ outputDir: "/tmp/test-dl", dryRun: true }, deps);
+      expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    });
 
-    expect(deps.fs.writeFile).not.toHaveBeenCalled();
-    expect(stats.downloaded).toBe(0);
+    it("does not call saveManifest", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      await downloadReceipts({ outputDir: "/tmp/test-dl", dryRun: true }, deps);
+      expect(deps.saveManifest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("rejects non-PDF content that starts with wrong bytes", () => {
+    it("does not call writeFile", async () => {
+      const client = makeMockClient(OTHER_BYTES);
+      const deps = makeBaseDeps(client);
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(deps.fs.writeFile).not.toHaveBeenCalled();
+    });
+
+    it("reports zero downloads", async () => {
+      const client = makeMockClient(OTHER_BYTES);
+      const deps = makeBaseDeps(client);
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+      expect(stats.downloaded).toBe(0);
+    });
   });
 
   it("saves the manifest after successful download", async () => {

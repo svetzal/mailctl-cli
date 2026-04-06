@@ -123,10 +123,16 @@ describe("renderDownloadReceiptsEvent", () => {
     expect(renderDownloadReceiptsEvent(event)).toBe("   [DRY RUN] receipt.json");
   });
 
-  it("renders downloaded-pdf with filename and KB size", () => {
+  describe("renders downloaded-pdf with filename and KB size", () => {
     const event = { type: "downloaded-pdf", filename: "receipt.pdf", size: 51200 };
-    expect(renderDownloadReceiptsEvent(event)).toContain("50 KB");
-    expect(renderDownloadReceiptsEvent(event)).toContain("receipt.pdf");
+
+    it("includes the KB size", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("50 KB");
+    });
+
+    it("includes the filename", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("receipt.pdf");
+    });
   });
 
   it("renders dry-run-metadata with filename and no PDF note", () => {
@@ -144,19 +150,39 @@ describe("renderDownloadReceiptsEvent", () => {
     expect(renderDownloadReceiptsEvent(event)).toBe("   Error processing UID 77: parse error");
   });
 
-  it("renders download-summary as multi-line string with all stats", () => {
+  describe("renders download-summary as multi-line string with all stats", () => {
     const event = {
       type: "download-summary",
       stats: { found: 10, downloaded: 5, noPdf: 2, skipped: 1, alreadyHave: 1, errors: 1 },
     };
-    const result = renderDownloadReceiptsEvent(event);
-    expect(result).toContain("=== Download Complete ===");
-    expect(result).toContain("Found:       10");
-    expect(result).toContain("Downloaded:  5");
-    expect(result).toContain("No PDF:      2");
-    expect(result).toContain("Skipped:     1 (non-invoice or low confidence)");
-    expect(result).toContain("Duplicates:  1");
-    expect(result).toContain("Errors:      1");
+
+    it("contains the header line", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("=== Download Complete ===");
+    });
+
+    it("contains the found count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Found:       10");
+    });
+
+    it("contains the downloaded count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Downloaded:  5");
+    });
+
+    it("contains the no-PDF count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("No PDF:      2");
+    });
+
+    it("contains the skipped count with label", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Skipped:     1 (non-invoice or low confidence)");
+    });
+
+    it("contains the duplicates count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Duplicates:  1");
+    });
+
+    it("contains the errors count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Errors:      1");
+    });
   });
 
   it("renders reprocess-start with output directory", () => {
@@ -209,7 +235,7 @@ describe("renderDownloadReceiptsEvent", () => {
     expect(renderDownloadReceiptsEvent(event)).toBe("  ❌ receipt.pdf — extraction failed: failed");
   });
 
-  it("renders reprocess-summary with all stats", () => {
+  describe("renders reprocess-summary with all stats", () => {
     const event = {
       type: "reprocess-summary",
       reprocessed: 10,
@@ -217,11 +243,22 @@ describe("renderDownloadReceiptsEvent", () => {
       reclassified: 1,
       errors: 0,
     };
-    const result = renderDownloadReceiptsEvent(event);
-    expect(result).toContain("Reprocessed: 10");
-    expect(result).toContain("Skipped: 2");
-    expect(result).toContain("Reclassified: 1");
-    expect(result).toContain("Errors: 0");
+
+    it("contains the reprocessed count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Reprocessed: 10");
+    });
+
+    it("contains the skipped count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Skipped: 2");
+    });
+
+    it("contains the reclassified count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Reclassified: 1");
+    });
+
+    it("contains the errors count", () => {
+      expect(renderDownloadReceiptsEvent(event)).toContain("Errors: 0");
+    });
   });
 
   it("returns null for unknown event types", () => {

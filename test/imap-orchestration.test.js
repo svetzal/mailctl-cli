@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { forEachMailboxGroup, groupByMailbox } from "../src/imap-orchestration.js";
 import { makeLock } from "./helpers.js";
 
@@ -9,11 +9,17 @@ describe("groupByMailbox", () => {
     expect(groupByMailbox([]).size).toBe(0);
   });
 
-  it("groups a single item into its mailbox", () => {
+  describe("groups a single item into its mailbox", () => {
     const results = [{ mailbox: "INBOX", uid: 1 }];
     const map = groupByMailbox(results);
-    expect(map.size).toBe(1);
-    expect(map.get("INBOX")).toEqual([{ mailbox: "INBOX", uid: 1 }]);
+
+    it("map has one entry", () => {
+      expect(map.size).toBe(1);
+    });
+
+    it("INBOX entry contains the item", () => {
+      expect(map.get("INBOX")).toEqual([{ mailbox: "INBOX", uid: 1 }]);
+    });
   });
 
   it("groups multiple items with the same mailbox together", () => {
@@ -24,41 +30,62 @@ describe("groupByMailbox", () => {
     expect(groupByMailbox(results).get("INBOX")).toHaveLength(2);
   });
 
-  it("separates items from different mailboxes into distinct groups", () => {
+  describe("separates items from different mailboxes into distinct groups", () => {
     const results = [
       { mailbox: "INBOX", uid: 1 },
       { mailbox: "Archive", uid: 2 },
     ];
     const map = groupByMailbox(results);
-    expect(map.size).toBe(2);
-    expect(map.get("INBOX")).toHaveLength(1);
-    expect(map.get("Archive")).toHaveLength(1);
+
+    it("map has two entries", () => {
+      expect(map.size).toBe(2);
+    });
+
+    it("INBOX has one item", () => {
+      expect(map.get("INBOX")).toHaveLength(1);
+    });
+
+    it("Archive has one item", () => {
+      expect(map.get("Archive")).toHaveLength(1);
+    });
   });
 
-  it("preserves insertion order within each group", () => {
+  describe("preserves insertion order within each group", () => {
     const results = [
       { mailbox: "INBOX", uid: 10 },
       { mailbox: "INBOX", uid: 20 },
     ];
     const group = groupByMailbox(results).get("INBOX");
-    expect(group[0].uid).toBe(10);
-    expect(group[1].uid).toBe(20);
+
+    it("first item uid is 10", () => {
+      expect(group[0].uid).toBe(10);
+    });
+
+    it("second item uid is 20", () => {
+      expect(group[1].uid).toBe(20);
+    });
   });
 });
 
 // ── forEachMailboxGroup ───────────────────────────────────────────────────────
 
 describe("forEachMailboxGroup", () => {
-  it("calls fn once per mailbox with correct arguments", async () => {
+  describe("calls fn once per mailbox with correct arguments", () => {
     const lock = makeLock();
     const client = { getMailboxLock: mock(() => Promise.resolve(lock)) };
     const fn = mock(() => Promise.resolve());
-
     const byMailbox = new Map([["INBOX", [{ uid: 1 }]]]);
-    await forEachMailboxGroup(client, byMailbox, fn);
+    beforeAll(async () => {
+      await forEachMailboxGroup(client, byMailbox, fn);
+    });
 
-    expect(fn).toHaveBeenCalledTimes(1);
-    expect(fn).toHaveBeenCalledWith("INBOX", [{ uid: 1 }]);
+    it("fn is called once", async () => {
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it("fn is called with INBOX and items", async () => {
+      expect(fn).toHaveBeenCalledWith("INBOX", [{ uid: 1 }]);
+    });
   });
 
   it("releases the lock after fn resolves", async () => {
@@ -90,22 +117,32 @@ describe("forEachMailboxGroup", () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
-  it("processes all mailboxes when there are multiple", async () => {
+  describe("processes all mailboxes when there are multiple", () => {
     const locks = [makeLock(), makeLock()];
     let callIdx = 0;
     const client = { getMailboxLock: mock(() => Promise.resolve(locks[callIdx++])) };
     const visited = [];
-
     const byMailbox = new Map([
       ["INBOX", [{ uid: 1 }]],
       ["Archive", [{ uid: 2 }]],
     ]);
-    await forEachMailboxGroup(client, byMailbox, async (mailbox) => {
-      visited.push(mailbox);
+
+    beforeAll(async () => {
+      await forEachMailboxGroup(client, byMailbox, async (mailbox) => {
+        visited.push(mailbox);
+      });
     });
 
-    expect(visited).toEqual(["INBOX", "Archive"]);
-    expect(locks[0].release).toHaveBeenCalledTimes(1);
-    expect(locks[1].release).toHaveBeenCalledTimes(1);
+    it("visited all mailboxes in order", async () => {
+      expect(visited).toEqual(["INBOX", "Archive"]);
+    });
+
+    it("first lock is released", async () => {
+      expect(locks[0].release).toHaveBeenCalledTimes(1);
+    });
+
+    it("second lock is released", async () => {
+      expect(locks[1].release).toHaveBeenCalledTimes(1);
+    });
   });
 });

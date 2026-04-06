@@ -20,16 +20,33 @@ function mockParsed(overrides = {}) {
 }
 
 describe("buildReadResult", () => {
-  it("maps parsed email fields to result object", () => {
+  describe("maps parsed email fields to result object", () => {
     const parsed = mockParsed();
     const result = buildReadResult(parsed, "icloud", "42", { maxBody: 1000, includeHeaders: false });
 
-    expect(result.account).toBe("icloud");
-    expect(result.uid).toBe(42);
-    expect(result.from).toBe("Sender Name <sender@example.com>");
-    expect(result.to).toBe("Me <me@example.com>");
-    expect(result.subject).toBe("Test Subject");
-    expect(result.body).toBe("Hello, this is the body.");
+    it("sets account", () => {
+      expect(result.account).toBe("icloud");
+    });
+
+    it("sets uid", () => {
+      expect(result.uid).toBe(42);
+    });
+
+    it("sets from", () => {
+      expect(result.from).toBe("Sender Name <sender@example.com>");
+    });
+
+    it("sets to", () => {
+      expect(result.to).toBe("Me <me@example.com>");
+    });
+
+    it("sets subject", () => {
+      expect(result.subject).toBe("Test Subject");
+    });
+
+    it("sets body", () => {
+      expect(result.body).toBe("Hello, this is the body.");
+    });
   });
 
   it("truncates body to maxBody characters", () => {
@@ -39,27 +56,35 @@ describe("buildReadResult", () => {
     expect(result.body.length).toBe(50);
   });
 
-  it("includes bodyHtml only when HTML is present", () => {
-    const withHtml = mockParsed({ html: "<p>Hello</p>" });
-    const withoutHtml = mockParsed({ html: null });
+  describe("includes bodyHtml only when HTML is present", () => {
+    it("has bodyHtml property when HTML is present", () => {
+      const withHtml = mockParsed({ html: "<p>Hello</p>" });
+      expect(buildReadResult(withHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).toHaveProperty(
+        "bodyHtml",
+      );
+    });
 
-    expect(buildReadResult(withHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).toHaveProperty(
-      "bodyHtml",
-    );
-    expect(buildReadResult(withoutHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).not.toHaveProperty(
-      "bodyHtml",
-    );
+    it("does not have bodyHtml property when HTML is absent", () => {
+      const withoutHtml = mockParsed({ html: null });
+      expect(buildReadResult(withoutHtml, "icloud", "1", { maxBody: 1000, includeHeaders: false })).not.toHaveProperty(
+        "bodyHtml",
+      );
+    });
   });
 
-  it("includes headers only when includeHeaders is true", () => {
+  describe("includes headers only when includeHeaders is true", () => {
     const parsed = mockParsed();
     parsed.headers.set("x-mailer", "TestMailer");
 
-    const withHeaders = buildReadResult(parsed, "icloud", "1", { maxBody: 1000, includeHeaders: true });
-    const withoutHeaders = buildReadResult(parsed, "icloud", "1", { maxBody: 1000, includeHeaders: false });
+    it("has headers property when includeHeaders is true", () => {
+      const withHeaders = buildReadResult(parsed, "icloud", "1", { maxBody: 1000, includeHeaders: true });
+      expect(withHeaders).toHaveProperty("headers");
+    });
 
-    expect(withHeaders).toHaveProperty("headers");
-    expect(withoutHeaders).not.toHaveProperty("headers");
+    it("does not have headers property when includeHeaders is false", () => {
+      const withoutHeaders = buildReadResult(parsed, "icloud", "1", { maxBody: 1000, includeHeaders: false });
+      expect(withoutHeaders).not.toHaveProperty("headers");
+    });
   });
 
   it("extracts unsubscribe links from HTML body", () => {
@@ -85,11 +110,16 @@ describe("buildReadResult", () => {
     expect(result.body).toContain("From HTML");
   });
 
-  it("converts string uid to integer", () => {
+  describe("converts string uid to integer", () => {
     const result = buildReadResult(mockParsed(), "icloud", "99", { maxBody: 100, includeHeaders: false });
 
-    expect(result.uid).toBe(99);
-    expect(typeof result.uid).toBe("number");
+    it("has the correct uid value", () => {
+      expect(result.uid).toBe(99);
+    });
+
+    it("uid is a number type", () => {
+      expect(typeof result.uid).toBe("number");
+    });
   });
 
   it("lists attachment filenames, using '(unnamed)' for nameless attachments", () => {
@@ -103,25 +133,44 @@ describe("buildReadResult", () => {
 });
 
 describe("formatReadResultText", () => {
-  it("includes date, from, to, and subject lines", () => {
+  describe("includes date, from, to, and subject lines", () => {
     const parsed = mockParsed();
     const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
 
-    expect(text).toContain("Date:");
-    expect(text).toContain("From: Sender Name <sender@example.com>");
-    expect(text).toContain("To: Me <me@example.com>");
-    expect(text).toContain("Subject: Test Subject");
+    it("contains Date", () => {
+      expect(text).toContain("Date:");
+    });
+
+    it("contains From line", () => {
+      expect(text).toContain("From: Sender Name <sender@example.com>");
+    });
+
+    it("contains To line", () => {
+      expect(text).toContain("To: Me <me@example.com>");
+    });
+
+    it("contains Subject line", () => {
+      expect(text).toContain("Subject: Test Subject");
+    });
   });
 
-  it("lists attachment filenames when present", () => {
+  describe("lists attachment filenames when present", () => {
     const parsed = mockParsed({
       attachments: [{ filename: "invoice.pdf" }, { filename: null }],
     });
     const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
 
-    expect(text).toContain("Attachments:");
-    expect(text).toContain("invoice.pdf");
-    expect(text).toContain("(unnamed)");
+    it("contains Attachments section header", () => {
+      expect(text).toContain("Attachments:");
+    });
+
+    it("contains the named attachment filename", () => {
+      expect(text).toContain("invoice.pdf");
+    });
+
+    it("contains (unnamed) for nameless attachments", () => {
+      expect(text).toContain("(unnamed)");
+    });
   });
 
   it("omits Attachments line when there are no attachments", () => {
@@ -161,12 +210,17 @@ describe("formatReadResultText", () => {
     expect(text).toContain("(no text body)");
   });
 
-  it("includes headers section when showHeaders is true", () => {
+  describe("includes headers section when showHeaders is true", () => {
     const parsed = mockParsed();
     parsed.headers.set("x-custom", "header-value");
     const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: true, showRaw: false });
 
-    expect(text).toContain("--- Headers ---");
-    expect(text).toContain("x-custom");
+    it("contains the headers section divider", () => {
+      expect(text).toContain("--- Headers ---");
+    });
+
+    it("contains the custom header name", () => {
+      expect(text).toContain("x-custom");
+    });
   });
 });

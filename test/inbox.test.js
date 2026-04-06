@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { fetchInbox, formatInboxText } from "../src/inbox.js";
 import { makeLock } from "./helpers.js";
 
@@ -37,19 +37,29 @@ function makeClient({ searchUids = [1], envelopes = [] } = {}) {
 }
 
 describe("fetchInbox", () => {
-  it("returns messages sorted by date, newest first", async () => {
+  describe("returns messages sorted by date, newest first", () => {
     const envelopes = [
       makeEnvelope({ uid: 1, date: new Date("2026-03-05T10:00:00Z"), subject: "Older" }),
       makeEnvelope({ uid: 2, date: new Date("2026-03-07T14:00:00Z"), subject: "Newer" }),
       makeEnvelope({ uid: 3, date: new Date("2026-03-06T12:00:00Z"), subject: "Middle" }),
     ];
     const client = makeClient({ searchUids: [1, 2, 3], envelopes });
+    let results;
+    beforeAll(async () => {
+      results = await fetchInbox(client, "TestAccount", { limit: 10 });
+    });
 
-    const results = await fetchInbox(client, "TestAccount", { limit: 10 });
+    it("first result is Newer", async () => {
+      expect(results[0].subject).toBe("Newer");
+    });
 
-    expect(results[0].subject).toBe("Newer");
-    expect(results[1].subject).toBe("Middle");
-    expect(results[2].subject).toBe("Older");
+    it("second result is Middle", async () => {
+      expect(results[1].subject).toBe("Middle");
+    });
+
+    it("third result is Older", async () => {
+      expect(results[2].subject).toBe("Older");
+    });
   });
 
   it("filters to unseen messages when unreadOnly is true", async () => {
@@ -78,19 +88,26 @@ describe("fetchInbox", () => {
     expect(fetchedUids).toEqual([8, 9, 10]);
   });
 
-  it("includes unread flag from message flags", async () => {
+  describe("includes unread flag from message flags", () => {
     const envelopes = [
       makeEnvelope({ uid: 1, flags: ["\\Seen"], subject: "Read msg" }),
       makeEnvelope({ uid: 2, flags: [], subject: "Unread msg" }),
     ];
     const client = makeClient({ searchUids: [1, 2], envelopes });
+    let results;
+    beforeAll(async () => {
+      results = await fetchInbox(client, "TestAccount", { limit: 10 });
+    });
 
-    const results = await fetchInbox(client, "TestAccount", { limit: 10 });
+    it("seen message has unread: false", async () => {
+      const readMsg = results.find((r) => r.subject === "Read msg");
+      expect(readMsg.unread).toBe(false);
+    });
 
-    const readMsg = results.find((r) => r.subject === "Read msg");
-    const unreadMsg = results.find((r) => r.subject === "Unread msg");
-    expect(readMsg.unread).toBe(false);
-    expect(unreadMsg.unread).toBe(true);
+    it("unseen message has unread: true", async () => {
+      const unreadMsg = results.find((r) => r.subject === "Unread msg");
+      expect(unreadMsg.unread).toBe(true);
+    });
   });
 
   it("passes since date to IMAP search criteria", async () => {
@@ -163,7 +180,7 @@ describe("formatInboxText", () => {
     expect(text).toContain("=== iCloud (1 unread) ===");
   });
 
-  it("uses filled circle for unread and open circle for read", () => {
+  describe("uses filled circle for unread and open circle for read", () => {
     const messages = [
       {
         account: "Test",
@@ -187,10 +204,14 @@ describe("formatInboxText", () => {
       },
     ];
     const map = new Map([["Test", messages]]);
-
     const text = formatInboxText(map);
 
-    expect(text).toContain("\u25CF UID:1");
-    expect(text).toContain("\u25CB UID:2");
+    it("unread message has filled circle", () => {
+      expect(text).toContain("\u25CF UID:1");
+    });
+
+    it("read message has open circle", () => {
+      expect(text).toContain("\u25CB UID:2");
+    });
   });
 });

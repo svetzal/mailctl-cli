@@ -22,10 +22,19 @@ describe("formatSortResultText", () => {
     expect(text).toContain("Unclassified: 2 (defaulted to personal)");
   });
 
-  it("formats all stats together correctly", () => {
+  describe("formats all stats together correctly", () => {
     const text = formatSortResultText({ moved: 10, skipped: 5, unclassified: 1 });
-    expect(text).toContain("Moved:        10");
-    expect(text).toContain("Skipped:      5");
-    expect(text).toContain("Unclassified: 1 (defaulted to personal)");
+
+    it("shows moved count", () => {
+      expect(text).toContain("Moved:        10");
+    });
+
+    it("shows skipped count", () => {
+      expect(text).toContain("Skipped:      5");
+    });
+
+    it("shows unclassified count", () => {
+      expect(text).toContain("Unclassified: 1 (defaulted to personal)");
+    });
   });
 });

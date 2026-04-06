@@ -20,13 +20,24 @@ describe("parseUidArgs", () => {
     ]);
   });
 
-  it("expands comma-separated values within a single arg", () => {
+  describe("expands comma-separated values within a single arg", () => {
     const result = parseUidArgs(["icloud:1,icloud:2,icloud:3"], null);
 
-    expect(result).toHaveLength(3);
-    expect(result[0]).toEqual({ account: "icloud", uid: "1" });
-    expect(result[1]).toEqual({ account: "icloud", uid: "2" });
-    expect(result[2]).toEqual({ account: "icloud", uid: "3" });
+    it("has 3 items", () => {
+      expect(result).toHaveLength(3);
+    });
+
+    it("first item is icloud:1", () => {
+      expect(result[0]).toEqual({ account: "icloud", uid: "1" });
+    });
+
+    it("second item is icloud:2", () => {
+      expect(result[1]).toEqual({ account: "icloud", uid: "2" });
+    });
+
+    it("third item is icloud:3", () => {
+      expect(result[2]).toEqual({ account: "icloud", uid: "3" });
+    });
   });
 
   it("throws when a UID has no prefix and no default account", () => {
@@ -59,24 +70,33 @@ describe("parseUidArgs", () => {
 });
 
 describe("groupUidsByAccount", () => {
-  it("groups UIDs by lowercase account name", () => {
+  describe("groups UIDs by lowercase account name", () => {
     const parsed = [
       { account: "iCloud", uid: "1" },
       { account: "iCloud", uid: "2" },
       { account: "Gmail", uid: "3" },
     ];
-
     const result = groupUidsByAccount(parsed);
 
-    expect(result.get("icloud")).toEqual(["1", "2"]);
-    expect(result.get("gmail")).toEqual(["3"]);
+    it("icloud group has UIDs 1 and 2", () => {
+      expect(result.get("icloud")).toEqual(["1", "2"]);
+    });
+
+    it("gmail group has UID 3", () => {
+      expect(result.get("gmail")).toEqual(["3"]);
+    });
   });
 
-  it("handles a single account", () => {
+  describe("handles a single account", () => {
     const result = groupUidsByAccount([{ account: "icloud", uid: "42" }]);
 
-    expect(result.size).toBe(1);
-    expect(result.get("icloud")).toEqual(["42"]);
+    it("map has 1 entry", () => {
+      expect(result.size).toBe(1);
+    });
+
+    it("icloud entry has UID 42", () => {
+      expect(result.get("icloud")).toEqual(["42"]);
+    });
   });
 
   it("returns an empty Map for empty input", () => {

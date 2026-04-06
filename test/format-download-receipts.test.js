@@ -5,7 +5,7 @@ import { formatDownloadReceiptsResultText } from "../src/format-download-receipt
 
 describe("formatDownloadReceiptsResultText", () => {
   describe("listVendors mode", () => {
-    it("lists known vendors when present", () => {
+    describe("lists known vendors when present", () => {
       /** @type {DownloadReceiptsResult} */
       const result = {
         mode: "listVendors",
@@ -13,8 +13,14 @@ describe("formatDownloadReceiptsResultText", () => {
         recentVendors: [],
       };
       const text = formatDownloadReceiptsResultText(result, { months: "12" });
-      expect(text).toContain("Known vendors (from config):");
-      expect(text).toContain("Acme Corp, Widget Inc");
+
+      it("shows known vendors header", () => {
+        expect(text).toContain("Known vendors (from config):");
+      });
+
+      it("shows vendor names", () => {
+        expect(text).toContain("Acme Corp, Widget Inc");
+      });
     });
 
     it("skips known vendors section when empty", () => {

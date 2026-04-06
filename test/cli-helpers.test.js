@@ -31,9 +31,14 @@ describe("sanitizeString", () => {
     expect(sanitizeString("a\x0bb\x0cc")).toBe("abc");
   });
 
-  it("passes through non-string values unchanged", () => {
-    expect(sanitizeString(42)).toBe(42);
-    expect(sanitizeString(null)).toBe(null);
+  describe("passes through non-string values unchanged", () => {
+    it("passes through number 42", () => {
+      expect(sanitizeString(42)).toBe(42);
+    });
+
+    it("passes through null", () => {
+      expect(sanitizeString(null)).toBe(null);
+    });
   });
 });
 
@@ -104,18 +109,28 @@ describe("filterAccountsByName", () => {
     expect(filterAccountsByName(accounts, undefined)).toEqual(accounts);
   });
 
-  it("filters case-insensitively", () => {
+  describe("filters case-insensitively", () => {
     const result = filterAccountsByName(accounts, "icloud");
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("iCloud");
+    it("returns one result", () => {
+      expect(result).toHaveLength(1);
+    });
+
+    it("returns the correctly-cased account name", () => {
+      expect(result[0].name).toBe("iCloud");
+    });
   });
 
-  it("matches mixed-case input to mixed-case stored name", () => {
+  describe("matches mixed-case input to mixed-case stored name", () => {
     const result = filterAccountsByName(accounts, "GMAIL");
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("Gmail");
+    it("returns one result", () => {
+      expect(result).toHaveLength(1);
+    });
+
+    it("returns the correctly-cased account name", () => {
+      expect(result[0].name).toBe("Gmail");
+    });
   });
 
   it("returns an empty array when no account matches", () => {
@@ -134,11 +149,16 @@ describe("resolveAccounts", () => {
     expect(resolveAccounts(null, loadAll)).toEqual(allAccounts);
   });
 
-  it("filters to the matching account when a name is given", () => {
+  describe("filters to the matching account when a name is given", () => {
     const result = resolveAccounts("iCloud", loadAll);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("iCloud");
+    it("returns one result", () => {
+      expect(result).toHaveLength(1);
+    });
+
+    it("returns the matching account", () => {
+      expect(result[0].name).toBe("iCloud");
+    });
   });
 
   it("throws when no accounts are configured", () => {
@@ -170,11 +190,16 @@ describe("resolveCommandContext", () => {
     expect(ctx.targetAccounts).toEqual(allAccounts);
   });
 
-  it("filters to the matching account when account name is given", () => {
+  describe("filters to the matching account when account name is given", () => {
     const ctx = resolveCommandContext({ json: false, account: "iCloud" }, deps);
 
-    expect(ctx.targetAccounts).toHaveLength(1);
-    expect(ctx.targetAccounts[0].name).toBe("iCloud");
+    it("returns one account", () => {
+      expect(ctx.targetAccounts).toHaveLength(1);
+    });
+
+    it("returns the matching account", () => {
+      expect(ctx.targetAccounts[0].name).toBe("iCloud");
+    });
   });
 
   it("throws when the account name matches no configured account", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { inboxCommand } from "../src/inbox-command.js";
 import { makeAccount } from "./helpers.js";
 
@@ -47,12 +47,19 @@ function makeDeps(overrides = {}) {
 // ── inboxCommand ───────────────────────────────────────────────────────────────
 
 describe("inboxCommand", () => {
-  it("returns allResults and resultsByAccount", async () => {
-    const deps = makeDeps();
-    const result = await inboxCommand({}, deps);
+  describe("returns allResults and resultsByAccount", () => {
+    let result;
+    beforeAll(async () => {
+      result = await inboxCommand({}, makeDeps());
+    });
 
-    expect(result.allResults).toBeDefined();
-    expect(result.resultsByAccount).toBeDefined();
+    it("allResults is defined", async () => {
+      expect(result.allResults).toBeDefined();
+    });
+
+    it("resultsByAccount is defined", async () => {
+      expect(result.resultsByAccount).toBeDefined();
+    });
   });
 
   it("groups results by account name in resultsByAccount", async () => {
@@ -62,14 +69,14 @@ describe("inboxCommand", () => {
     expect(result.resultsByAccount.has("Test Account")).toBe(true);
   });
 
-  it("aggregates messages into allResults across accounts", async () => {
+  describe("aggregates messages into allResults across accounts", () => {
     const account1 = makeAccount({ name: "Account 1" });
     const account2 = makeAccount({ name: "Account 2" });
 
     const deps = makeDeps({
       targetAccounts: [account1, account2],
       forEachAccount: mock(async (_accounts, fn) => {
-        const makeClient = () => ({
+        const makeClientFn = () => ({
           getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
           search: mock(() => Promise.resolve([1])),
           fetch: mock(async function* () {
@@ -80,18 +87,26 @@ describe("inboxCommand", () => {
             };
           }),
         });
-        await fn(makeClient(), account1);
-        await fn(makeClient(), account2);
+        await fn(makeClientFn(), account1);
+        await fn(makeClientFn(), account2);
       }),
     });
 
-    const result = await inboxCommand({}, deps);
+    let result;
+    beforeAll(async () => {
+      result = await inboxCommand({}, deps);
+    });
 
-    expect(result.resultsByAccount.size).toBe(2);
-    expect(result.allResults.length).toBeGreaterThanOrEqual(2);
+    it("resultsByAccount has 2 accounts", async () => {
+      expect(result.resultsByAccount.size).toBe(2);
+    });
+
+    it("allResults has at least 2 messages", async () => {
+      expect(result.allResults.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
-  it("passes unreadOnly: true when --unread option is set", async () => {
+  describe("passes unreadOnly: true when --unread option is set", () => {
     let capturedCriteria;
     const deps = makeDeps({
       forEachAccount: mock(async (_accounts, fn) => {
@@ -107,11 +122,17 @@ describe("inboxCommand", () => {
       }),
     });
 
-    await inboxCommand({ unread: true }, deps);
+    beforeAll(async () => {
+      await inboxCommand({ unread: true }, deps);
+    });
 
-    // fetchInbox sets criteria.seen = false for unread-only
-    expect(capturedCriteria).toBeDefined();
-    expect(/** @type {any} */ (capturedCriteria).seen).toBe(false);
+    it("capturedCriteria is defined", async () => {
+      expect(capturedCriteria).toBeDefined();
+    });
+
+    it("criteria.seen is false", async () => {
+      expect(/** @type {any} */ (capturedCriteria).seen).toBe(false);
+    });
   });
 
   it("returns empty results when no messages in inbox", async () => {

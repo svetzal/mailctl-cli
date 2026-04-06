@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { getM365AccessToken } from "../src/m365-auth.js";
 
 const CREDS = { clientId: "cid", tenantId: "tid", clientSecret: "csec" };
@@ -59,24 +59,36 @@ function makeExpiredToken(overrides = {}) {
 
 describe("getM365AccessToken", () => {
   describe("cached token still valid", () => {
-    it("returns the cached access_token without calling fetch", async () => {
-      const token = makeValidToken();
-      const deps = makeDeps({ loadTokens: mock(() => token) });
+    describe("returns the cached access_token without calling fetch", () => {
+      const deps = makeDeps({ loadTokens: mock(() => makeValidToken()) });
+      let result;
+      beforeAll(async () => {
+        result = await getM365AccessToken(CREDS, () => {}, deps);
+      });
 
-      const result = await getM365AccessToken(CREDS, () => {}, deps);
+      it("returns valid-access-token", async () => {
+        expect(result).toBe("valid-access-token");
+      });
 
-      expect(result).toBe("valid-access-token");
-      expect(deps.fetch).not.toHaveBeenCalled();
+      it("does not call fetch", async () => {
+        expect(deps.fetch).not.toHaveBeenCalled();
+      });
     });
 
-    it("treats a token expiring in 6 minutes as still valid", async () => {
-      const token = makeValidToken({ expires_at: 1_000_000 + 6 * 60 * 1000 });
-      const deps = makeDeps({ loadTokens: mock(() => token) });
+    describe("treats a token expiring in 6 minutes as still valid", () => {
+      const deps = makeDeps({ loadTokens: mock(() => makeValidToken({ expires_at: 1_000_000 + 6 * 60 * 1000 })) });
+      let result;
+      beforeAll(async () => {
+        result = await getM365AccessToken(CREDS, () => {}, deps);
+      });
 
-      const result = await getM365AccessToken(CREDS, () => {}, deps);
+      it("returns valid-access-token", async () => {
+        expect(result).toBe("valid-access-token");
+      });
 
-      expect(result).toBe("valid-access-token");
-      expect(deps.fetch).not.toHaveBeenCalled();
+      it("does not call fetch", async () => {
+        expect(deps.fetch).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -260,43 +272,46 @@ describe("getM365AccessToken", () => {
   });
 
   describe("device code flow — authorization_pending continues polling", () => {
-    it("keeps polling when token endpoint returns authorization_pending", async () => {
-      const deviceCodeResponse = makeResponse({
-        device_code: "dev-code",
-        user_code: "USER-CODE",
-        verification_uri: "https://microsoft.com/devicelogin",
-        interval: 5,
-        expires_in: 900,
-      });
-      const pendingResponse = makeResponse({ error: "authorization_pending" });
-      const tokenSuccessResponse = makeResponse({
-        access_token: "device-access-token",
-        refresh_token: "device-refresh-token",
-        expires_in: 3600,
-      });
+    const deviceCodeResponse = makeResponse({
+      device_code: "dev-code",
+      user_code: "USER-CODE",
+      verification_uri: "https://microsoft.com/devicelogin",
+      interval: 5,
+      expires_in: 900,
+    });
+    const pendingResponse = makeResponse({ error: "authorization_pending" });
+    const tokenSuccessResponse = makeResponse({
+      access_token: "device-access-token",
+      refresh_token: "device-refresh-token",
+      expires_in: 3600,
+    });
 
-      // now() advances so the while loop can exit eventually
-      let nowCallCount = 0;
-      const baseTime = 1_000_000;
-      const deps = makeDeps({
-        loadTokens: mock(() => null),
-        fetch: mock(async () => {
-          const callIndex = deps.fetch.mock.calls.length;
-          if (callIndex === 1) return deviceCodeResponse;
-          if (callIndex === 2) return pendingResponse;
-          return tokenSuccessResponse;
-        }),
-        now: mock(() => {
-          nowCallCount++;
-          // Advance time slowly — stay within deadline of baseTime + 900*1000
-          return baseTime + nowCallCount * 1000;
-        }),
-      });
+    let nowCallCount = 0;
+    const baseTime = 1_000_000;
+    const deps = makeDeps({
+      loadTokens: mock(() => null),
+      fetch: mock(async () => {
+        const callIndex = deps.fetch.mock.calls.length;
+        if (callIndex === 1) return deviceCodeResponse;
+        if (callIndex === 2) return pendingResponse;
+        return tokenSuccessResponse;
+      }),
+      now: mock(() => {
+        nowCallCount++;
+        return baseTime + nowCallCount * 1000;
+      }),
+    });
 
-      const result = await getM365AccessToken(CREDS, () => {}, deps);
+    let result;
+    beforeAll(async () => {
+      result = await getM365AccessToken(CREDS, () => {}, deps);
+    });
 
+    it("returns the device access token", async () => {
       expect(result).toBe("device-access-token");
-      // fetch should have been called 3 times: device code, pending, success
+    });
+
+    it("fetch is called 3 times (device code, pending, success)", async () => {
       expect(deps.fetch.mock.calls.length).toBe(3);
     });
   });
@@ -453,7 +468,7 @@ describe("getM365AccessToken", () => {
   });
 
   describe("progress events", () => {
-    it("fires device-code-prompt and auth-waiting events during device code flow", async () => {
+    describe("fires device-code-prompt and auth-waiting events during device code flow", () => {
       const deviceCodeResponse = makeResponse({
         device_code: "dev-code",
         user_code: "ABC-123",
@@ -478,11 +493,19 @@ describe("getM365AccessToken", () => {
         }),
       });
 
-      await getM365AccessToken(CREDS, (event) => events.push(event), deps);
+      beforeAll(async () => {
+        await getM365AccessToken(CREDS, (event) => events.push(event), deps);
+      });
 
-      const types = events.map((e) => e.type);
-      expect(types).toContain("device-code-prompt");
-      expect(types).toContain("auth-waiting");
+      it("fires device-code-prompt event", async () => {
+        const types = events.map((e) => e.type);
+        expect(types).toContain("device-code-prompt");
+      });
+
+      it("fires auth-waiting event", async () => {
+        const types = events.map((e) => e.type);
+        expect(types).toContain("auth-waiting");
+      });
     });
 
     it("fires auth-success event on successful device code completion", async () => {
@@ -516,7 +539,7 @@ describe("getM365AccessToken", () => {
       expect(types).toContain("auth-success");
     });
 
-    it("fires device-code-prompt with the correct verificationUri and userCode", async () => {
+    describe("fires device-code-prompt with the correct verificationUri and userCode", () => {
       const deviceCodeResponse = makeResponse({
         device_code: "dev-code",
         user_code: "ABC-123",
@@ -541,11 +564,19 @@ describe("getM365AccessToken", () => {
         }),
       });
 
-      await getM365AccessToken(CREDS, (event) => events.push(event), deps);
+      beforeAll(async () => {
+        await getM365AccessToken(CREDS, (event) => events.push(event), deps);
+      });
 
-      const promptEvent = events.find((e) => e.type === "device-code-prompt");
-      expect(promptEvent?.verificationUri).toBe("https://microsoft.com/devicelogin");
-      expect(promptEvent?.userCode).toBe("ABC-123");
+      it("verificationUri matches", async () => {
+        const promptEvent = events.find((e) => e.type === "device-code-prompt");
+        expect(promptEvent?.verificationUri).toBe("https://microsoft.com/devicelogin");
+      });
+
+      it("userCode matches", async () => {
+        const promptEvent = events.find((e) => e.type === "device-code-prompt");
+        expect(promptEvent?.userCode).toBe("ABC-123");
+      });
     });
 
     it("fires token-refresh-failed progress event when refresh fails", async () => {

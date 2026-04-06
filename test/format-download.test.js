@@ -27,11 +27,23 @@ describe("formatDownloadResultText", () => {
     expect(text).toContain("Skipped/Error: 2");
   });
 
-  it("formats all stats together correctly", () => {
+  describe("formats all stats together correctly", () => {
     const text = formatDownloadResultText({ downloaded: 5, alreadyHave: 2, noPdf: 1, skipped: 1 });
-    expect(text).toContain("Downloaded:    5");
-    expect(text).toContain("Already had:   2");
-    expect(text).toContain("No PDF:        1");
-    expect(text).toContain("Skipped/Error: 1");
+
+    it("shows downloaded count", () => {
+      expect(text).toContain("Downloaded:    5");
+    });
+
+    it("shows already had count", () => {
+      expect(text).toContain("Already had:   2");
+    });
+
+    it("shows no PDF count", () => {
+      expect(text).toContain("No PDF:        1");
+    });
+
+    it("shows skipped/error count", () => {
+      expect(text).toContain("Skipped/Error: 1");
+    });
   });
 });

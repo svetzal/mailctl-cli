@@ -66,29 +66,52 @@ function makeDeps(overrides = {}) {
 
 describe("extractAttachmentCommand", () => {
   describe("list mode", () => {
-    it("returns found: true with attachment listing", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+    describe("returns found: true with attachment listing", () => {
+      it("result.found is true", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+        expect(result.found).toBe(true);
+      });
 
-      expect(result.found).toBe(true);
-      expect(result.list).toBe(true);
-      expect(result.attachments).toHaveLength(1);
+      it("result.list is true", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+        expect(result.list).toBe(true);
+      });
+
+      it("result.attachments has one item", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+        expect(result.attachments).toHaveLength(1);
+      });
     });
 
-    it("includes attachment filename and contentType in listing", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+    describe("includes attachment filename and contentType in listing", () => {
+      it("attachment has the correct filename", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+        expect(result.attachments[0].filename).toBe("invoice.pdf");
+      });
 
-      expect(result.attachments[0].filename).toBe("invoice.pdf");
-      expect(result.attachments[0].contentType).toBe("application/pdf");
+      it("attachment has the correct contentType", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+        expect(result.attachments[0].contentType).toBe("application/pdf");
+      });
     });
 
-    it("includes account name and uid in list result", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+    describe("includes account name and uid in list result", () => {
+      it("result.account is the account name", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+        expect(result.account).toBe("Test Account");
+      });
 
-      expect(result.account).toBe("Test Account");
-      expect(result.uid).toBe(42);
+      it("result.uid is the numeric uid", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
+        expect(result.uid).toBe(42);
+      });
     });
 
     it("returns empty attachments array when message has no attachments", async () => {
@@ -107,21 +130,38 @@ describe("extractAttachmentCommand", () => {
   });
 
   describe("save mode", () => {
-    it("downloads the specified attachment and writes to disk", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps));
+    describe("downloads the specified attachment and writes to disk", () => {
+      it("result.found is true", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps));
+        expect(result.found).toBe(true);
+      });
 
-      expect(result.found).toBe(true);
-      expect(result.list).toBe(false);
-      expect(deps.fsGateway.writeFile).toHaveBeenCalledTimes(1);
+      it("result.list is false", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps));
+        expect(result.list).toBe(false);
+      });
+
+      it("calls writeFile once", async () => {
+        const deps = makeDeps();
+        await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps);
+        expect(deps.fsGateway.writeFile).toHaveBeenCalledTimes(1);
+      });
     });
 
-    it("saves to the correct output directory", async () => {
-      const deps = makeDeps();
-      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/receipts" }, deps));
+    describe("saves to the correct output directory", () => {
+      it("result.path contains the filename", async () => {
+        const deps = makeDeps();
+        const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/receipts" }, deps));
+        expect(result.path).toContain("invoice.pdf");
+      });
 
-      expect(result.path).toContain("invoice.pdf");
-      expect(deps.fsGateway.mkdir).toHaveBeenCalledTimes(1);
+      it("calls mkdir once", async () => {
+        const deps = makeDeps();
+        await extractAttachmentCommand("42", 0, { output: "/tmp/receipts" }, deps);
+        expect(deps.fsGateway.mkdir).toHaveBeenCalledTimes(1);
+      });
     });
 
     it("uses correct filename from attachment metadata", async () => {

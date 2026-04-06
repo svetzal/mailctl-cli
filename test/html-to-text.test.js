@@ -74,8 +74,11 @@ describe("htmlToText", () => {
     expect(htmlToText("  hello  ")).toBe("hello");
   });
 
-  it("converts </h1> through </h6> to double newline", () => {
+  it("converts </h1> to double newline", () => {
     expect(htmlToText("<h1>Title</h1>text")).toBe("Title\n\ntext");
+  });
+
+  it("converts </h3> to double newline", () => {
     expect(htmlToText("<h3>Section</h3>text")).toBe("Section\n\ntext");
   });
 });
