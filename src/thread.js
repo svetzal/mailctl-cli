@@ -4,7 +4,6 @@
  * with a subject-based fallback when header search is limited.
  */
 
-import { debug } from "./debug.js";
 import { htmlToText } from "./html-to-text.js";
 
 /**
@@ -41,15 +40,16 @@ export function parseReferences(references) {
  * @param {any} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {string[]} messageIds - Message-IDs to search for
+ * @param {function(object): void} onProgress
  * @returns {Promise<number[]>} UIDs found
  */
-async function searchMailboxForThread(client, mailboxPath, messageIds) {
+async function searchMailboxForThread(client, mailboxPath, messageIds, onProgress) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
     // Mailbox inaccessible — skip gracefully
-    debug("thread", "mailbox lock failed, skipping", err);
+    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
     return [];
   }
 
@@ -69,8 +69,9 @@ async function searchMailboxForThread(client, mailboxPath, messageIds) {
           if (uids && uids.length > 0) {
             for (const uid of uids) uidSet.add(uid);
           }
-        } catch {
+        } catch (err) {
           // Header search not supported, caller will handle fallback
+          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
         }
       }
     }
@@ -87,15 +88,16 @@ async function searchMailboxForThread(client, mailboxPath, messageIds) {
  * @param {any} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {string} baseSubject - subject with Re:/Fwd: stripped
+ * @param {function(object): void} onProgress
  * @returns {Promise<number[]>} UIDs found
  */
-async function searchMailboxBySubject(client, mailboxPath, baseSubject) {
+async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgress) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
     // Mailbox inaccessible — skip gracefully
-    debug("thread", "mailbox lock failed, skipping", err);
+    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
     return [];
   }
 
@@ -104,7 +106,7 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject) {
     return uids && uids.length > 0 ? [...uids] : [];
   } catch (err) {
     // Search failed — return empty results
-    debug("thread", "search failed, returning empty", err);
+    onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
     return [];
   } finally {
     lock.release();
@@ -119,9 +121,10 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject) {
  * @param {string} mailboxPath
  * @param {number[]} uids
  * @param {boolean} [fullBody=false] - fetch full body text
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<Array<{uid: number, account: string, mailbox: string, date: Date, from: string, fromName: string, subject: string, messageId: string, snippet: string, body: string}>>}
  */
-async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullBody = false) {
+async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullBody = false, onProgress = () => {}) {
   if (uids.length === 0) return [];
 
   let lock;
@@ -129,7 +132,7 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
     // Mailbox inaccessible — skip gracefully
-    debug("thread", "mailbox lock failed, skipping", err);
+    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
     return [];
   }
 
@@ -186,11 +189,13 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
  * @param {object} [opts]
  * @param {number} [opts.limit=50]
  * @param {boolean} [opts.full=false] - fetch full message bodies
+ * @param {function(object): void} [opts.onProgress] - receives structured progress events
  * @returns {Promise<{messages: Array, fallback: boolean}>}
  */
 export async function findThread(client, accountName, mailboxPath, uid, searchMailboxPaths, opts = {}) {
   const limit = opts.limit || 50;
   const full = opts.full || false;
+  const onProgress = opts.onProgress || (() => {});
 
   // Step 1: Fetch anchor message headers
   let anchorMessageId = "";
@@ -203,7 +208,7 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
     // Mailbox inaccessible — skip gracefully
-    debug("thread", "mailbox lock failed, skipping", err);
+    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
     return { messages: [], fallback: false };
   }
 
@@ -234,7 +239,7 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
 
   if (!anchorMessageId && !anchorReferences && !anchorInReplyTo) {
     // No threading headers at all — return just the anchor
-    const messages = await fetchThreadMessages(client, accountName, mailboxPath, [Number(uid)], full);
+    const messages = await fetchThreadMessages(client, accountName, mailboxPath, [Number(uid)], full, onProgress);
     return { messages: messages.slice(0, limit), fallback: false };
   }
 
@@ -257,7 +262,7 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   let headerSearchFoundResults = false;
 
   for (const mbPath of searchMailboxPaths) {
-    const foundUids = await searchMailboxForThread(client, mbPath, [...relatedIds]);
+    const foundUids = await searchMailboxForThread(client, mbPath, [...relatedIds], onProgress);
     if (foundUids.length > 0) {
       headerSearchFoundResults = true;
       uidsByMailbox.set(mbPath, new Set(foundUids));
@@ -271,7 +276,7 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
     const baseSubject = stripSubjectPrefixes(anchorSubject);
     if (baseSubject) {
       for (const mbPath of searchMailboxPaths) {
-        const foundUids = await searchMailboxBySubject(client, mbPath, baseSubject);
+        const foundUids = await searchMailboxBySubject(client, mbPath, baseSubject, onProgress);
         if (foundUids.length > 0) {
           const existing = uidsByMailbox.get(mbPath) || new Set();
           for (const u of foundUids) existing.add(u);
@@ -291,7 +296,7 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   const allMessages = [];
 
   for (const [mbPath, uidSetForMb] of uidsByMailbox) {
-    const fetched = await fetchThreadMessages(client, accountName, mbPath, [...uidSetForMb], full);
+    const fetched = await fetchThreadMessages(client, accountName, mbPath, [...uidSetForMb], full, onProgress);
     allMessages.push(...fetched);
   }
 

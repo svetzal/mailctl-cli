@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { detectMailbox } from "../src/mailbox-detect.js";
 
 /**
@@ -93,5 +93,23 @@ describe("detectMailbox", () => {
     const result = await detectMailbox(client, 77, ["Sent", "Archive"]);
 
     expect(result).toBe("INBOX");
+  });
+
+  it("emits mailbox-lock-failed when getMailboxLock throws", async () => {
+    const client = buildClient({}, { failLock: ["INBOX"] });
+    const onProgress = mock(() => {});
+
+    await detectMailbox(client, 100, ["INBOX"], onProgress);
+
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ type: "mailbox-lock-failed", mailbox: "INBOX" }));
+  });
+
+  it("emits search-failed when search throws", async () => {
+    const client = buildClient({}, { failSearch: ["INBOX"] });
+    const onProgress = mock(() => {});
+
+    await detectMailbox(client, 100, ["INBOX"], onProgress);
+
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ type: "search-failed", mailbox: "INBOX" }));
   });
 });

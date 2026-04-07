@@ -18,9 +18,10 @@ import { parseDate } from "./parse-date.js";
  *
  * @param {object} opts - CLI options (limit, unread, since)
  * @param {InboxCommandDeps} deps - injected dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ resultsByAccount: Map<string, Array>, allResults: Array }>}
  */
-export async function inboxCommand(opts, deps) {
+export async function inboxCommand(opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount } = deps;
 
   const limit = parseInt(opts.limit ?? "10", 10);
@@ -35,6 +36,7 @@ export async function inboxCommand(opts, deps) {
       limit,
       since,
       unreadOnly: opts.unread ?? false,
+      onProgress,
     });
 
     resultsByAccount.set(acct.name, messages);

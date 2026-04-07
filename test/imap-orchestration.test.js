@@ -117,6 +117,17 @@ describe("forEachMailboxGroup", () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
+  it("emits mailbox-lock-failed when getMailboxLock throws", async () => {
+    const error = new Error("no such mailbox");
+    const client = { getMailboxLock: mock(() => Promise.reject(error)) };
+    const fn = mock(() => Promise.resolve());
+    const onProgress = mock(() => {});
+
+    await forEachMailboxGroup(client, new Map([["INBOX", []]]), fn, onProgress);
+
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+  });
+
   describe("processes all mailboxes when there are multiple", () => {
     const locks = [makeLock(), makeLock()];
     let callIdx = 0;

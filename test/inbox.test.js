@@ -131,6 +131,30 @@ describe("fetchInbox", () => {
     expect(results).toHaveLength(0);
   });
 
+  it("emits mailbox-lock-failed when getMailboxLock throws", async () => {
+    const error = new Error("no such mailbox");
+    const client = { getMailboxLock: mock(() => Promise.reject(error)) };
+    const onProgress = mock(() => {});
+
+    await fetchInbox(client, "TestAccount", { limit: 10, onProgress });
+
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+  });
+
+  it("emits search-failed when search throws", async () => {
+    const error = new Error("search error");
+    const lock = makeLock();
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve(lock)),
+      search: mock(() => Promise.reject(error)),
+    };
+    const onProgress = mock(() => {});
+
+    await fetchInbox(client, "TestAccount", { limit: 10, onProgress });
+
+    expect(onProgress).toHaveBeenCalledWith({ type: "search-failed", mailbox: "INBOX", error });
+  });
+
   it("returns an empty array when search returns no UIDs", async () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
 

@@ -53,8 +53,9 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
     let lock;
     try {
       lock = await client.getMailboxLock(mailbox);
-    } catch {
+    } catch (err) {
       // mailbox doesn't exist on this account, skip
+      onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
       continue;
     }
 

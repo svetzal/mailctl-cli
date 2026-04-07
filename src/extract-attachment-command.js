@@ -6,7 +6,6 @@
  */
 import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
-import { debug } from "./debug.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { detectMailbox } from "./mailbox-detect.js";
@@ -29,13 +28,14 @@ import { detectMailbox } from "./mailbox-detect.js";
  * @param {number} attachmentIndex - 0-based attachment index to save (ignored in list mode)
  * @param {object} opts - CLI options (list, mailbox, output)
  * @param {ExtractAttachmentCommandDeps} deps - injected dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<
  *   | { found: false }
  *   | { found: true, list: true, account: string, uid: number, attachments: Array }
  *   | { found: true, list: false, path: string, filename: string, size: number, contentType: string }
  * >}
  */
-export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps) {
+export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount, listMailboxes, fsGateway } = deps;
 
   /** @type {any} */
@@ -57,7 +57,7 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps)
       lock = await client.getMailboxLock(mailbox);
     } catch (err) {
       // Mailbox inaccessible — skip gracefully
-      debug("extract-attachment", "mailbox lock failed, skipping", err);
+      onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
       return;
     }
 
@@ -69,8 +69,8 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps)
           bodyStructure = fetched.bodyStructure;
         }
       } catch (err) {
-        // Search failed — return empty results
-        debug("extract-attachment", "search failed, returning empty", err);
+        // Fetch failed — skip gracefully
+        onProgress({ type: "search-failed", mailbox, error: err });
         return;
       }
 

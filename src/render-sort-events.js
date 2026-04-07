@@ -27,6 +27,10 @@ export function renderSortEvent(event) {
       return `   ${event.icon} Moved ${event.count} messages: ${event.label}`;
     case "move-error":
       return `   ⚠️  Move failed (${event.label}): ${event.error.message}`;
+    case "mailbox-lock-failed":
+      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
+    case "search-failed":
+      return `   Search failed in ${event.mailbox}: ${event.error.message}`;
     default:
       return null;
   }

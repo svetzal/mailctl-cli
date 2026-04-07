@@ -23,10 +23,11 @@ import { searchMailbox } from "./search.js";
  * @param {string|undefined} query - general search query (optional with field opts)
  * @param {object} opts - CLI options (from, to, subject, body, since, before, months, mailbox, excludeMailbox, limit)
  * @param {SearchCommandDeps} deps - injected dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ allResults: Array, warnings: string[] }>}
  * @throws {Error} when neither a query nor field criteria are provided
  */
-export async function searchCommand(query, opts, deps) {
+export async function searchCommand(query, opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount, listMailboxes } = deps;
 
   if (!query && !opts.from && !opts.to && !opts.subject && !opts.body) {
@@ -66,6 +67,7 @@ export async function searchCommand(query, opts, deps) {
         since,
         before,
         limit,
+        onProgress,
       });
       accountResults.push(...results);
     }

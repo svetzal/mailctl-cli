@@ -132,6 +132,30 @@ describe("withMessage", () => {
     expect(account.name).toBe("Second Account");
   });
 
+  it("emits mailbox-lock-failed when mailbox lock fails", async () => {
+    const error = new Error("Lock failed");
+    const lockFailClient = {
+      getMailboxLock: mock(() => Promise.reject(error)),
+      search: mock(() => Promise.resolve([42])),
+    };
+    const onProgress = mock(() => {});
+
+    const successClient = makeClient();
+    const successAccount = makeAccount({ name: "Second Account" });
+
+    const deps = makeDeps({
+      forEachAccount: mock(async (_accounts, fn) => {
+        await fn(lockFailClient, makeAccount({ name: "First" }));
+        await fn(successClient, successAccount);
+      }),
+      _client: lockFailClient,
+    });
+
+    await withMessage("42", { mailbox: "INBOX" }, deps, async () => "ok", onProgress);
+
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+  });
+
   it("rejects with fn error when fn throws", async () => {
     const lock = makeLock();
     const errorClient = {

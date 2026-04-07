@@ -243,5 +243,25 @@ describe("extractAttachmentCommand", () => {
 
       expect(result.found).toBe(false);
     });
+
+    it("emits mailbox-lock-failed when mailbox lock fails", async () => {
+      const error = new Error("Lock failed");
+      const lockFailClient = {
+        getMailboxLock: mock(() => Promise.reject(error)),
+        search: mock(() => Promise.resolve([99])),
+        fetch: mock(async function* () {}),
+        download: mock(() => ({ content: (async function* () {})() })),
+      };
+      const onProgress = mock(() => {});
+      const deps = makeDeps({
+        forEachAccount: mock(async (_accounts, fn) => {
+          await fn(lockFailClient, makeAccount());
+        }),
+        _client: lockFailClient,
+      });
+      await extractAttachmentCommand("42", 0, { list: true, mailbox: "INBOX" }, deps, onProgress);
+
+      expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+    });
   });
 });

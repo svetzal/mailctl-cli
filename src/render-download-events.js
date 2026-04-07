@@ -28,6 +28,10 @@ export function renderDownloadEvent(event) {
       return `   📄 Downloaded: ${event.filename} (${formatKB(event.size)})`;
     case "download-failed":
       return `      ⚠️  Download failed for ${event.filename}: ${event.error.message}`;
+    case "mailbox-lock-failed":
+      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
+    case "search-failed":
+      return `   Search failed in ${event.mailbox}: ${event.error.message}`;
     default:
       return null;
   }

@@ -15,6 +15,10 @@ export function renderScanEvent(event) {
       return `🔍 Scanning ${event.name} (${event.user})...`;
     case "scan-account-complete":
       return `   ✅ Found ${event.count} receipt-like messages`;
+    case "mailbox-lock-failed":
+      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
+    case "search-failed":
+      return `   Search failed in ${event.mailbox}: ${event.error.message}`;
     default:
       return null;
   }

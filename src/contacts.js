@@ -2,7 +2,6 @@
  * Contact extraction — scan envelopes from recent messages to build a frequency-ranked contact list.
  */
 
-import { debug } from "./debug.js";
 import { listMailboxes } from "./imap-client.js";
 
 /**
@@ -15,10 +14,12 @@ import { listMailboxes } from "./imap-client.js";
  * @param {number} opts.limit
  * @param {boolean} [opts.sentOnly] - only count recipients of sent mail
  * @param {boolean} [opts.receivedOnly] - only count senders of received mail
+ * @param {function(object): void} [opts.onProgress] - receives structured progress events
  * @returns {Promise<Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>>}
  */
 export async function extractContacts(client, _accountName, opts) {
   const { since, sentOnly, receivedOnly } = opts;
+  const onProgress = opts.onProgress || (() => {});
   const entries = [];
 
   // Find the Sent mailbox
@@ -28,13 +29,13 @@ export async function extractContacts(client, _accountName, opts) {
 
   // Scan INBOX for received messages (extract From addresses)
   if (!sentOnly) {
-    const received = await scanMailboxContacts(client, "INBOX", since, "received");
+    const received = await scanMailboxContacts(client, "INBOX", since, "received", onProgress);
     entries.push(...received);
   }
 
   // Scan Sent folder for sent messages (extract To/CC addresses)
   if (!receivedOnly) {
-    const sent = await scanMailboxContacts(client, sentPath, since, "sent");
+    const sent = await scanMailboxContacts(client, sentPath, since, "sent", onProgress);
     entries.push(...sent);
   }
 
@@ -47,9 +48,10 @@ export async function extractContacts(client, _accountName, opts) {
  * @param {string} mailboxPath
  * @param {Date} since
  * @param {'sent'|'received'} direction
+ * @param {function(object): void} onProgress
  * @returns {Promise<Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>>}
  */
-async function scanMailboxContacts(client, mailboxPath, since, direction) {
+async function scanMailboxContacts(client, mailboxPath, since, direction, onProgress) {
   /** @type {Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>} */
   const entries = [];
 
@@ -58,7 +60,7 @@ async function scanMailboxContacts(client, mailboxPath, since, direction) {
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
     // Mailbox inaccessible — skip gracefully
-    debug("contacts", "mailbox lock failed, skipping", err);
+    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
     return entries;
   }
 
@@ -68,7 +70,7 @@ async function scanMailboxContacts(client, mailboxPath, since, direction) {
       uids = await client.search({ since }, { uid: true });
     } catch (err) {
       // Search failed — return empty results
-      debug("contacts", "search failed, returning empty", err);
+      onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
       return entries;
     }
 

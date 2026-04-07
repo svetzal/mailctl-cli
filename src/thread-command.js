@@ -29,10 +29,11 @@ import { findThread } from "./thread.js";
  * @param {string} uid - message UID to find the thread for
  * @param {object} opts - CLI options (mailbox, limit, full)
  * @param {ThreadCommandDeps} deps - injected dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<ThreadResult[]>} one result per matched account
  * @throws {Error} when the UID is not found in any mailbox on an account
  */
-export async function threadCommand(uid, opts, deps) {
+export async function threadCommand(uid, opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount, listMailboxes } = deps;
   const limit = parseInt(opts.limit ?? "50", 10);
 
@@ -57,6 +58,7 @@ export async function threadCommand(uid, opts, deps) {
     const { messages, fallback } = await findThread(client, acct.name, mailbox, uid, searchPaths, {
       limit,
       full: opts.full ?? false,
+      onProgress,
     });
 
     results.push({

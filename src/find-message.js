@@ -7,7 +7,6 @@
  * so each orchestrator doesn't repeat the same boilerplate.
  */
 
-import { debug } from "./debug.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { detectMailbox } from "./mailbox-detect.js";
 
@@ -33,10 +32,11 @@ import { detectMailbox } from "./mailbox-detect.js";
  * @param {Function} deps.forEachAccount
  * @param {Function} deps.listMailboxes
  * @param {(client: any, account: object, mailbox: string) => Promise<T>} fn
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ result: T, account: object, mailbox: string }>}
  * @throws {Error} when the UID is not found in any account
  */
-export async function withMessage(uid, opts, deps, fn) {
+export async function withMessage(uid, opts, deps, fn, onProgress = () => {}) {
   const { targetAccounts, forEachAccount, listMailboxes } = deps;
 
   /** @type {{ result: T, account: object, mailbox: string } | null} */
@@ -58,7 +58,7 @@ export async function withMessage(uid, opts, deps, fn) {
       lock = await client.getMailboxLock(mailbox);
     } catch (err) {
       // Mailbox inaccessible — skip gracefully
-      debug("find-message", "mailbox lock failed, skipping", err);
+      onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
       return;
     }
 

@@ -318,6 +318,19 @@ describe("findThread", () => {
     expect(fallback).toBe(true);
   });
 
+  it("emits mailbox-lock-failed when anchor mailbox lock fails", async () => {
+    const error = new Error("lock failed");
+    const client = {
+      getMailboxLock: mock(() => Promise.reject(error)),
+    };
+    const onProgress = mock(() => {});
+
+    const { messages } = await findThread(client, "TestAccount", "INBOX", 1, ["INBOX"], { onProgress });
+
+    expect(messages).toHaveLength(0);
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+  });
+
   it("respects the limit option", async () => {
     // Create many thread messages
     const many = Array.from({ length: 10 }, (_, i) => ({

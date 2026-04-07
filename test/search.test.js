@@ -31,6 +31,16 @@ describe("searchMailbox", () => {
     expect(result).toHaveLength(0);
   });
 
+  it("emits mailbox-lock-failed when getMailboxLock throws", async () => {
+    const error = new Error("no such mailbox");
+    const client = { getMailboxLock: mock(() => Promise.reject(error)) };
+    const onProgress = mock(() => {});
+
+    await searchMailbox(client, "Account", "INBOX", "receipt", { onProgress });
+
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+  });
+
   it("returns an empty array when search returns no UIDs", async () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     const result = await searchMailbox(client, "Account", "INBOX", "receipt");

@@ -1,7 +1,6 @@
 /**
  * Inbox overview — fetch recent messages from INBOX with read/unread status.
  */
-import { debug } from "./debug.js";
 
 /**
  * Fetch recent inbox messages for a connected IMAP client.
@@ -11,10 +10,12 @@ import { debug } from "./debug.js";
  * @param {number} opts.limit
  * @param {Date} [opts.since]
  * @param {boolean} [opts.unreadOnly]
+ * @param {function(object): void} [opts.onProgress] - receives structured progress events
  * @returns {Promise<Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>>}
  */
 export async function fetchInbox(client, accountName, opts) {
   const { limit, since, unreadOnly } = opts;
+  const onProgress = opts.onProgress || (() => {});
   const mailbox = "INBOX";
 
   let lock;
@@ -22,7 +23,7 @@ export async function fetchInbox(client, accountName, opts) {
     lock = await client.getMailboxLock(mailbox);
   } catch (err) {
     // Mailbox inaccessible — skip gracefully
-    debug("inbox", "mailbox lock failed, skipping", err);
+    onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
     return [];
   }
 
@@ -41,7 +42,7 @@ export async function fetchInbox(client, accountName, opts) {
         : await client.search({ all: true }, { uid: true });
     } catch (err) {
       // Search failed — return empty results
-      debug("inbox", "search failed, returning empty", err);
+      onProgress({ type: "search-failed", mailbox, error: err });
       return [];
     }
 

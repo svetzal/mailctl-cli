@@ -42,6 +42,16 @@ describe("renderDownloadEvent", () => {
     expect(renderDownloadEvent(event)).toBe("      ⚠️  Download failed for broken.pdf: timeout");
   });
 
+  it("renders mailbox-lock-failed with mailbox and error message", () => {
+    const event = { type: "mailbox-lock-failed", mailbox: "INBOX", error: { message: "no such mailbox" } };
+    expect(renderDownloadEvent(event)).toBe("   Could not lock mailbox INBOX: no such mailbox");
+  });
+
+  it("renders search-failed with mailbox and error message", () => {
+    const event = { type: "search-failed", mailbox: "Archive", error: { message: "search error" } };
+    expect(renderDownloadEvent(event)).toBe("   Search failed in Archive: search error");
+  });
+
   it("returns null for unknown event types", () => {
     expect(renderDownloadEvent({ type: "unknown-event" })).toBeNull();
   });

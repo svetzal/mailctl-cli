@@ -20,9 +20,10 @@ import { parseDate } from "./parse-date.js";
  *
  * @param {object} opts - CLI options (limit, since, sent, received, search)
  * @param {ContactsCommandDeps} deps - injected dependencies
+ * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ contacts: Array, sinceLabel: string }>}
  */
-export async function contactsCommand(opts, deps) {
+export async function contactsCommand(opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount } = deps;
 
   const limit = parseInt(opts.limit ?? "25", 10);
@@ -40,6 +41,7 @@ export async function contactsCommand(opts, deps) {
       limit,
       sentOnly: opts.sent ?? false,
       receivedOnly: opts.received ?? false,
+      onProgress,
     });
 
     allEntries.push(...entries);
