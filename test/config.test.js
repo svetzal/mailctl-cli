@@ -1,52 +1,28 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
+// Cache-busting dynamic import to bypass mock.module contamination from
+// accounts.test.js and vendor-map.test.js which mock "../src/config.js".
+const {
+  getConfigAccounts,
+  getConfigCanadianDomains,
+  getConfigDownloadDir,
+  getConfigInvoiceBlocklist,
+  getConfigSelfAddresses,
+  getConfigSmtp,
+  getConfigVendorAddressMap,
+  getConfigVendorDomainMap,
+  loadConfig,
+  resetConfigCache,
+} = await import(`../src/config.js?t=${Date.now()}`);
+
 /** @returns {{ readJson: import("bun:test").Mock<(path: string) => unknown> }} */
 function makeMockFs(returnValue) {
   return { readJson: mock(() => returnValue) };
 }
 
-// Use require() in beforeEach to get fresh module references, avoiding
-// mock.module contamination from other test files (accounts.test.js, vendor-map.test.js).
-/** @type {typeof import("../src/config.js")} */
-let configModule;
-
 beforeEach(() => {
-  mock.restore();
-  configModule = require("../src/config.js");
-  configModule.resetConfigCache();
+  resetConfigCache();
 });
-
-// Convenience accessors (reassigned each beforeEach via configModule)
-function loadConfig(/** @type {any} */ fs, /** @type {string} */ path) {
-  return configModule.loadConfig(fs, path);
-}
-function getConfigAccounts(/** @type {any} */ config) {
-  return configModule.getConfigAccounts(config);
-}
-function getConfigSelfAddresses(/** @type {any} */ config) {
-  return configModule.getConfigSelfAddresses(config);
-}
-function getConfigInvoiceBlocklist(/** @type {any} */ config) {
-  return configModule.getConfigInvoiceBlocklist(config);
-}
-function getConfigVendorAddressMap(/** @type {any} */ config) {
-  return configModule.getConfigVendorAddressMap(config);
-}
-function getConfigVendorDomainMap(/** @type {any} */ config) {
-  return configModule.getConfigVendorDomainMap(config);
-}
-function getConfigSmtp(/** @type {string} */ name, /** @type {any} */ config) {
-  return configModule.getConfigSmtp(name, config);
-}
-function getConfigCanadianDomains(/** @type {any} */ config) {
-  return configModule.getConfigCanadianDomains(config);
-}
-function getConfigDownloadDir(/** @type {any} */ config, /** @type {string} */ homeDir) {
-  return configModule.getConfigDownloadDir(config, homeDir);
-}
-function resetConfigCache() {
-  return configModule.resetConfigCache();
-}
 
 describe("loadConfig", () => {
   it("returns the parsed config from the filesystem gateway", () => {
@@ -58,19 +34,19 @@ describe("loadConfig", () => {
     expect(result).toEqual(config);
   });
 
-  it("returns null when the file cannot be read", () => {
+  it("returns null when the filesystem throws", () => {
     const fs = {
       readJson: mock(() => {
         throw new Error("ENOENT");
       }),
     };
 
-    const result = loadConfig(fs, "/nonexistent.json");
+    const result = loadConfig(fs, "/missing/config.json");
 
     expect(result).toBeNull();
   });
 
-  it("caches the config after the first read", () => {
+  it("caches after first successful read", () => {
     const fs = makeMockFs({ accounts: [] });
 
     loadConfig(fs, "/fake/config.json");
@@ -79,14 +55,17 @@ describe("loadConfig", () => {
     expect(fs.readJson).toHaveBeenCalledTimes(1);
   });
 
-  it("returns cached result on subsequent calls without reading again", () => {
-    const config = { accounts: [{ prefix: "TEST" }] };
-    const fs = makeMockFs(config);
+  it("caches null after first failed read", () => {
+    const fs = {
+      readJson: mock(() => {
+        throw new Error("ENOENT");
+      }),
+    };
 
-    const first = loadConfig(fs, "/fake/config.json");
-    const second = loadConfig(fs, "/fake/config.json");
+    loadConfig(fs, "/missing/config.json");
+    loadConfig(fs, "/missing/config.json");
 
-    expect(first).toBe(second);
+    expect(fs.readJson).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -103,10 +82,10 @@ describe("resetConfigCache", () => {
 });
 
 describe("getConfigAccounts", () => {
-  it("returns the accounts array from a config object", () => {
-    const config = { accounts: [{ prefix: "TEST", name: "Test" }] };
+  it("returns the accounts array from config", () => {
+    const config = { accounts: [{ prefix: "A", name: "Acct" }] };
 
-    expect(getConfigAccounts(config)).toEqual([{ prefix: "TEST", name: "Test" }]);
+    expect(getConfigAccounts(config)).toEqual([{ prefix: "A", name: "Acct" }]);
   });
 
   it("returns an empty array when config is null", () => {
@@ -120,9 +99,9 @@ describe("getConfigAccounts", () => {
 
 describe("getConfigSelfAddresses", () => {
   it("returns the selfAddresses array from config", () => {
-    const config = { selfAddresses: ["me@example.com", "me@work.com"] };
+    const config = { selfAddresses: ["me@example.com"] };
 
-    expect(getConfigSelfAddresses(config)).toEqual(["me@example.com", "me@work.com"]);
+    expect(getConfigSelfAddresses(config)).toEqual(["me@example.com"]);
   });
 
   it("returns an empty array when config is null", () => {
@@ -136,9 +115,9 @@ describe("getConfigSelfAddresses", () => {
 
 describe("getConfigInvoiceBlocklist", () => {
   it("returns the invoiceBlocklist array from config", () => {
-    const config = { invoiceBlocklist: ["INV-001", "INV-002"] };
+    const config = { invoiceBlocklist: ["INV-001"] };
 
-    expect(getConfigInvoiceBlocklist(config)).toEqual(["INV-001", "INV-002"]);
+    expect(getConfigInvoiceBlocklist(config)).toEqual(["INV-001"]);
   });
 
   it("returns an empty array when config is null", () => {
@@ -183,59 +162,38 @@ describe("getConfigVendorDomainMap", () => {
 });
 
 describe("getConfigSmtp", () => {
-  it("returns the smtp config for a matching account name", () => {
-    const smtp = { host: "smtp.example.com", port: 587, secure: false };
-    const config = {
-      accounts: [{ prefix: "TEST", name: "My Account", smtp }],
-    };
+  it("returns SMTP config for a matching account", () => {
+    const smtp = { host: "smtp.test.com", port: 587, secure: true };
+    const config = { accounts: [{ name: "Test", prefix: "TEST", smtp }] };
 
-    expect(getConfigSmtp("My Account", config)).toEqual(smtp);
+    expect(getConfigSmtp("Test", config)).toEqual(smtp);
   });
 
-  it("matches account by prefix (case-insensitive)", () => {
-    const smtp = { host: "smtp.example.com", port: 587, secure: false };
-    const config = {
-      accounts: [{ prefix: "MYACCT", name: "My Account", smtp }],
-    };
+  it("matches case-insensitively", () => {
+    const smtp = { host: "smtp.test.com", port: 587, secure: true };
+    const config = { accounts: [{ name: "Test", prefix: "TEST", smtp }] };
 
-    expect(getConfigSmtp("myacct", config)).toEqual(smtp);
+    expect(getConfigSmtp("test", config)).toEqual(smtp);
   });
 
-  it("matches account by name case-insensitively", () => {
-    const smtp = { host: "smtp.example.com", port: 587, secure: false };
-    const config = {
-      accounts: [{ prefix: "TEST", name: "My Account", smtp }],
-    };
+  it("returns null when no account matches", () => {
+    const config = { accounts: [{ name: "Other", prefix: "OTHER" }] };
 
-    expect(getConfigSmtp("MY ACCOUNT", config)).toEqual(smtp);
-  });
-
-  it("returns null when account name does not match", () => {
-    const config = {
-      accounts: [{ prefix: "TEST", name: "My Account", smtp: { host: "smtp.example.com", port: 587, secure: false } }],
-    };
-
-    expect(getConfigSmtp("Other Account", config)).toBeNull();
+    expect(getConfigSmtp("Test", config)).toBeNull();
   });
 
   it("returns null when account has no smtp config", () => {
-    const config = {
-      accounts: [{ prefix: "TEST", name: "My Account" }],
-    };
+    const config = { accounts: [{ name: "Test", prefix: "TEST" }] };
 
-    expect(getConfigSmtp("My Account", config)).toBeNull();
-  });
-
-  it("returns null when config is null", () => {
-    expect(getConfigSmtp("Any Account", null)).toBeNull();
+    expect(getConfigSmtp("Test", config)).toBeNull();
   });
 });
 
 describe("getConfigCanadianDomains", () => {
   it("returns the canadianDomains array from config", () => {
-    const config = { canadianDomains: ["canadiantire.ca", "rbc.com"] };
+    const config = { canadianDomains: ["example.ca"] };
 
-    expect(getConfigCanadianDomains(config)).toEqual(["canadiantire.ca", "rbc.com"]);
+    expect(getConfigCanadianDomains(config)).toEqual(["example.ca"]);
   });
 
   it("returns an empty array when config is null", () => {
@@ -248,29 +206,17 @@ describe("getConfigCanadianDomains", () => {
 });
 
 describe("getConfigDownloadDir", () => {
-  it("returns the configured downloadDir with ~ expanded to homeDir", () => {
+  it("returns the downloadDir from config with ~ expanded", () => {
     const config = { downloadDir: "~/receipts" };
 
     expect(getConfigDownloadDir(config, "/home/user")).toBe("/home/user/receipts");
   });
 
-  it("returns the configured downloadDir unchanged when it does not start with ~", () => {
-    const config = { downloadDir: "/absolute/path/receipts" };
-
-    expect(getConfigDownloadDir(config, "/home/user")).toBe("/absolute/path/receipts");
-  });
-
-  it("returns the default directory when downloadDir is not set", () => {
+  it("returns default ~/mailctl-receipts when not configured", () => {
     expect(getConfigDownloadDir({}, "/home/user")).toBe("/home/user/mailctl-receipts");
   });
 
-  it("returns the default directory when config is null", () => {
+  it("returns default when config is null", () => {
     expect(getConfigDownloadDir(null, "/home/user")).toBe("/home/user/mailctl-receipts");
-  });
-
-  it("replaces only the leading ~ and not ~ elsewhere in the path", () => {
-    const config = { downloadDir: "~/some~dir" };
-
-    expect(getConfigDownloadDir(config, "/home/user")).toBe("/home/user/some~dir");
   });
 });

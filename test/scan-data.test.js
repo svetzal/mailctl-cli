@@ -1,33 +1,15 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 
-// Use require() in beforeEach to get fresh module references, avoiding
-// mock.module contamination from scan-command.test.js.
-/** @type {typeof import("../src/scan-data.js")} */
-let scanDataModule;
-
-beforeEach(() => {
-  mock.restore();
-  scanDataModule = require("../src/scan-data.js");
-});
-
-function ensureDataDir(/** @type {any} */ dataDir, /** @type {any} */ fs) {
-  return scanDataModule.ensureDataDir(dataDir, fs);
-}
-function saveScanResults(/** @type {any} */ dataDir, /** @type {any} */ data, /** @type {any} */ fs) {
-  return scanDataModule.saveScanResults(dataDir, data, fs);
-}
-function loadSenders(/** @type {any} */ dataDir, /** @type {any} */ fs) {
-  return scanDataModule.loadSenders(dataDir, fs);
-}
-function loadClassificationsData(/** @type {any} */ dataDir, /** @type {any} */ fs) {
-  return scanDataModule.loadClassificationsData(dataDir, fs);
-}
-function saveClassifications(/** @type {any} */ dataDir, /** @type {any} */ classifications, /** @type {any} */ fs) {
-  return scanDataModule.saveClassifications(dataDir, classifications, fs);
-}
-function requireClassificationsData(/** @type {any} */ dataDir, /** @type {any} */ fs) {
-  return scanDataModule.requireClassificationsData(dataDir, fs);
-}
+// Cache-busting dynamic import to bypass mock.module contamination from
+// scan-command.test.js which mocks "../src/scan-data.js".
+const {
+  ensureDataDir,
+  loadClassificationsData,
+  loadSenders,
+  requireClassificationsData,
+  saveClassifications,
+  saveScanResults,
+} = await import(`../src/scan-data.js?t=${Date.now()}`);
 
 /** @returns {import("../src/gateways/fs-gateway.js").FileSystemGateway} */
 function makeMockFs(overrides = {}) {

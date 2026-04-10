@@ -1,15 +1,10 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
+
+// Import aggregateBySender with a cache-busting query to bypass mock.module
+// contamination from scan-command.test.js which mocks "../src/scanner.js".
+const { aggregateBySender } = await import(`../src/scanner.js?t=${Date.now()}`);
 
 describe("aggregateBySender", () => {
-  /** @type {typeof import("../src/scanner.js").aggregateBySender} */
-  let aggregateBySender;
-
-  beforeEach(() => {
-    // Clear any mock.module contamination from other test files
-    mock.restore();
-    ({ aggregateBySender } = require("../src/scanner.js"));
-  });
-
   it("returns empty array for empty input", () => {
     expect(aggregateBySender([])).toEqual([]);
   });
