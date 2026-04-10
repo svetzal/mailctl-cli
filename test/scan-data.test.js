@@ -1,12 +1,33 @@
-import { describe, expect, it, mock } from "bun:test";
-import {
-  ensureDataDir,
-  loadClassificationsData,
-  loadSenders,
-  requireClassificationsData,
-  saveClassifications,
-  saveScanResults,
-} from "../src/scan-data.js";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
+
+// Use require() in beforeEach to get fresh module references, avoiding
+// mock.module contamination from scan-command.test.js.
+/** @type {typeof import("../src/scan-data.js")} */
+let scanDataModule;
+
+beforeEach(() => {
+  mock.restore();
+  scanDataModule = require("../src/scan-data.js");
+});
+
+function ensureDataDir(/** @type {any} */ ...args) {
+  return scanDataModule.ensureDataDir(...args);
+}
+function saveScanResults(/** @type {any} */ ...args) {
+  return scanDataModule.saveScanResults(...args);
+}
+function loadSenders(/** @type {any} */ ...args) {
+  return scanDataModule.loadSenders(...args);
+}
+function loadClassificationsData(/** @type {any} */ ...args) {
+  return scanDataModule.loadClassificationsData(...args);
+}
+function saveClassifications(/** @type {any} */ ...args) {
+  return scanDataModule.saveClassifications(...args);
+}
+function requireClassificationsData(/** @type {any} */ ...args) {
+  return scanDataModule.requireClassificationsData(...args);
+}
 
 /** @returns {import("../src/gateways/fs-gateway.js").FileSystemGateway} */
 function makeMockFs(overrides = {}) {

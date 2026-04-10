@@ -1,7 +1,15 @@
-import { describe, expect, it } from "bun:test";
-import { aggregateBySender } from "../src/scanner.js";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 describe("aggregateBySender", () => {
+  /** @type {typeof import("../src/scanner.js").aggregateBySender} */
+  let aggregateBySender;
+
+  beforeEach(() => {
+    // Clear any mock.module contamination from other test files
+    mock.restore();
+    ({ aggregateBySender } = require("../src/scanner.js"));
+  });
+
   it("returns empty array for empty input", () => {
     expect(aggregateBySender([])).toEqual([]);
   });

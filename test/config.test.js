@@ -1,25 +1,52 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import {
-  getConfigAccounts,
-  getConfigCanadianDomains,
-  getConfigDownloadDir,
-  getConfigInvoiceBlocklist,
-  getConfigSelfAddresses,
-  getConfigSmtp,
-  getConfigVendorAddressMap,
-  getConfigVendorDomainMap,
-  loadConfig,
-  resetConfigCache,
-} from "../src/config.js";
 
 /** @returns {{ readJson: import("bun:test").Mock<(path: string) => unknown> }} */
 function makeMockFs(returnValue) {
   return { readJson: mock(() => returnValue) };
 }
 
+// Use require() in beforeEach to get fresh module references, avoiding
+// mock.module contamination from other test files (accounts.test.js, vendor-map.test.js).
+/** @type {typeof import("../src/config.js")} */
+let configModule;
+
 beforeEach(() => {
-  resetConfigCache();
+  mock.restore();
+  configModule = require("../src/config.js");
+  configModule.resetConfigCache();
 });
+
+// Convenience accessors (reassigned each beforeEach via configModule)
+function loadConfig(/** @type {any} */ fs, /** @type {string} */ path) {
+  return configModule.loadConfig(fs, path);
+}
+function getConfigAccounts(/** @type {any} */ config) {
+  return configModule.getConfigAccounts(config);
+}
+function getConfigSelfAddresses(/** @type {any} */ config) {
+  return configModule.getConfigSelfAddresses(config);
+}
+function getConfigInvoiceBlocklist(/** @type {any} */ config) {
+  return configModule.getConfigInvoiceBlocklist(config);
+}
+function getConfigVendorAddressMap(/** @type {any} */ config) {
+  return configModule.getConfigVendorAddressMap(config);
+}
+function getConfigVendorDomainMap(/** @type {any} */ config) {
+  return configModule.getConfigVendorDomainMap(config);
+}
+function getConfigSmtp(/** @type {string} */ name, /** @type {any} */ config) {
+  return configModule.getConfigSmtp(name, config);
+}
+function getConfigCanadianDomains(/** @type {any} */ config) {
+  return configModule.getConfigCanadianDomains(config);
+}
+function getConfigDownloadDir(/** @type {any} */ config, /** @type {string} */ homeDir) {
+  return configModule.getConfigDownloadDir(config, homeDir);
+}
+function resetConfigCache() {
+  return configModule.resetConfigCache();
+}
 
 describe("loadConfig", () => {
   it("returns the parsed config from the filesystem gateway", () => {
