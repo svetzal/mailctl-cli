@@ -10,23 +10,23 @@ beforeEach(() => {
   scanDataModule = require("../src/scan-data.js");
 });
 
-function ensureDataDir(/** @type {any} */ ...args) {
-  return scanDataModule.ensureDataDir(...args);
+function ensureDataDir(/** @type {any} */ dataDir, /** @type {any} */ fs) {
+  return scanDataModule.ensureDataDir(dataDir, fs);
 }
-function saveScanResults(/** @type {any} */ ...args) {
-  return scanDataModule.saveScanResults(...args);
+function saveScanResults(/** @type {any} */ dataDir, /** @type {any} */ data, /** @type {any} */ fs) {
+  return scanDataModule.saveScanResults(dataDir, data, fs);
 }
-function loadSenders(/** @type {any} */ ...args) {
-  return scanDataModule.loadSenders(...args);
+function loadSenders(/** @type {any} */ dataDir, /** @type {any} */ fs) {
+  return scanDataModule.loadSenders(dataDir, fs);
 }
-function loadClassificationsData(/** @type {any} */ ...args) {
-  return scanDataModule.loadClassificationsData(...args);
+function loadClassificationsData(/** @type {any} */ dataDir, /** @type {any} */ fs) {
+  return scanDataModule.loadClassificationsData(dataDir, fs);
 }
-function saveClassifications(/** @type {any} */ ...args) {
-  return scanDataModule.saveClassifications(...args);
+function saveClassifications(/** @type {any} */ dataDir, /** @type {any} */ classifications, /** @type {any} */ fs) {
+  return scanDataModule.saveClassifications(dataDir, classifications, fs);
 }
-function requireClassificationsData(/** @type {any} */ ...args) {
-  return scanDataModule.requireClassificationsData(...args);
+function requireClassificationsData(/** @type {any} */ dataDir, /** @type {any} */ fs) {
+  return scanDataModule.requireClassificationsData(dataDir, fs);
 }
 
 /** @returns {import("../src/gateways/fs-gateway.js").FileSystemGateway} */
