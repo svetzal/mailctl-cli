@@ -40,6 +40,7 @@ export class KeychainGateway {
     try {
       return execFileSync(SECURITY, ["find-generic-password", "-s", service, "-w", keychainPath], {
         encoding: "utf-8",
+        stdio: ["pipe", "pipe", "ignore"],
       }).trim();
     } catch {
       return null;
