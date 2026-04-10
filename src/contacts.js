@@ -2,6 +2,7 @@
  * Contact extraction — scan envelopes from recent messages to build a frequency-ranked contact list.
  */
 
+import { sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { listMailboxes } from "./imap-client.js";
 
 /**
@@ -88,7 +89,7 @@ async function scanMailboxContacts(client, mailboxPath, since, direction, onProg
           if (addr.address) {
             entries.push({
               address: addr.address.toLowerCase(),
-              name: addr.name || "",
+              name: sanitizeForAgentOutput(addr.name || ""),
               date,
               direction: "received",
             });
@@ -101,7 +102,7 @@ async function scanMailboxContacts(client, mailboxPath, since, direction, onProg
             if (addr.address) {
               entries.push({
                 address: addr.address.toLowerCase(),
-                name: addr.name || "",
+                name: sanitizeForAgentOutput(addr.name || ""),
                 date,
                 direction: "sent",
               });

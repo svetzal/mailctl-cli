@@ -4,7 +4,8 @@
  * No I/O — same inputs always produce the same outputs.
  */
 
-import { headerValueToString, sanitizeString } from "./cli-helpers.js";
+import { headerValueToString } from "./cli-helpers.js";
+import { assessContent, sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { htmlToText } from "./html-to-text.js";
 import { extractUnsubscribeLinks } from "./unsubscribe.js";
 
@@ -30,16 +31,17 @@ export function buildReadResult(parsed, acctName, uid, opts) {
     account: acctName,
     uid: typeof uid === "string" ? parseInt(uid, 10) : uid,
     date: parsed.date,
-    from: sanitizeString(parsed.from?.text || ""),
-    to: sanitizeString(parsed.to?.text || ""),
-    subject: sanitizeString(parsed.subject || ""),
+    from: sanitizeForAgentOutput(parsed.from?.text || ""),
+    to: sanitizeForAgentOutput(parsed.to?.text || ""),
+    subject: sanitizeForAgentOutput(parsed.subject || ""),
     attachments: parsed.attachments?.map((a) => a.filename || "(unnamed)") || [],
-    body: sanitizeString(bodyText.substring(0, opts.maxBody)),
+    body: sanitizeForAgentOutput(bodyText.substring(0, opts.maxBody)),
     unsubscribeLinks: extractUnsubscribeLinks(parsed),
+    injectionRisk: assessContent(bodyText.substring(0, opts.maxBody)),
   });
 
   if (parsed.html) {
-    result.bodyHtml = sanitizeString(parsed.html.substring(0, opts.maxBody));
+    result.bodyHtml = sanitizeForAgentOutput(parsed.html.substring(0, opts.maxBody));
   }
 
   if (opts.includeHeaders) {

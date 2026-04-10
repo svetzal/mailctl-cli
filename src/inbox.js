@@ -2,6 +2,8 @@
  * Inbox overview — fetch recent messages from INBOX with read/unread status.
  */
 
+import { sanitizeForAgentOutput } from "./content-sanitizer.js";
+
 /**
  * Fetch recent inbox messages for a connected IMAP client.
  * @param {any} client - connected IMAP client
@@ -64,8 +66,8 @@ export async function fetchInbox(client, accountName, opts) {
         uid: msg.uid,
         date: env.date,
         from: from?.address || "",
-        fromName: from?.name || "",
-        subject: env.subject || "",
+        fromName: sanitizeForAgentOutput(from?.name || ""),
+        subject: sanitizeForAgentOutput(env.subject || ""),
         unread: !seen,
         mailbox,
       });

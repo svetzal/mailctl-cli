@@ -19,35 +19,35 @@ Why this project exists and what problem does it solve: @CHARTER.md
 
 ### Running Commands
 
-All commands go through the secure wrapper that injects keychain credentials.
+Credentials are read directly from the macOS Keychain at runtime.
 All commands support `--json` for machine-readable output.
+For development: `bun src/cli.js <command>` or `mailctl <command>`.
 
 ```bash
 # General email operations
-bin/run search "query"          # search all mailboxes across accounts
-bin/run search --mailbox INBOX "query"   # search specific mailbox only
-bin/run search --exclude-mailbox Trash "query"  # skip specific folders
-bin/run read <uid>              # read a specific email by UID
-bin/run list-folders            # list all IMAP folders per account
-bin/run list-folders --json     # JSON output for scripting
-bin/run extract-attachment <uid> --list           # list attachments
-bin/run extract-attachment <uid> [index]          # save attachment
-bin/run extract-attachment <uid> -o ~/Desktop     # save to directory
+mailctl search "query"          # search all mailboxes across accounts
+mailctl search --mailbox INBOX "query"   # search specific mailbox only
+mailctl search --exclude-mailbox Trash "query"  # skip specific folders
+mailctl read <uid>              # read a specific email by UID
+mailctl list-folders            # list all IMAP folders per account
+mailctl list-folders --json     # JSON output for scripting
+mailctl extract-attachment <uid> --list           # list attachments
+mailctl extract-attachment <uid> [index]          # save attachment
+mailctl extract-attachment <uid> -o ~/Desktop     # save to directory
 
 # Receipt operations
-bin/run scan                    # discover receipt senders
-bin/run scan --json             # JSON output
-bin/run sort                    # move emails to Business/Personal folders
-bin/run sort --dry-run          # preview without moving
-bin/run download                # download business receipt PDFs
-bin/run download --dry-run
-bin/run classify                # output unclassified senders
+mailctl scan                    # discover receipt senders
+mailctl scan --json             # JSON output
+mailctl sort                    # move emails to Business/Personal folders
+mailctl sort --dry-run          # preview without moving
+mailctl download                # download business receipt PDFs
+mailctl download --dry-run
+mailctl classify                # output unclassified senders
 ```
 
 ### Project Structure
 
 ```text
-bin/run                        — Secure credential wrapper (bash)
 src/cli.js                     — CLI entry point: true thin dispatcher (~400 lines), each .action() is 5–15 lines with no inline event rendering logic
 
 Command orchestrators (testable, injected deps):
@@ -128,8 +128,8 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **imapflow** for IMAP — handles connection pooling, search, fetch, move
 - **UID range strings** for iCloud compatibility (not arrays)
 - **Content-hash dedup** (SHA-256) prevents duplicate PDF downloads
-- **Config-driven accounts** — account metadata (host, port, user) lives in `~/.config/mailctl/config.json`; only secrets come from env vars
-- **Wrapper pattern** for secrets — bin/run reads macOS Keychain, injects secret env vars (passwords, OAuth2 credentials), execs Node
+- **Config-driven accounts** — account metadata (host, port, user) lives in `~/.config/mailctl/config.json`; secrets come from macOS Keychain
+- **Direct keychain access** — secrets are read from `~/.newt/newt-keychain-db` at runtime via `KeychainGateway`; no wrapper script or env vars needed
 - **Shared helpers** — `forEachAccount()` handles connect/logout lifecycle, `filterScanMailboxes()` and `filterSearchMailboxes()` centralize mailbox exclusion logic
 - **Search dedup** — search deduplicates results by message-id header to avoid showing the same email found in multiple mailboxes (e.g. Gmail All Mail + INBOX)
 - **Consistent `--json`** — all commands support `--json` for machine-readable output; errors also output as JSON in that mode
@@ -169,8 +169,8 @@ To auto-fix lint and formatting issues: `bun run lint:fix`
 
 - **NEVER** store credentials in source files, .env files, or commit them
 - **NEVER** log, print, or expose secret values
-- Credentials come from macOS Keychain via bin/run wrapper
-- If adding a new secret, add it to the Newt keychain (`~/.newt/newt-keychain-db`) and update bin/run
+- Credentials come from macOS Keychain via `KeychainGateway` at runtime
+- If adding a new secret, add it to the Newt keychain (`~/.newt/newt-keychain-db`)
 
 ### Adding a New Email Account
 
@@ -193,7 +193,7 @@ To auto-fix lint and formatting issues: `bun run lint:fix`
    security add-generic-password -a "you@example.com" -s "newt-example-imap" -l "Example IMAP" -w ~/.newt/newt-keychain-db
    ```
 
-3. `bin/run` automatically reads the keychainService and exports the password as `EXAMPLE_PASS`
+3. `mailctl` automatically reads the keychainService from the Newt keychain at runtime
 4. Update README.md account table
 
 ### LLM-Based Receipt Extraction
@@ -213,8 +213,8 @@ To enable LLM extraction:
    security add-generic-password -s "newt-openai-api" -a "openai" -l "OpenAI API Key" -w ~/.newt/newt-keychain-db
    ```
 
-2. `bin/run` automatically reads it and sets `OPENAI_API_KEY`
-3. If the key isn't set, the command falls back to regex-based pattern matching
+2. `mailctl` automatically reads the key from the Newt keychain at runtime
+3. If the key isn't available, the command falls back to regex-based pattern matching
 4. `docling` must be installed at `~/.local/bin/docling` for PDF-to-markdown conversion; if missing, falls back to email body text
 
 ### Vendor Name Mapping

@@ -9,6 +9,7 @@ import { parseDate } from "./parse-date.js";
 /**
  * @typedef {object} DownloadReceiptsCommandDeps
  * @property {string|null} account - account filter (or null for all)
+ * @property {string|null} [openAiKey] - OpenAI API key from keychain
  * @property {() => Promise<{ listReceiptVendors: Function, reprocessReceipts: Function, downloadReceiptEmails: Function }>} importDownloadReceipts
  * @property {() => Promise<{ getVendorDisplayNames: Function, getVendorDomainMap: Function }>} importVendorMap
  */
@@ -23,7 +24,8 @@ import { parseDate } from "./parse-date.js";
  * @returns {Promise<object>} result object (shape varies by mode)
  */
 export async function downloadReceiptsCommand(opts, deps, onProgress = () => {}) {
-  const { account, importDownloadReceipts, importVendorMap } = deps;
+  const { account, openAiKey, importDownloadReceipts, importVendorMap } = deps;
+  const llmGateways = openAiKey != null ? { openAiKey } : {};
 
   if (opts.listVendors) {
     const { listReceiptVendors } = await importDownloadReceipts();
@@ -58,7 +60,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
         since: sinceDate,
         dryRun: opts.dryRun ?? false,
       },
-      {},
+      llmGateways,
       onProgress,
     );
 
@@ -75,7 +77,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
       vendor: opts.vendor || null,
       dryRun: opts.dryRun ?? false,
     },
-    {},
+    llmGateways,
     onProgress,
   );
 

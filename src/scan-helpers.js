@@ -3,6 +3,8 @@
  * Extracted from imap-client.js so they can be tested independently of IMAP I/O.
  */
 
+import { sanitizeForAgentOutput } from "./content-sanitizer.js";
+
 /**
  * Build a normalised scan result object from an IMAP message envelope.
  *
@@ -20,8 +22,8 @@ export function buildScanResult(accountName, mailbox, msg) {
     account: accountName,
     from: fromAddr,
     address: from?.address?.toLowerCase() || "unknown",
-    name: from?.name || "",
-    subject: env.subject || "",
+    name: sanitizeForAgentOutput(from?.name || ""),
+    subject: sanitizeForAgentOutput(env.subject || ""),
     date: env.date,
     mailbox,
     uid: msg.uid,

@@ -4,6 +4,7 @@
  * with a subject-based fallback when header search is limited.
  */
 
+import { sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { htmlToText } from "./html-to-text.js";
 
 /**
@@ -164,11 +165,11 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
         mailbox: mailboxPath,
         date: env.date,
         from: from?.address || "",
-        fromName: from?.name || "",
-        subject: env.subject || "",
+        fromName: sanitizeForAgentOutput(from?.name || ""),
+        subject: sanitizeForAgentOutput(env.subject || ""),
         messageId: env.messageId || "",
-        snippet,
-        body: fullBody ? bodyText : "",
+        snippet: sanitizeForAgentOutput(snippet),
+        body: sanitizeForAgentOutput(fullBody ? bodyText : ""),
       });
     }
 

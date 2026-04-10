@@ -3,6 +3,8 @@
  * Extracted from cli.js to keep the shell thin and this logic testable.
  */
 
+import { sanitizeForAgentOutput } from "./content-sanitizer.js";
+
 /**
  * Search a single mailbox within an already-connected IMAP client.
  * Returns an array of result objects (may be empty).
@@ -101,10 +103,10 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
         messageId,
         date: env.date,
         from: from?.address || "",
-        fromName: from?.name || "",
+        fromName: sanitizeForAgentOutput(from?.name || ""),
         to: to?.address || "",
-        toName: to?.name || "",
-        subject: env.subject || "",
+        toName: sanitizeForAgentOutput(to?.name || ""),
+        subject: sanitizeForAgentOutput(env.subject || ""),
       });
     }
 

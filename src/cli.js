@@ -21,12 +21,14 @@ import { formatSortResultText } from "./format-sort.js";
 import { ConfirmGateway } from "./gateways/confirm-gateway.js";
 import { EditorGateway } from "./gateways/editor-gateway.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
+import { KeychainGateway } from "./gateways/keychain-gateway.js";
 import { SmtpGateway } from "./gateways/smtp-gateway.js";
 import { forEachAccount, listMailboxes } from "./imap-client.js";
 import { importClassificationsCommand } from "./import-classifications-command.js";
 import { formatInboxText } from "./inbox.js";
 import { inboxCommand } from "./inbox-command.js";
 import { initCommand } from "./init.js";
+import { loadOpenAiKey } from "./keychain.js";
 import { moveCommand } from "./move-command.js";
 import { readCommand } from "./read-command.js";
 import { buildReadResult, formatReadResultText } from "./read-email.js";
@@ -84,15 +86,27 @@ function withErrorHandling(fn) {
   };
 }
 
+/** Shared keychain gateway — instantiated once, used by requireAccounts and openAiKey. */
+const _keychain = new KeychainGateway();
+
 /**
  * Load and validate accounts, throwing a consistent error if none configured.
  */
 function requireAccounts() {
-  const accounts = loadAccounts();
+  const accounts = loadAccounts(_keychain);
   if (accounts.length === 0) {
-    throw new Error("No accounts configured. Check keychain credentials and bin/run wrapper.");
+    throw new Error("No accounts configured. Check ~/.config/mailctl/config.json and macOS Keychain.");
   }
   return accounts;
+}
+
+/** OpenAI API key read from keychain (lazy, cached). */
+let _openAiKeyCache;
+function getOpenAiKey() {
+  if (_openAiKeyCache === undefined) {
+    _openAiKeyCache = loadOpenAiKey(_keychain);
+  }
+  return _openAiKeyCache;
 }
 
 /** Shared dependency object for resolveCommandContext calls throughout this file. */
@@ -110,7 +124,7 @@ function renderAuthProgress(event) {
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-  .version("0.7.3")
+  .version("1.0.0")
   .option("--account <name>", "email account to use (searches all if omitted)")
   .option("--json", "output results as JSON");
 
@@ -278,6 +292,7 @@ program
         opts,
         {
           account: account || null,
+          openAiKey: getOpenAiKey(),
           importDownloadReceipts: () => import("./download-receipts.js"),
           importVendorMap: () => import("./vendor-map.js"),
         },

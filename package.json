@@ -1,6 +1,6 @@
 {
   "name": "mailctl-cli",
-  "version": "0.7.3",
+  "version": "1.0.0",
   "description": "Personal email operations tool — receipt sorting, search, folder management, and more",
   "type": "module",
   "main": "src/index.js",

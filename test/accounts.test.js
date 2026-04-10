@@ -1,5 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
+/**
+ * Create a mock KeychainGateway that returns values from a lookup map.
+ * @param {Record<string, string>} secrets - service → secret value
+ */
+function mockKeychain(secrets = {}) {
+  return {
+    unlockNewtKeychain() {},
+    readSecret(/** @type {string} */ service) {
+      return secrets[service] ?? null;
+    },
+  };
+}
+
 describe("loadAccounts", () => {
   let originalEnv;
 
@@ -15,33 +28,41 @@ describe("loadAccounts", () => {
   it("reads host, port, user from config — not env vars", () => {
     mock.module("../src/config.js", () => ({
       getConfigAccounts: () => [
-        { prefix: "TEST", name: "Test Account", user: "config@test.com", host: "imap.config.com", port: 995 },
+        {
+          prefix: "TEST",
+          name: "Test Account",
+          user: "config@test.com",
+          keychainService: "test-svc",
+          host: "imap.config.com",
+          port: 995,
+        },
       ],
     }));
-    process.env.TEST_PASS = "secret123";
-    // Set env vars that should be IGNORED
-    process.env.TEST_HOST = "imap.env.com";
-    process.env.TEST_PORT = "143";
-    process.env.TEST_USER = "env@test.com";
+    const keychain = mockKeychain({ "test-svc": "secret123" });
 
-    // Re-import to pick up mocked module
     const { loadAccounts: load } = require("../src/accounts.js");
-    const accounts = load();
+    const accounts = load(keychain);
 
     expect(accounts[0].host).toBe("imap.config.com");
   });
 
-  it("reads host from config not env", () => {
+  it("reads port from config", () => {
     mock.module("../src/config.js", () => ({
       getConfigAccounts: () => [
-        { prefix: "TEST", name: "Test Account", user: "config@test.com", host: "imap.config.com", port: 995 },
+        {
+          prefix: "TEST",
+          name: "Test Account",
+          user: "config@test.com",
+          keychainService: "test-svc",
+          host: "imap.config.com",
+          port: 995,
+        },
       ],
     }));
-    process.env.TEST_PASS = "secret123";
-    process.env.TEST_HOST = "imap.env.com";
+    const keychain = mockKeychain({ "test-svc": "secret123" });
 
     const { loadAccounts: load } = require("../src/accounts.js");
-    const accounts = load();
+    const accounts = load(keychain);
 
     expect(accounts[0].port).toBe(995);
   });
@@ -49,27 +70,41 @@ describe("loadAccounts", () => {
   it("reads user from config", () => {
     mock.module("../src/config.js", () => ({
       getConfigAccounts: () => [
-        { prefix: "TEST", name: "Test Account", user: "config@test.com", host: "imap.config.com", port: 993 },
+        {
+          prefix: "TEST",
+          name: "Test Account",
+          user: "config@test.com",
+          keychainService: "test-svc",
+          host: "imap.config.com",
+          port: 993,
+        },
       ],
     }));
-    process.env.TEST_PASS = "secret123";
+    const keychain = mockKeychain({ "test-svc": "secret123" });
 
     const { loadAccounts: load } = require("../src/accounts.js");
-    const accounts = load();
+    const accounts = load(keychain);
 
     expect(accounts[0].user).toBe("config@test.com");
   });
 
-  it("reads password from env var", () => {
+  it("reads password from keychain via keychainService", () => {
     mock.module("../src/config.js", () => ({
       getConfigAccounts: () => [
-        { prefix: "TEST", name: "Test Account", user: "u@test.com", host: "imap.test.com", port: 993 },
+        {
+          prefix: "TEST",
+          name: "Test Account",
+          user: "u@test.com",
+          keychainService: "test-svc",
+          host: "imap.test.com",
+          port: 993,
+        },
       ],
     }));
-    process.env.TEST_PASS = "my-secret-password";
+    const keychain = mockKeychain({ "test-svc": "my-secret-password" });
 
     const { loadAccounts: load } = require("../src/accounts.js");
-    const accounts = load();
+    const accounts = load(keychain);
 
     expect(accounts[0].pass).toBe("my-secret-password");
   });
@@ -89,45 +124,71 @@ describe("loadAccounts", () => {
     expect(accounts[0].user).toBe("test@icloud.com");
   });
 
-  it("skips accounts with no user in config or env", () => {
+  it("skips accounts with no user in config", () => {
     mock.module("../src/config.js", () => ({
-      getConfigAccounts: () => [{ prefix: "TEST", name: "No User Account", host: "imap.test.com", port: 993 }],
+      getConfigAccounts: () => [
+        { prefix: "TEST", name: "No User Account", keychainService: "test-svc", host: "imap.test.com", port: 993 },
+      ],
     }));
-    // No TEST_USER env var either
-    process.env.TEST_PASS = "secret";
+    const keychain = mockKeychain({ "test-svc": "secret" });
 
     const { loadAccounts: load } = require("../src/accounts.js");
-    const accounts = load();
+    const accounts = load(keychain);
 
     expect(accounts.length).toBe(0);
   });
 
-  it("falls back to env var for user when config has no user", () => {
-    mock.module("../src/config.js", () => ({
-      getConfigAccounts: () => [{ prefix: "TEST", name: "Test", host: "imap.test.com", port: 993 }],
-    }));
-    process.env.TEST_USER = "envuser@test.com";
-    process.env.TEST_PASS = "secret";
-
-    const { loadAccounts: load } = require("../src/accounts.js");
-    const accounts = load();
-
-    expect(accounts[0].user).toBe("envuser@test.com");
-  });
-
-  it("builds OAuth2 account from config + env secrets", () => {
+  it("builds OAuth2 account from config + keychain secrets", () => {
     mock.module("../src/config.js", () => ({
       getConfigAccounts: () => [
-        { prefix: "M365", name: "Microsoft 365", user: "user@company.com", host: "outlook.office365.com", port: 993 },
+        {
+          prefix: "M365",
+          name: "Microsoft 365",
+          user: "user@company.com",
+          keychainService: "newt-m365-imap",
+          host: "outlook.office365.com",
+          port: 993,
+        },
       ],
     }));
-    process.env.M365_CLIENT_ID = "cid";
-    process.env.M365_TENANT_ID = "tid";
-    process.env.M365_CLIENT_SECRET = "csec";
+    const keychain = mockKeychain({
+      "newt-m365-imap-client-id": "cid",
+      "newt-m365-imap-tenant-id": "tid",
+      "newt-m365-imap-client-secret": "csec",
+    });
 
     const { loadAccounts: load } = require("../src/accounts.js");
-    const accounts = load();
+    const accounts = load(keychain);
 
     expect(accounts[0].oauth2).toEqual({ clientId: "cid", tenantId: "tid", clientSecret: "csec" });
+  });
+
+  it("calls unlockNewtKeychain before reading secrets", () => {
+    mock.module("../src/config.js", () => ({
+      getConfigAccounts: () => [
+        {
+          prefix: "TEST",
+          name: "Test",
+          user: "a@b.com",
+          keychainService: "test-svc",
+          host: "imap.test.com",
+          port: 993,
+        },
+      ],
+    }));
+    let unlockCalled = false;
+    const keychain = {
+      unlockNewtKeychain() {
+        unlockCalled = true;
+      },
+      readSecret(/** @type {string} */ service) {
+        return service === "test-svc" ? "pw" : null;
+      },
+    };
+
+    const { loadAccounts: load } = require("../src/accounts.js");
+    load(keychain);
+
+    expect(unlockCalled).toBe(true);
   });
 });

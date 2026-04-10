@@ -1,56 +1,44 @@
 /**
- * Build account list from config.json and environment variables.
+ * Build account list from config.json and macOS Keychain.
  *
  * Non-secret fields (host, port, user, name) come from ~/.config/mailctl/config.json.
- * Secret fields (passwords, OAuth2 credentials) come from environment variables
- * injected by bin/run from the macOS Keychain.
+ * Secret fields (passwords, OAuth2 credentials) come from the macOS Keychain
+ * via KeychainGateway, which reads the newt-keychain-db.
  *
  * Falls back to pure env-var discovery if no config.json exists.
  */
 import { getConfigAccounts } from "./config.js";
+import { KeychainGateway } from "./gateways/keychain-gateway.js";
+import { loadAccountCredentials } from "./keychain.js";
 
 const LEGACY_PREFIXES = ["ICLOUD", "GMAIL", "M365", "LIVE", "MOJILITY"];
 
-export function loadAccounts() {
+/**
+ * @typedef {import("./gateways/keychain-gateway.js").KeychainGateway} KeychainGatewayType
+ */
+
+/**
+ * Load configured email accounts with credentials from keychain.
+ * When config accounts exist, reads secrets from the macOS Keychain.
+ * Falls back to env-var discovery when no config.json is present.
+ *
+ * @param {KeychainGatewayType} [keychain] - injectable keychain gateway (defaults to real implementation)
+ * @returns {Array<{name: string, user: string, host: string, port: number, pass?: string, oauth2?: {clientId: string, tenantId: string, clientSecret: string}, smtp?: {host: string, port: number, secure: boolean}|null}>}
+ */
+export function loadAccounts(keychain = new KeychainGateway()) {
   const configAccounts = getConfigAccounts();
 
   if (configAccounts.length === 0) {
     return discoverAccountsFromEnv();
   }
 
-  const accounts = [];
-  for (const acct of configAccounts) {
-    const user = acct.user || process.env[`${acct.prefix}_USER`];
-    const host = acct.host;
-    const port = acct.port || 993;
-
-    if (!user || !host) continue;
-
-    // Check for OAuth2 credentials (secrets from env)
-    const clientId = process.env[`${acct.prefix}_CLIENT_ID`];
-    const tenantId = process.env[`${acct.prefix}_TENANT_ID`];
-    const clientSecret = process.env[`${acct.prefix}_CLIENT_SECRET`];
-
-    // Include SMTP config if present
-    const smtp = acct.smtp || null;
-
-    if (clientId && tenantId && clientSecret) {
-      accounts.push({ name: acct.name, user, host, port, oauth2: { clientId, tenantId, clientSecret }, smtp });
-      continue;
-    }
-
-    // Password-based auth (secret from env)
-    const pass = process.env[`${acct.prefix}_PASS`];
-    if (pass) {
-      accounts.push({ name: acct.name, user, pass, host, port, smtp });
-    }
-  }
-  return accounts;
+  keychain.unlockNewtKeychain();
+  return loadAccountCredentials(configAccounts, keychain);
 }
 
 /**
  * Legacy fallback: discover accounts from environment variables.
- * Used when no config.json exists.
+ * Used when no config.json exists, or in CI environments.
  */
 export function discoverAccountsFromEnv() {
   const accounts = [];
