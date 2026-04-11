@@ -19,9 +19,9 @@ Why this project exists and what problem does it solve: @CHARTER.md
 
 ### Running Commands
 
-Credentials are read directly from the macOS Keychain at runtime.
-All commands support `--json` for machine-readable output.
-For development: `bun src/cli.js <command>` or `mailctl <command>`.
+Use the `mailctl` binary directly. All commands support `--json` for machine-readable output.
+
+For **development** (running from the source repo), use `bun src/cli.js <command>` or the `bin/run` wrapper.
 
 ```bash
 # General email operations

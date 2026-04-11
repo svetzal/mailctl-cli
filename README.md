@@ -41,6 +41,8 @@ The `mailctl` binary reads credentials directly from the macOS Keychain at runti
 mailctl <command> [options]
 ```
 
+For development (running from the source repo), use `bin/run` instead to inject keychain credentials.
+
 ### General Email Operations
 
 #### Search — Find emails across accounts

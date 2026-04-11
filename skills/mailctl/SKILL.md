@@ -12,7 +12,7 @@ mailctl is a command-line tool for managing email across multiple IMAP accounts.
 
 ## Running Commands
 
-Credentials are read directly from the macOS Keychain at runtime:
+Use the `mailctl` binary directly:
 
 ```bash
 mailctl <command> [options]
