@@ -275,21 +275,25 @@ To upgrade: `brew upgrade mailctl`
 
 ## Release Process
 
-Version is declared in two places — both must be updated:
+To create a new release:
 
-1. `package.json` → `"version": "X.Y.Z"`
-2. `src/cli.js` → `.version("X.Y.Z")`
-
-Steps to release:
+1. **Pre-flight** — all quality gates must pass:
+   - `bunx tsc --noEmit` (typecheck)
+   - `bunx biome check src/ test/` (lint)
+   - `bun test` (tests)
+   - `bun build src/cli.js --compile --outfile=build/mailctl` (build)
+   - `bun audit` (audit)
+2. **Update CHANGELOG.md** — move `[Unreleased]` to `[X.Y.Z]` with today's date
+3. **Bump version** in both locations (must match):
+   - `package.json` → `"version": "X.Y.Z"`
+   - `src/cli.js` → `.version("X.Y.Z")`
+4. **Update skill files** — ensure `skills/mailctl/SKILL.md` content is current
+5. **Commit, tag, and push**:
 
 ```bash
-# 1. Update version in both files
-# 2. Commit
-git add -A && git commit -m "Bump version to X.Y.Z"
-
-# 3. Tag and push
+git add -A && git commit -m "Release vX.Y.Z"
 git tag vX.Y.Z
-git push && git push --tags
+git push origin main --tags
 ```
 
 The GitHub Actions release workflow (`.github/workflows/release.yml`) handles the rest:
@@ -301,7 +305,21 @@ The GitHub Actions release workflow (`.github/workflows/release.yml`) handles th
 
 **Prerequisite**: The `HOMEBREW_TAP_TOKEN` secret must be set on this repo for the auto-update step. Without it, binaries are released on GitHub but the Homebrew formula isn't updated.
 
-After release, install/upgrade via: `brew install svetzal/tap/mailctl` or `brew upgrade mailctl`
+6. **Local install immediately** (don't wait for Homebrew):
+
+```bash
+bun run build && cp build/mailctl /usr/local/bin/
+```
+
+Or use `bun link` for development.
+
+7. **Re-init skills** to pick up the new version:
+
+```bash
+mailctl init --global --force
+```
+
+After Homebrew propagates, upgrade via: `brew upgrade mailctl`
 
 ## Related
 
