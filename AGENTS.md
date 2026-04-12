@@ -156,6 +156,13 @@ data/                          — Runtime data (gitignored): scan results, clas
 - One expectation per test
 - Small, safe increments — single-reason commits
 
+### Branching and Merging
+
+- Trunk-based development: `main` is the only long-lived branch.
+- All work lands on `main` via direct commit.
+- Feature branches are not pushed to `origin`. Pull requests are not used.
+- Short-lived local working branches (e.g. hopper worktrees) are merged to `main` and deleted locally before work is considered complete.
+
 ### Quality Gates (hone)
 
 All five must pass before shipping:
