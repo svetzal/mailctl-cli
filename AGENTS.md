@@ -91,13 +91,16 @@ src/render-download-events.js  — renderDownloadEvent() — pure download progr
 src/render-download-receipts-events.js — renderDownloadReceiptsEvent() — pure download-receipts progress event renderer
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
-src/receipt-search-pipeline.js — searchAccountForReceipts() — per-account mailbox search with dedup; shared by download and list-vendors
+src/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors
 src/receipt-filters.js         — applyReceiptFilters() — pure vendor and subject-exclusion filtering
+src/receipt-output-tree.js     — walkOutputTree(), loadExistingInvoiceNumbers(), loadExistingHashes(), uniqueBaseName(), collectSidecarFiles(), writeReceiptOutput() — output directory tree and file I/O for receipt PDFs and sidecars
+src/llm-receipt-extraction.js  — RECEIPT_EXTRACTION_SCHEMA, createLlmBroker(), extractMetadataWithLLM(), extractReceiptMetadata() — LLM-based receipt metadata extraction via mojentic
+src/pdf-converter.js           — pdfToText(), resolveExtractionText() — docling subprocess wrapper and extraction text resolution
 src/vendor-map.js              — Single source of truth for vendor address → display name mappings
 src/scanner.js                 — Scan orchestration, sender aggregation
 src/sorter.js                  — IMAP folder management, message moving
 src/downloader.js              — PDF attachment download with SHA-256 dedup
-src/download-receipts.js       — Receipt download orchestration: search → filter → extract metadata (LLM+fallback) → write PDF+sidecar
+src/download-receipts.js       — Receipt download orchestration: downloadReceiptEmails(), listReceiptVendors(), reprocessReceipts() — search → filter → extract metadata → write PDF+sidecar
 src/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
 src/mailbox-detect.js          — detectMailbox() — finds which mailbox contains a given UID
 src/reply.js                   — Pure reply builders: headers, body, editor template, parser
