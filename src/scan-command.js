@@ -10,7 +10,7 @@ import { aggregateBySender, scanAllAccounts } from "./scanner.js";
 
 /**
  * @typedef {object} ScanCommandDeps
- * @property {string|null} account - account filter (or null for all)
+ * @property {string|null|undefined} account - account filter (or null/undefined for all)
  * @property {string} dataDir - path to the data directory
  * @property {object} fsGateway - FileSystemGateway instance
  */
@@ -30,7 +30,7 @@ export async function scanCommand(opts, deps, onProgress = () => {}) {
     {
       months: parseInt(opts.months ?? "12", 10),
       allMailboxes: opts.allMailboxes ?? false,
-      account: account || null,
+      account: account || undefined,
     },
     {},
     onProgress,

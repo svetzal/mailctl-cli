@@ -9,6 +9,7 @@
     "lib": ["ESNext"],
     "types": ["bun", "node"],
     "strict": false,
+    "strictNullChecks": true,
     "skipLibCheck": true
   },
   "include": ["src/**/*.js", "test/**/*.js"]

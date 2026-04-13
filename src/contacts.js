@@ -141,17 +141,18 @@ export function aggregateContacts(entries, opts = {}) {
 
     if (selfSet.has(key)) continue;
 
-    if (!map.has(key)) {
-      map.set(key, {
+    let contact = map.get(key);
+    if (!contact) {
+      contact = {
         address: key,
         name: entry.name,
         count: 0,
         lastSeen: entry.date,
         directions: new Set(),
-      });
+      };
+      map.set(key, contact);
     }
 
-    const contact = map.get(key);
     contact.count++;
     contact.directions.add(entry.direction);
 

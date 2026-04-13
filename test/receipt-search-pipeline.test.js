@@ -3,8 +3,9 @@ import { searchAccountForReceipts, searchMailboxForReceipts } from "../src/recei
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** @param {string} path */
 function makeMailbox(path) {
-  return { path, specialUse: null, flags: new Set() };
+  return { path, flags: new Set() };
 }
 
 function makeMsg(uid, messageId, fromAddress = "billing@acme.com", fromName = "Acme") {
@@ -20,6 +21,7 @@ function makeMsg(uid, messageId, fromAddress = "billing@acme.com", fromName = "A
   };
 }
 
+/** @param {{ mailboxes?: object[], messages?: Record<string, object[]> }} [opts] */
 function makeFns({ mailboxes = [], messages = {} } = {}) {
   return {
     listMailboxes: mock(() => Promise.resolve(mailboxes)),

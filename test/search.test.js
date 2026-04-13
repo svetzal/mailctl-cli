@@ -6,7 +6,10 @@ function makeDate(str = "2025-03-01") {
   return new Date(str);
 }
 
-/** Build a minimal mock IMAP client with configurable search results. */
+/**
+ * Build a minimal mock IMAP client with configurable search results.
+ * @param {{ searchUids?: number[], envelopes?: object[] }} [opts]
+ */
 function makeClient({ searchUids = [1], envelopes = [] } = {}) {
   return {
     getMailboxLock: mock(() => Promise.resolve(makeLock())),

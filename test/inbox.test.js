@@ -23,6 +23,7 @@ function makeEnvelope({ uid, date, from, fromName, subject, flags }) {
   };
 }
 
+/** @param {{ searchUids?: number[], envelopes?: object[] }} [opts] */
 function makeClient({ searchUids = [1], envelopes = [] } = {}) {
   return {
     getMailboxLock: mock(() => Promise.resolve(makeLock())),

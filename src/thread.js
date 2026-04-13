@@ -25,7 +25,7 @@ export function stripSubjectPrefixes(subject) {
 /**
  * Extract all Message-IDs from a References header value.
  * References is a space-separated list of Message-IDs in angle brackets.
- * @param {string} references
+ * @param {string | null} references
  * @returns {string[]}
  */
 export function parseReferences(references) {

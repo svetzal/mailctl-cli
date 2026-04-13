@@ -150,7 +150,7 @@ describe("downloadReceipts", () => {
       const client = makeMockClient();
       const deps = makeBaseDeps(client);
       deps.fs.exists = mock(() => true);
-      deps.fs.readdir = mock(() => ["existing.pdf"]);
+      deps.fs.readdir = /** @type {any} */ (mock(() => ["existing.pdf"]));
       deps.fs.readBuffer = mock(() => PDF_BYTES);
       const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
       expect(stats.alreadyHave).toBe(1);
@@ -160,7 +160,7 @@ describe("downloadReceipts", () => {
       const client = makeMockClient();
       const deps = makeBaseDeps(client);
       deps.fs.exists = mock(() => true);
-      deps.fs.readdir = mock(() => ["existing.pdf"]);
+      deps.fs.readdir = /** @type {any} */ (mock(() => ["existing.pdf"]));
       deps.fs.readBuffer = mock(() => PDF_BYTES);
       await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
       expect(deps.fs.writeFile).not.toHaveBeenCalled();

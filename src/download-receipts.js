@@ -319,8 +319,9 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
 
     for (const msg of unique) {
       const key = msg.fromAddress;
-      if (vendorCounts.has(key)) {
-        vendorCounts.get(key).count++;
+      const existing = vendorCounts.get(key);
+      if (existing) {
+        existing.count++;
       } else {
         vendorCounts.set(key, {
           vendor: msg.fromName || msg.fromAddress,

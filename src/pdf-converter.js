@@ -12,7 +12,7 @@ import { join } from "node:path";
  * @returns {string|null}
  */
 export function pdfToText(pdfPath, fs, subprocess) {
-  const doclingPath = join(process.env.HOME, ".local/bin/docling");
+  const doclingPath = join(process.env.HOME ?? "/tmp", ".local/bin/docling");
   if (!fs.exists(doclingPath)) return null;
 
   const tmpDir = join(process.env.TMPDIR || "/tmp", `mailctl-docling-${Date.now()}`);

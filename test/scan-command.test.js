@@ -86,12 +86,12 @@ describe("scanCommand", () => {
       );
     });
 
-    it("normalises empty account string to null in scanAllAccounts call", async () => {
+    it("normalises empty account string to undefined in scanAllAccounts call", async () => {
       const { scanCommand, scanAllAccounts } = makeScanCommand();
       await scanCommand({}, makeDeps({ account: "" }));
 
       expect(scanAllAccounts).toHaveBeenCalledWith(
-        expect.objectContaining({ account: null }),
+        expect.objectContaining({ account: undefined }),
         {},
         expect.any(Function),
       );

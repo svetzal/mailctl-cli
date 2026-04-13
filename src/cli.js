@@ -222,7 +222,7 @@ program
         {
           months: parseInt(opts.months, 10),
           dryRun: opts.dryRun,
-          account: account || null,
+          account: account || undefined,
         },
         {},
         (event) => {
@@ -255,7 +255,7 @@ program
           months: parseInt(opts.months, 10),
           dryRun: opts.dryRun,
           outputDir: opts.output,
-          account: account || null,
+          account: account || undefined,
         },
         {},
         (event) => {
@@ -698,7 +698,7 @@ program
   .action(
     withErrorHandling(async (opts) => {
       const json = resolveJson(opts);
-      const result = await initCommand(program.version(), { global: !!opts.global, force: !!opts.force });
+      const result = await initCommand(program.version() ?? "0.0.0", { global: !!opts.global, force: !!opts.force });
 
       const { version, files } = result;
       const isGlobal = result.global;

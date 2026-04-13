@@ -56,6 +56,7 @@ describe("groupByMailbox", () => {
       { mailbox: "INBOX", uid: 20 },
     ];
     const group = groupByMailbox(results).get("INBOX");
+    if (!group) throw new Error("Expected INBOX group");
 
     it("first item uid is 10", () => {
       expect(group[0].uid).toBe(10);

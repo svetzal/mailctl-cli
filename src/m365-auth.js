@@ -131,10 +131,11 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
       throw new Error(`Authentication failed: ${tokenData.error_description || tokenData.error}`);
     }
 
+    // At this point tokenData.error was checked above, so tokens are present
     const tokens = {
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-      expires_at: deps.now() + tokenData.expires_in * 1000,
+      access_token: tokenData.access_token ?? "",
+      refresh_token: tokenData.refresh_token ?? "",
+      expires_at: deps.now() + (tokenData.expires_in ?? 3600) * 1000,
     };
     deps.saveTokens(tokens);
     onProgress({ type: "auth-success" });

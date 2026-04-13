@@ -39,8 +39,8 @@ export function getVendorDomainMap() {
  * Case-insensitive, substring match.
  *
  * @param {string} filter - user's vendor filter string
- * @param {string} fromAddress - sender email address
- * @param {string} [fromName] - sender display name
+ * @param {string | null} fromAddress - sender email address
+ * @param {string | null} [fromName] - sender display name
  * @returns {boolean}
  */
 export function matchesVendor(filter, fromAddress, fromName) {

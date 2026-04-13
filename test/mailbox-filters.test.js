@@ -1,8 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { filterScanMailboxes, filterSearchMailboxes } from "../src/mailbox-filters.js";
 
-/** Build a minimal mailbox descriptor. */
-function mb(path, specialUse = null) {
+/**
+ * Build a minimal mailbox descriptor.
+ * @param {string} path
+ * @param {string} [specialUse]
+ */
+function mb(path, specialUse) {
   return { path, specialUse };
 }
 

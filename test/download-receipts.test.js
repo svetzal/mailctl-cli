@@ -5,6 +5,8 @@ import { downloadReceiptEmails, reprocessReceipts } from "../src/download-receip
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
+const HOME = process.env.HOME ?? "/tmp";
+
 const FAKE_PDF = Buffer.from("%PDF-1.4 fake content for tests");
 
 let tmpDir;
@@ -582,7 +584,7 @@ describe("source_body_snippet", () => {
         },
       },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
-      [join(process.env.HOME, ".local/bin/docling")]: {},
+      [join(HOME, ".local/bin/docling")]: {},
     });
 
     const gateways = makeReprocessGateways(mockFs);
@@ -674,7 +676,7 @@ describe("reprocessReceipts", () => {
         },
       },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
-      [join(process.env.HOME, ".local/bin/docling")]: {},
+      [join(HOME, ".local/bin/docling")]: {},
     });
 
     const gateways = makeReprocessGateways(mockFs);
@@ -699,7 +701,7 @@ describe("reprocessReceipts", () => {
           },
         },
         [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
       return { mockFs, written, outputDir };
     }
@@ -728,7 +730,7 @@ describe("reprocessReceipts", () => {
         [`${outputDir}/2026/01/NoPdf-receipt.json`]: {
           json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com" },
         },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
       return { mockFs, outputDir };
     }
@@ -763,7 +765,7 @@ describe("reprocessReceipts", () => {
           },
         },
         [`${outputDir}/2026/02/Anthropic-2655.pdf`]: { buffer: FAKE_PDF },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
       return { mockFs, written, outputDir };
     }
@@ -799,7 +801,7 @@ describe("reprocessReceipts", () => {
           },
         },
         [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
       return { mockFs, written, outputDir };
     }
@@ -842,7 +844,7 @@ describe("reprocessReceipts", () => {
         },
       },
       [`${outputDir}/2026/03/New-receipt.pdf`]: { buffer: FAKE_PDF },
-      [join(process.env.HOME, ".local/bin/docling")]: {},
+      [join(HOME, ".local/bin/docling")]: {},
     });
 
     const gateways = makeReprocessGateways(mockFs);
@@ -873,7 +875,7 @@ describe("reprocessReceipts", () => {
           },
         },
         [`${outputDir}/2026/01/Fail-receipt.pdf`]: { buffer: FAKE_PDF },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
       return { mockFs, written, outputDir };
     }
@@ -921,7 +923,7 @@ describe("reprocessReceipts", () => {
         },
       },
       [`${outputDir}/2026/01/GitHub-GH-2.pdf`]: { buffer: FAKE_PDF },
-      [join(process.env.HOME, ".local/bin/docling")]: {},
+      [join(HOME, ".local/bin/docling")]: {},
     });
 
     const gateways = makeReprocessGateways(mockFs);
@@ -950,7 +952,7 @@ describe("reprocessReceipts", () => {
             source_body_snippet: snippet,
           },
         },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
 
       const gateways = {
@@ -1021,7 +1023,7 @@ describe("reprocessReceipts", () => {
         [`${outputDir}/2026/01/NoPdf-receipt.json`]: {
           json: { vendor: "GitHub", date: "2026-01-20", source_email: "noreply@github.com", receipt_file: null },
         },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
       return { mockFs, outputDir };
     }
@@ -1064,7 +1066,7 @@ describe("reprocessReceipts", () => {
             source_body_snippet: snippet,
           },
         },
-        [join(process.env.HOME, ".local/bin/docling")]: {},
+        [join(HOME, ".local/bin/docling")]: {},
       });
 
       const gateways = {
@@ -1125,7 +1127,7 @@ describe("reprocessReceipts", () => {
         },
       },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
-      [join(process.env.HOME, ".local/bin/docling")]: {},
+      [join(HOME, ".local/bin/docling")]: {},
     });
 
     const gateways = {
@@ -1176,7 +1178,7 @@ describe("reprocessReceipts", () => {
         },
       },
       [`${outputDir}/2026/01/Stripe-INV-123.pdf`]: { buffer: FAKE_PDF },
-      [join(process.env.HOME, ".local/bin/docling")]: {},
+      [join(HOME, ".local/bin/docling")]: {},
     });
 
     const gateways = {

@@ -21,7 +21,7 @@
 export function renderAuthEvent(event) {
   switch (event.type) {
     case "token-refresh-failed":
-      return `   Token refresh failed: ${event.error.message}`;
+      return `   Token refresh failed: ${event.error?.message ?? "unknown error"}`;
     case "device-code-prompt":
       return `\nTo authenticate Microsoft 365, visit: ${event.verificationUri}\nEnter code: ${event.userCode}`;
     case "auth-waiting":
@@ -29,7 +29,7 @@ export function renderAuthEvent(event) {
     case "auth-success":
       return `Authentication successful. Tokens cached.`;
     case "connect-error":
-      return `   ❌ Failed to connect to ${event.account}: ${event.error.message}`;
+      return `   ❌ Failed to connect to ${event.account}: ${event.error?.message ?? "unknown error"}`;
     default:
       return null;
   }

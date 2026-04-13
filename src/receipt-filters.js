@@ -7,7 +7,7 @@
  *
  * @param {Array} results - array of receipt search result objects
  * @param {object} opts
- * @param {string} [opts.vendor] - vendor substring filter, or omitted for none
+ * @param {string | null} [opts.vendor] - vendor substring filter, or omitted for none
  * @param {Function} matchesVendorFn - (vendor, fromAddress, fromName) => boolean
  * @param {Array<RegExp>} subjectExclusions - subject patterns to exclude
  * @returns {{ filtered: Array, vendorExcluded: number, subjectExcluded: number }}
