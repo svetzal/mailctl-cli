@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2026-04-13
+
+### Security
+- Updated dependencies to address known CVE vulnerabilities (automated nightly maintenance patch)
+
 ## [0.7.2] - 2026-03-17
 
 ### Fixed
