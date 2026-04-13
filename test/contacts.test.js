@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test";
-import { aggregateContacts } from "../src/contacts.js";
+import { describe, expect, it, mock } from "bun:test";
+import { aggregateContacts, extractContacts, formatContactsText } from "../src/contacts.js";
+import { makeLock } from "./helpers.js";
 
 /** @typedef {{address: string, name: string, date: Date, direction: 'sent'|'received'}} Entry */
 
@@ -153,5 +154,244 @@ describe("aggregateContacts", () => {
 
   it("returns empty array for empty input", () => {
     expect(aggregateContacts([])).toEqual([]);
+  });
+});
+
+// ── formatContactsText ────────────────────────────────────────────────────────
+
+describe("formatContactsText", () => {
+  it("includes the sinceLabel in the header", () => {
+    const contacts = [
+      {
+        address: "alice@example.com",
+        name: "Alice",
+        count: 3,
+        lastSeen: new Date("2026-01-15"),
+        direction: "received",
+      },
+    ];
+    const text = formatContactsText(contacts, { sinceLabel: "last 6 months" });
+    expect(text).toContain("last 6 months");
+  });
+
+  it("includes the contact count in the header", () => {
+    const contacts = [
+      {
+        address: "alice@example.com",
+        name: "Alice",
+        count: 3,
+        lastSeen: new Date("2026-01-15"),
+        direction: "received",
+      },
+      { address: "bob@example.com", name: "Bob", count: 1, lastSeen: new Date("2026-01-10"), direction: "sent" },
+    ];
+    const text = formatContactsText(contacts, { sinceLabel: "last 3 months" });
+    expect(text).toContain("2 found");
+  });
+
+  it("includes each contact address in the output", () => {
+    const contacts = [
+      {
+        address: "alice@example.com",
+        name: "Alice",
+        count: 3,
+        lastSeen: new Date("2026-01-15"),
+        direction: "received",
+      },
+    ];
+    const text = formatContactsText(contacts, { sinceLabel: "last 6 months" });
+    expect(text).toContain("alice@example.com");
+  });
+
+  it("includes contact name in the output", () => {
+    const contacts = [
+      {
+        address: "alice@example.com",
+        name: "Alice Smith",
+        count: 3,
+        lastSeen: new Date("2026-01-15"),
+        direction: "received",
+      },
+    ];
+    const text = formatContactsText(contacts, { sinceLabel: "last 6 months" });
+    expect(text).toContain("Alice Smith");
+  });
+
+  it("shows direction as recv for received-only contacts", () => {
+    const contacts = [
+      {
+        address: "alice@example.com",
+        name: "Alice",
+        count: 1,
+        lastSeen: new Date("2026-01-15"),
+        direction: "received",
+      },
+    ];
+    const text = formatContactsText(contacts, { sinceLabel: "last 6 months" });
+    expect(text).toContain("recv");
+  });
+
+  it("shows direction as sent for sent-only contacts", () => {
+    const contacts = [
+      { address: "bob@example.com", name: "Bob", count: 1, lastSeen: new Date("2026-01-15"), direction: "sent" },
+    ];
+    const text = formatContactsText(contacts, { sinceLabel: "last 6 months" });
+    expect(text).toContain("sent");
+  });
+
+  it("shows direction as both for bidirectional contacts", () => {
+    const contacts = [
+      { address: "carol@example.com", name: "Carol", count: 2, lastSeen: new Date("2026-01-15"), direction: "both" },
+    ];
+    const text = formatContactsText(contacts, { sinceLabel: "last 6 months" });
+    expect(text).toContain("both");
+  });
+});
+
+// ── extractContacts ───────────────────────────────────────────────────────────
+
+describe("extractContacts", () => {
+  /** @param {{ inboxUids?: number[], sentUids?: number[], inboxEnvelopes?: any[], sentEnvelopes?: any[] }} [opts] */
+  function makeClient({ inboxUids = [1], sentUids = [2], inboxEnvelopes = [], sentEnvelopes = [] } = {}) {
+    let fetchCallIndex = 0;
+
+    return {
+      list: mock(() =>
+        Promise.resolve([
+          { path: "INBOX", specialUse: "\\Inbox", name: "INBOX" },
+          { path: "Sent", specialUse: "\\Sent", name: "Sent" },
+        ]),
+      ),
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
+      search: mock((_criteria) => {
+        // First search is for INBOX, second for Sent
+        fetchCallIndex++;
+        if (fetchCallIndex === 1) return Promise.resolve(inboxUids);
+        return Promise.resolve(sentUids);
+      }),
+      fetch: mock(() => {
+        const envelopes = fetchCallIndex <= 1 ? inboxEnvelopes : sentEnvelopes;
+        async function* gen() {
+          for (const env of envelopes) yield env;
+        }
+        return gen();
+      }),
+    };
+  }
+
+  it("returns an array of contact entries", async () => {
+    const client = /** @type {any} */ (
+      makeClient({
+        inboxUids: [1],
+        inboxEnvelopes: [
+          {
+            uid: 1,
+            envelope: {
+              date: new Date("2026-01-15"),
+              from: [{ address: "sender@example.com", name: "Sender" }],
+            },
+          },
+        ],
+        sentUids: [],
+        sentEnvelopes: [],
+      })
+    );
+
+    const entries = await extractContacts(client, "TestAccount", { since: new Date("2026-01-01"), limit: 25 });
+
+    expect(Array.isArray(entries)).toBe(true);
+  });
+
+  it("extracts From addresses from INBOX as received direction", async () => {
+    const client = /** @type {any} */ (
+      makeClient({
+        inboxUids: [1],
+        inboxEnvelopes: [
+          {
+            uid: 1,
+            envelope: {
+              date: new Date("2026-01-15"),
+              from: [{ address: "Alice@Example.com", name: "Alice" }],
+            },
+          },
+        ],
+        sentUids: [],
+        sentEnvelopes: [],
+      })
+    );
+
+    const entries = await extractContacts(client, "TestAccount", {
+      since: new Date("2026-01-01"),
+      limit: 25,
+      receivedOnly: true,
+    });
+
+    expect(entries.some((e) => e.address === "alice@example.com" && e.direction === "received")).toBe(true);
+  });
+
+  it("extracts To addresses from Sent folder as sent direction", async () => {
+    const client = /** @type {any} */ ({
+      list: mock(() =>
+        Promise.resolve([
+          { path: "INBOX", specialUse: "\\Inbox", name: "INBOX" },
+          { path: "Sent", specialUse: "\\Sent", name: "Sent" },
+        ]),
+      ),
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
+      search: mock(() => Promise.resolve([2])),
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 2,
+            envelope: {
+              date: new Date("2026-01-20"),
+              to: [{ address: "recipient@example.com", name: "Recipient" }],
+            },
+          };
+        }
+        return gen();
+      }),
+    });
+
+    const entries = await extractContacts(client, "TestAccount", {
+      since: new Date("2026-01-01"),
+      limit: 25,
+      sentOnly: true,
+    });
+
+    expect(entries.some((e) => e.address === "recipient@example.com" && e.direction === "sent")).toBe(true);
+  });
+
+  it("returns empty entries when INBOX lock fails", async () => {
+    const client = /** @type {any} */ ({
+      list: mock(() => Promise.resolve([{ path: "INBOX", specialUse: "\\Inbox", name: "INBOX" }])),
+      getMailboxLock: mock(() => Promise.reject(new Error("lock failed"))),
+    });
+
+    const entries = await extractContacts(client, "TestAccount", {
+      since: new Date("2026-01-01"),
+      limit: 25,
+      receivedOnly: true,
+    });
+
+    expect(entries).toEqual([]);
+  });
+
+  it("emits mailbox-lock-failed when INBOX lock fails", async () => {
+    const error = new Error("lock failed");
+    const onProgress = mock(() => {});
+    const client = /** @type {any} */ ({
+      list: mock(() => Promise.resolve([{ path: "INBOX", specialUse: "\\Inbox", name: "INBOX" }])),
+      getMailboxLock: mock(() => Promise.reject(error)),
+    });
+
+    await extractContacts(client, "TestAccount", {
+      since: new Date("2026-01-01"),
+      limit: 25,
+      receivedOnly: true,
+      onProgress,
+    });
+
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
   });
 });

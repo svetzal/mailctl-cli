@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { downloadReceiptEmails, reprocessReceipts } from "../src/download-receipts.js";
+import { downloadReceiptEmails, listReceiptVendors, reprocessReceipts } from "../src/download-receipts.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -1222,5 +1222,211 @@ describe("reprocessReceipts", () => {
         },
       ),
     ).rejects.toThrow("OPENAI_API_KEY not set");
+  });
+});
+
+// ── listReceiptVendors ────────────────────────────────────────────────────────
+
+function _makeVendorGateways(searchResults = [], overrides = {}) {
+  return {
+    loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+    forEachAccount: async (accounts, fn) => fn({}, accounts[0]),
+    listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+    searchAccountForReceipts: async () => searchResults,
+    ...overrides,
+  };
+}
+
+describe("listReceiptVendors", () => {
+  it("throws when no accounts are configured", async () => {
+    await expect(
+      listReceiptVendors(
+        {},
+        {
+          loadAccounts: () => [],
+          forEachAccount: async () => {},
+          listMailboxes: async () => [],
+        },
+      ),
+    ).rejects.toThrow("No accounts configured");
+  });
+
+  it("returns an empty array when no receipts are found", async () => {
+    const gateways = {
+      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+      forEachAccount: async (_accounts, fn) => {
+        // Call fn but the receipt search returns nothing for this account
+        await fn({}, _accounts[0]);
+      },
+      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+    };
+
+    const vendors = await listReceiptVendors({}, gateways);
+
+    expect(vendors).toEqual([]);
+  });
+
+  it("aggregates vendor counts from search results", async () => {
+    // Two emails from the same vendor address
+    const msgs = [
+      {
+        fromAddress: "billing@acme.com",
+        fromName: "Acme",
+        uid: 1,
+        mailbox: "INBOX",
+        date: new Date("2025-01-01"),
+        subject: "Invoice",
+      },
+      {
+        fromAddress: "billing@acme.com",
+        fromName: "Acme",
+        uid: 2,
+        mailbox: "INBOX",
+        date: new Date("2025-02-01"),
+        subject: "Invoice",
+      },
+      {
+        fromAddress: "orders@shop.com",
+        fromName: "Shop",
+        uid: 3,
+        mailbox: "INBOX",
+        date: new Date("2025-01-15"),
+        subject: "Receipt",
+      },
+    ];
+
+    const _gateways = {
+      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+      forEachAccount: async (_accounts, fn) => {
+        // Provide a client whose searchAccountForReceipts returns our msgs
+        await fn({ _msgs: msgs }, _accounts[0]);
+      },
+      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+    };
+
+    // We need to override the searchAccountForReceipts dependency via a custom
+    // forEachAccount that injects results through the receipt search pipeline.
+    // Since listReceiptVendors uses searchAccountForReceipts internally, we
+    // need to provide a real-enough client mock that the receipt search pipeline
+    // returns our messages. The simplest approach is to have the mock IMAP search
+    // return UIDs and envelopes for our messages.
+    const _emailDate = new Date("2025-01-01");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1, 2, 3])),
+      mailbox: { exists: 3 },
+      fetch: mock(() => {
+        async function* gen() {
+          for (const msg of msgs) {
+            yield {
+              uid: msg.uid,
+              envelope: {
+                date: msg.date,
+                from: [{ address: msg.fromAddress, name: msg.fromName }],
+                subject: msg.subject,
+                messageId: `msg-${msg.uid}@example.com`,
+              },
+            };
+          }
+        }
+        return gen();
+      }),
+    };
+
+    const vendors = await listReceiptVendors(
+      {},
+      {
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (_accounts, fn) => fn(client, _accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+      },
+    );
+
+    const acme = vendors.find((v) => v.address === "billing@acme.com");
+    expect(acme).toBeDefined();
+    expect(acme?.count).toBe(2);
+  });
+
+  it("sorts vendors by count descending", async () => {
+    const emailDate = new Date("2025-01-01");
+
+    // Build distinct fetch calls: one returns 1 item, the other returns 3 items
+    // We'll use a single client that returns different counts per search term.
+    // The simplest way: three messages from domainA and one from domainB.
+    const msgs = [
+      { uid: 1, address: "a@frequent.com", name: "Frequent", subject: "Invoice" },
+      { uid: 2, address: "a@frequent.com", name: "Frequent", subject: "Invoice" },
+      { uid: 3, address: "a@frequent.com", name: "Frequent", subject: "Invoice" },
+      { uid: 4, address: "b@rare.com", name: "Rare", subject: "Receipt" },
+    ];
+
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve(msgs.map((m) => m.uid))),
+      mailbox: { exists: msgs.length },
+      fetch: mock(() => {
+        async function* gen() {
+          for (const msg of msgs) {
+            yield {
+              uid: msg.uid,
+              envelope: {
+                date: emailDate,
+                from: [{ address: msg.address, name: msg.name }],
+                subject: msg.subject,
+                messageId: `msg-${msg.uid}@example.com`,
+              },
+            };
+          }
+        }
+        return gen();
+      }),
+    };
+
+    const vendors = await listReceiptVendors(
+      {},
+      {
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (_accounts, fn) => fn(client, _accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+      },
+    );
+
+    expect(vendors.length).toBeGreaterThanOrEqual(2);
+    expect(vendors[0].count).toBeGreaterThanOrEqual(vendors[1].count);
+  });
+
+  it("includes vendor display name and address in each result", async () => {
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([5])),
+      mailbox: { exists: 1 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 5,
+            envelope: {
+              date: new Date("2025-03-01"),
+              from: [{ address: "billing@vendor.com", name: "Vendor Corp" }],
+              subject: "Invoice",
+              messageId: "msg-5@example.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+
+    const vendors = await listReceiptVendors(
+      {},
+      {
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (_accounts, fn) => fn(client, _accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+      },
+    );
+
+    const vendor = vendors.find((v) => v.address === "billing@vendor.com");
+    expect(vendor?.vendor).toBeDefined();
+    expect(vendor?.address).toBe("billing@vendor.com");
   });
 });
