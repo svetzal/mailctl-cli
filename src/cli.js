@@ -14,6 +14,7 @@ import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
 import { formatDownloadResultText } from "./format-download.js";
 import { formatDownloadReceiptsResultText } from "./format-download-receipts.js";
+import { formatFlagResultText } from "./format-flag.js";
 import { formatMoveResultText } from "./format-move.js";
 import { formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
 import { formatSearchResultsText } from "./format-search.js";
@@ -562,19 +563,13 @@ program
         listMailboxes,
       });
 
-      for (const flagResult of results) {
-        const uidRange = flagResult.uids.join(",");
-        const parts = [...flagResult.added.map((f) => `+${f}`), ...flagResult.removed.map((f) => `-${f}`)];
-        const label = flagResult.uids.length === 1 ? `UID ${uidRange}` : `UIDs ${uidRange}`;
-
-        if (json) {
+      if (json) {
+        for (const flagResult of results) {
           const { dryRun, ...rest } = flagResult;
           console.log(JSON.stringify(dryRun ? { dryRun: true, ...rest } : rest));
-        } else if (flagResult.dryRun) {
-          console.log(`[DRY RUN] Would flag ${label}: ${parts.join(" ")}`);
-        } else {
-          console.log(`Flagged ${label}: ${parts.join(" ")}`);
         }
+      } else {
+        console.log(formatFlagResultText(results));
       }
     }),
   );
