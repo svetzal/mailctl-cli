@@ -48,7 +48,7 @@ mailctl classify                # output unclassified senders
 ### Project Structure
 
 ```text
-src/cli.js                     — CLI entry point: true thin dispatcher (~400 lines), each .action() is 5–15 lines with no inline event rendering logic
+src/cli.js                     — CLI entry point: true thin dispatcher (~691 lines), each .action() is 5–15 lines with no inline event rendering logic
 
 Command orchestrators (testable, injected deps):
 src/search-command.js          — Search orchestration (cross-account, date filters, dedup)
@@ -84,6 +84,11 @@ src/format-move.js             — formatMoveResultText() — pure move summary 
 src/format-sort.js             — formatSortResultText() — pure sort summary formatter
 src/format-download.js         — formatDownloadResultText() — pure download summary formatter
 src/format-download-receipts.js — formatDownloadReceiptsResultText() — pure download-receipts result formatter
+src/format-flag.js             — formatFlagResultText() — pure flag result formatter
+src/format-reply.js            — formatReplyDryRunText(), formatReplySentText() — pure reply result formatters
+src/format-attachment.js       — formatAttachmentListText(), formatAttachmentSavedText() — pure attachment result formatters
+src/format-folders.js          — formatFoldersText() — pure folder listing formatter
+src/format-init.js             — formatInitResultText(), buildInitJsonResult() — pure init result formatters
 src/render-auth-events.js      — renderAuthEvent() — pure auth progress event renderer
 src/render-scan-events.js      — renderScanEvent() — pure scan progress event renderer
 src/render-sort-events.js      — renderSortEvent() — pure sort progress event renderer
