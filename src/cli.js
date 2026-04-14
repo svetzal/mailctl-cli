@@ -16,6 +16,7 @@ import { formatDownloadResultText } from "./format-download.js";
 import { formatDownloadReceiptsResultText } from "./format-download-receipts.js";
 import { formatFlagResultText } from "./format-flag.js";
 import { formatMoveResultText } from "./format-move.js";
+import { formatReplyDryRunText, formatReplySentText } from "./format-reply.js";
 import { formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
 import { formatSearchResultsText } from "./format-search.js";
 import { formatSortResultText } from "./format-sort.js";
@@ -610,14 +611,7 @@ program
         if (json) {
           console.log(JSON.stringify({ dryRun: true, message }));
         } else {
-          console.log("--- Dry Run: Composed Reply ---");
-          console.log(`From: ${message.from}`);
-          console.log(`To: ${message.to}`);
-          if (message.cc) console.log(`CC: ${message.cc}`);
-          console.log(`Subject: ${message.subject}`);
-          console.log(`In-Reply-To: ${message.inReplyTo}`);
-          console.log(`References: ${message.references}`);
-          console.log(`\n${message.text}`);
+          console.log(formatReplyDryRunText(message));
         }
         return;
       }
@@ -625,7 +619,7 @@ program
       if (json) {
         console.log(JSON.stringify({ sent: result.sent, messageId: result.messageId, accepted: result.accepted }));
       } else {
-        console.log(`Reply sent to ${result.message.to} (Message-ID: ${result.messageId})`);
+        console.log(formatReplySentText(result));
       }
     }),
   );
