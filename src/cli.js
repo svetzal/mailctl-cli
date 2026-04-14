@@ -12,6 +12,7 @@ import { downloadReceiptsCommand } from "./download-receipts-command.js";
 import { downloadReceipts } from "./downloader.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
+import { formatAttachmentListText, formatAttachmentSavedText } from "./format-attachment.js";
 import { formatDownloadResultText } from "./format-download.js";
 import { formatDownloadReceiptsResultText } from "./format-download-receipts.js";
 import { formatFlagResultText } from "./format-flag.js";
@@ -466,13 +467,7 @@ program
         if (json) {
           console.log(JSON.stringify({ account: result.account, uid: result.uid, attachments: result.attachments }));
         } else {
-          if (result.attachments.length === 0) {
-            console.log("No attachments.");
-            return;
-          }
-          for (const entry of result.attachments) {
-            console.log(`[${entry.index}] ${entry.filename}  ${entry.contentType}  ${entry.size} bytes`);
-          }
+          console.log(formatAttachmentListText(result.attachments));
         }
         return;
       }
@@ -488,7 +483,7 @@ program
             }),
           );
         } else {
-          console.log(result.path);
+          console.log(formatAttachmentSavedText(result.path));
         }
       }
     }),
