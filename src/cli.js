@@ -17,6 +17,7 @@ import { formatDownloadResultText } from "./format-download.js";
 import { formatDownloadReceiptsResultText } from "./format-download-receipts.js";
 import { formatFlagResultText } from "./format-flag.js";
 import { formatFoldersText } from "./format-folders.js";
+import { buildInitJsonResult, formatInitResultText } from "./format-init.js";
 import { formatMoveResultText } from "./format-move.js";
 import { formatReplyDryRunText, formatReplySentText } from "./format-reply.js";
 import { formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
@@ -679,38 +680,10 @@ program
       const json = resolveJson(opts);
       const result = await initCommand(program.version() ?? "0.0.0", { global: !!opts.global, force: !!opts.force });
 
-      const { version, files } = result;
-      const isGlobal = result.global;
-      const skipped = files.filter((r) => r.action === "skipped").length;
-
       if (json) {
-        /** @type {import("./init.js").InitResult} */
-        const output = {
-          success: skipped === 0,
-          message: skipped > 0 ? `Skill install skipped` : `Skill ${files[0].action}`,
-          version,
-          files,
-        };
-        console.log(JSON.stringify(output));
+        console.log(JSON.stringify(buildInitJsonResult(result)));
       } else {
-        const scope = isGlobal ? "global (~/.claude)" : "local";
-        console.log(`\nmailctl v${version} — skill files (${scope})\n`);
-        for (const r of files) {
-          const icon = r.action === "created" ? "+" : r.action === "updated" ? "~" : r.action === "skipped" ? "!" : "=";
-          const label =
-            r.action === "created"
-              ? "Created"
-              : r.action === "updated"
-                ? "Updated"
-                : r.action === "skipped"
-                  ? "Skipped"
-                  : "Up to date";
-          console.log(`  ${icon} ${r.path} (${label})`);
-          if (r.warning) {
-            console.log(`    ${r.warning}`);
-          }
-        }
-        console.log();
+        console.log(formatInitResultText(result));
       }
     }),
   );
