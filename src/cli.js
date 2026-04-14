@@ -16,6 +16,7 @@ import { formatAttachmentListText, formatAttachmentSavedText } from "./format-at
 import { formatDownloadResultText } from "./format-download.js";
 import { formatDownloadReceiptsResultText } from "./format-download-receipts.js";
 import { formatFlagResultText } from "./format-flag.js";
+import { formatFoldersText } from "./format-folders.js";
 import { formatMoveResultText } from "./format-move.js";
 import { formatReplyDryRunText, formatReplySentText } from "./format-reply.js";
 import { formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
@@ -409,31 +410,25 @@ program
     withErrorHandling(async (opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-      const allFolders = [];
+      const allAccountFolders = [];
 
       await forEachAccount(
         targetAccounts,
         async (client, acct) => {
-          if (!json) {
-            console.log(`\n=== ${acct.name} ===`);
-          }
-
           const folders = await listMailboxes(client);
-
-          for (const f of folders) {
-            if (json) {
-              allFolders.push({ account: acct.name, path: f.path, specialUse: f.specialUse || null });
-            } else {
-              const special = f.specialUse ? ` (${f.specialUse})` : "";
-              console.log(`  ${f.path}${special}`);
-            }
-          }
+          allAccountFolders.push({
+            account: acct.name,
+            folders: folders.map((f) => ({ path: f.path, specialUse: f.specialUse || null })),
+          });
         },
         renderAuthProgress,
       );
 
       if (json) {
-        console.log(JSON.stringify(allFolders));
+        const flat = allAccountFolders.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
+        console.log(JSON.stringify(flat));
+      } else {
+        console.log(formatFoldersText(allAccountFolders));
       }
     }),
   );
