@@ -65,3 +65,24 @@ export function formatUnclassifiedText(unclassifiedSenders) {
 
   return lines.join("\n");
 }
+
+/**
+ * Build a JSON-ready object for a scan result.
+ *
+ * @param {number} total - total receipt emails found
+ * @param {SenderSummary[]} senders - aggregated sender list
+ * @returns {{ total: number, senders: SenderSummary[] }}
+ */
+export function buildScanJson(total, senders) {
+  return { total, senders };
+}
+
+/**
+ * Build a JSON-ready object for a classify result.
+ *
+ * @param {UnclassifiedSender[]} unclassifiedList
+ * @returns {{ unclassified: UnclassifiedSender[] }}
+ */
+export function buildClassifyJson(unclassifiedList) {
+  return { unclassified: unclassifiedList };
+}

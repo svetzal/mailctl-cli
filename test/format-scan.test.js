@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatScanSummaryText, formatUnclassifiedText } from "../src/format-scan.js";
+import { buildClassifyJson, buildScanJson, formatScanSummaryText, formatUnclassifiedText } from "../src/format-scan.js";
 
 // ── formatScanSummaryText ─────────────────────────────────────────────────────
 
@@ -114,5 +114,44 @@ describe("formatUnclassifiedText", () => {
     const text = formatUnclassifiedText([]);
 
     expect(text).toBe("All senders are classified!");
+  });
+});
+
+// ── buildScanJson ─────────────────────────────────────────────────────────────
+
+describe("buildScanJson", () => {
+  const senders = [{ address: "shop@example.com", name: "Shop", count: 5, accounts: ["iCloud"], sampleSubjects: [] }];
+
+  it("includes total", () => {
+    const result = buildScanJson(42, senders);
+
+    expect(result.total).toBe(42);
+  });
+
+  it("includes senders array", () => {
+    const result = buildScanJson(42, senders);
+
+    expect(result.senders).toBe(senders);
+  });
+});
+
+// ── buildClassifyJson ─────────────────────────────────────────────────────────
+
+describe("buildClassifyJson", () => {
+  const unclassified = [
+    {
+      address: "shop@example.com",
+      name: "Shop",
+      count: 5,
+      accounts: ["iCloud"],
+      example: "Invoice #1",
+      classification: null,
+    },
+  ];
+
+  it("wraps the list under unclassified key", () => {
+    const result = buildClassifyJson(unclassified);
+
+    expect(result.unclassified).toBe(unclassified);
   });
 });

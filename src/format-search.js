@@ -7,6 +7,7 @@
  * @typedef {object} SearchResult
  * @property {string} mailbox - mailbox path where the result was found
  * @property {string|number} uid - message UID
+ * @property {string} [messageId] - internal message ID (stripped from JSON output)
  * @property {string|Date} [date] - message date
  * @property {string} [fromName] - sender display name
  * @property {string} [from] - sender email address
@@ -34,4 +35,14 @@ export function formatSearchResultsText(results) {
   });
 
   return lines.join("\n");
+}
+
+/**
+ * Build a JSON-ready array of search results, stripping the internal messageId field.
+ *
+ * @param {SearchResult[]} results
+ * @returns {object[]}
+ */
+export function buildSearchJson(results) {
+  return results.map(({ messageId, ...rest }) => rest);
 }

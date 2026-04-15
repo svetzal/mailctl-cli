@@ -50,3 +50,23 @@ export function formatReplyDryRunText(message) {
 export function formatReplySentText(result) {
   return `Reply sent to ${result.message.to} (Message-ID: ${result.messageId})`;
 }
+
+/**
+ * Build a JSON-ready object for a reply dry-run result.
+ *
+ * @param {ReplyMessage} message
+ * @returns {{ dryRun: true, message: ReplyMessage }}
+ */
+export function buildReplyDryRunJson(message) {
+  return { dryRun: true, message };
+}
+
+/**
+ * Build a JSON-ready object for a sent reply result.
+ *
+ * @param {ReplySentResult} result
+ * @returns {{ sent: boolean, messageId: string, accepted: string[] }}
+ */
+export function buildReplySentJson(result) {
+  return { sent: result.sent, messageId: result.messageId, accepted: result.accepted };
+}

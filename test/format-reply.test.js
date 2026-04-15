@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { formatReplyDryRunText, formatReplySentText } from "../src/format-reply.js";
+import {
+  buildReplyDryRunJson,
+  buildReplySentJson,
+  formatReplyDryRunText,
+  formatReplySentText,
+} from "../src/format-reply.js";
 
 const baseMessage = {
   from: "me@example.com",
@@ -89,5 +94,50 @@ describe("formatReplySentText", () => {
     const text = formatReplySentText(sentResult);
 
     expect(text).toContain("<sent-id@example.com>");
+  });
+});
+
+// ── buildReplyDryRunJson ───────────────────────────────────────────────────────
+
+describe("buildReplyDryRunJson", () => {
+  it("sets dryRun: true", () => {
+    const result = buildReplyDryRunJson(baseMessage);
+
+    expect(result.dryRun).toBe(true);
+  });
+
+  it("includes the message object", () => {
+    const result = buildReplyDryRunJson(baseMessage);
+
+    expect(result.message).toBe(baseMessage);
+  });
+});
+
+// ── buildReplySentJson ─────────────────────────────────────────────────────────
+
+describe("buildReplySentJson", () => {
+  const sentResult = {
+    sent: true,
+    messageId: "<sent-id@example.com>",
+    accepted: ["them@example.com"],
+    message: baseMessage,
+  };
+
+  it("includes sent flag", () => {
+    const result = buildReplySentJson(sentResult);
+
+    expect(result.sent).toBe(true);
+  });
+
+  it("includes messageId", () => {
+    const result = buildReplySentJson(sentResult);
+
+    expect(result.messageId).toBe("<sent-id@example.com>");
+  });
+
+  it("includes accepted addresses", () => {
+    const result = buildReplySentJson(sentResult);
+
+    expect(result.accepted).toEqual(["them@example.com"]);
   });
 });

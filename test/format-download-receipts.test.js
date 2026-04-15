@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatDownloadReceiptsResultText } from "../src/format-download-receipts.js";
+import { buildDownloadReceiptsJson, formatDownloadReceiptsResultText } from "../src/format-download-receipts.js";
 
 /** @typedef {import("../src/format-download-receipts.js").DownloadReceiptsResult} DownloadReceiptsResult */
 
@@ -163,6 +163,62 @@ describe("formatDownloadReceiptsResultText", () => {
       const result = { mode: "download", stats };
       const text = formatDownloadReceiptsResultText(result, {});
       expect(text).toContain("Errors:        1");
+    });
+  });
+});
+
+// ── buildDownloadReceiptsJson ─────────────────────────────────────────────────
+
+describe("buildDownloadReceiptsJson", () => {
+  describe("listVendors mode", () => {
+    /** @type {DownloadReceiptsResult} */
+    const result = {
+      mode: "listVendors",
+      configVendors: ["Acme Corp"],
+      recentVendors: [{ vendor: "Widget Inc", count: 2 }],
+    };
+    const json = buildDownloadReceiptsJson(result);
+
+    it("includes configVendors", () => {
+      expect(json.configVendors).toEqual(["Acme Corp"]);
+    });
+
+    it("includes recentVendors", () => {
+      expect(json.recentVendors).toEqual([{ vendor: "Widget Inc", count: 2 }]);
+    });
+
+    it("does not include mode", () => {
+      expect(json).not.toHaveProperty("mode");
+    });
+  });
+
+  describe("reprocess mode", () => {
+    /** @type {DownloadReceiptsResult} */
+    const result = { mode: "reprocess", reprocessed: 5, skipped: 2, errors: 0 };
+    const json = buildDownloadReceiptsJson(result);
+
+    it("includes reprocessed count", () => {
+      expect(json.reprocessed).toBe(5);
+    });
+
+    it("strips the mode field", () => {
+      expect(json).not.toHaveProperty("mode");
+    });
+  });
+
+  describe("download mode", () => {
+    const stats = { found: 10, downloaded: 5, noPdf: 2, alreadyHave: 2, errors: 1 };
+    const records = [{ file: "receipt.pdf" }];
+    /** @type {DownloadReceiptsResult} */
+    const result = { mode: "download", stats, records };
+    const json = buildDownloadReceiptsJson(result);
+
+    it("includes stats", () => {
+      expect(json.stats).toBe(stats);
+    });
+
+    it("includes records", () => {
+      expect(json.records).toBe(records);
     });
   });
 });

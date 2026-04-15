@@ -38,3 +38,13 @@ export function formatFoldersText(foldersByAccount) {
 
   return lines.join("\n");
 }
+
+/**
+ * Build a JSON-ready flat array of folders, each tagged with its account name.
+ *
+ * @param {AccountFolders[]} foldersByAccount
+ * @returns {{ account: string, path: string, specialUse: string|null }[]}
+ */
+export function buildFoldersJson(foldersByAccount) {
+  return foldersByAccount.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
+}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { formatAttachmentListText, formatAttachmentSavedText } from "../src/format-attachment.js";
+import {
+  buildAttachmentListJson,
+  buildAttachmentSavedJson,
+  formatAttachmentListText,
+  formatAttachmentSavedText,
+} from "../src/format-attachment.js";
 
 // ── formatAttachmentListText ──────────────────────────────────────────────────
 
@@ -67,5 +72,47 @@ describe("formatAttachmentSavedText", () => {
     const text = formatAttachmentSavedText("/tmp/invoice.pdf");
 
     expect(text).toBe("/tmp/invoice.pdf");
+  });
+});
+
+// ── buildAttachmentListJson ───────────────────────────────────────────────────
+
+describe("buildAttachmentListJson", () => {
+  const attachments = [{ index: 0, filename: "invoice.pdf", contentType: "application/pdf", size: 12345, part: "1" }];
+  const result = buildAttachmentListJson({ account: "iCloud", uid: 42, attachments });
+
+  it("includes account", () => {
+    expect(result.account).toBe("iCloud");
+  });
+
+  it("includes uid", () => {
+    expect(result.uid).toBe(42);
+  });
+
+  it("includes attachments array", () => {
+    expect(result.attachments).toBe(attachments);
+  });
+});
+
+// ── buildAttachmentSavedJson ──────────────────────────────────────────────────
+
+describe("buildAttachmentSavedJson", () => {
+  const saved = { path: "/tmp/invoice.pdf", filename: "invoice.pdf", size: 12345, contentType: "application/pdf" };
+  const result = buildAttachmentSavedJson(saved);
+
+  it("includes path", () => {
+    expect(result.path).toBe("/tmp/invoice.pdf");
+  });
+
+  it("includes filename", () => {
+    expect(result.filename).toBe("invoice.pdf");
+  });
+
+  it("includes size", () => {
+    expect(result.size).toBe(12345);
+  });
+
+  it("includes contentType", () => {
+    expect(result.contentType).toBe("application/pdf");
   });
 });

@@ -74,21 +74,26 @@ src/imap-orchestration.js      — Shared pure helpers: groupByMailbox(), forEac
 src/search.js                  — searchMailbox() — single-mailbox search with field/date filters
 src/dedup.js                   — deduplicateByMessageId() — shared by search and download-receipts
 src/move-logic.js              — parseUidArgs(), groupUidsByAccount() — pure UID parsing for move command
-src/read-email.js              — buildReadResult(), formatReadResultText() — pure email read formatting
 src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachmentIndex() — attachment helpers
 src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
 src/format-bytes.js            — formatKB() — shared byte-to-KB formatter
-src/format-scan.js             — formatScanSummaryText(), formatUnclassifiedText() — pure scan output formatters
-src/format-search.js           — formatSearchResultsText() — pure search result formatter
-src/format-move.js             — formatMoveResultText() — pure move summary formatter
-src/format-sort.js             — formatSortResultText() — pure sort summary formatter
-src/format-download.js         — formatDownloadResultText() — pure download summary formatter
-src/format-download-receipts.js — formatDownloadReceiptsResultText() — pure download-receipts result formatter
-src/format-flag.js             — formatFlagResultText() — pure flag result formatter
-src/format-reply.js            — formatReplyDryRunText(), formatReplySentText() — pure reply result formatters
-src/format-attachment.js       — formatAttachmentListText(), formatAttachmentSavedText() — pure attachment result formatters
-src/format-folders.js          — formatFoldersText() — pure folder listing formatter
+src/format-scan.js             — formatScanSummaryText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
+src/format-search.js           — formatSearchResultsText(), buildSearchJson() — pure search result formatter
+src/format-move.js             — formatMoveResultText(), buildMoveJson() — pure move summary formatter
+src/format-sort.js             — formatSortResultText(), buildSortJson() — pure sort summary formatter
+src/format-download.js         — formatDownloadResultText(), buildDownloadJson() — pure download summary formatter
+src/format-download-receipts.js — formatDownloadReceiptsResultText(), buildDownloadReceiptsJson() — pure download-receipts result formatter
+src/format-flag.js             — formatFlagResultText(), buildFlagResultJson() — pure flag result formatter
+src/format-reply.js            — formatReplyDryRunText(), formatReplySentText(), buildReplyDryRunJson(), buildReplySentJson() — pure reply result formatters
+src/format-attachment.js       — formatAttachmentListText(), formatAttachmentSavedText(), buildAttachmentListJson(), buildAttachmentSavedJson() — pure attachment result formatters
+src/format-folders.js          — formatFoldersText(), buildFoldersJson() — pure folder listing formatter
+src/format-read.js             — buildReadResult(), formatReadResultText(), buildReadJson() — pure read command formatters
+src/format-thread.js           — formatThreadText(), buildThreadJson() — pure thread result formatter
+src/format-inbox.js            — formatInboxText(), buildInboxJson() — pure inbox result formatter
+src/format-contacts.js         — formatContactsText(), buildContactsJson() — pure contacts result formatter
+src/format-import-classifications.js — buildImportClassificationsJson() — pure import-classifications JSON builder
 src/format-init.js             — formatInitResultText(), buildInitJsonResult() — pure init result formatters
+src/read-email.js              — re-export shim for format-read.js (deprecated)
 src/render-auth-events.js      — renderAuthEvent() — pure auth progress event renderer
 src/render-scan-events.js      — renderScanEvent() — pure scan progress event renderer
 src/render-sort-events.js      — renderSortEvent() — pure sort progress event renderer
@@ -109,9 +114,9 @@ src/download-receipts.js       — Receipt download orchestration: downloadRecei
 src/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
 src/mailbox-detect.js          — detectMailbox() — finds which mailbox contains a given UID
 src/reply.js                   — Pure reply builders: headers, body, editor template, parser
-src/thread.js                  — Thread finding and formatting (header search + subject fallback)
-src/inbox.js                   — fetchInbox(), formatInboxText() — inbox overview
-src/contacts.js                — extractContacts(), aggregateContacts(), formatContactsText()
+src/thread.js                  — Thread finding logic (header search + subject fallback); formatting moved to format-thread.js
+src/inbox.js                   — fetchInbox() — inbox IMAP fetch; formatting moved to format-inbox.js
+src/contacts.js                — extractContacts(), aggregateContacts() — contact extraction; formatting moved to format-contacts.js
 src/flag-messages.js           — computeFlagChanges() (pure), applyFlagChanges() (IMAP)
 src/attachment-parts.js        — findAttachmentParts(), findPdfParts() — BODYSTRUCTURE parsing
 src/html-to-text.js            — Convert HTML to plain text

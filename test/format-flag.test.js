@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatFlagResultText } from "../src/format-flag.js";
+import { buildFlagResultJson, formatFlagResultText } from "../src/format-flag.js";
 
 // ── formatFlagResultText ──────────────────────────────────────────────────────
 
@@ -59,5 +59,42 @@ describe("formatFlagResultText", () => {
     ]);
 
     expect(result).toContain("\n");
+  });
+});
+
+// ── buildFlagResultJson ────────────────────────────────────────────────────────
+
+describe("buildFlagResultJson", () => {
+  it("omits dryRun field for live results", () => {
+    const result = buildFlagResultJson([
+      { dryRun: false, uids: [42], added: ["\\Seen"], removed: [], account: "iCloud", mailbox: "INBOX" },
+    ]);
+
+    expect(result[0]).not.toHaveProperty("dryRun");
+  });
+
+  it("includes dryRun: true for dry-run results", () => {
+    const result = buildFlagResultJson([
+      { dryRun: true, uids: [42], added: ["\\Seen"], removed: [], account: "iCloud", mailbox: "INBOX" },
+    ]);
+
+    expect(result[0].dryRun).toBe(true);
+  });
+
+  it("preserves other fields", () => {
+    const result = buildFlagResultJson([
+      { dryRun: false, uids: [42], added: ["\\Seen"], removed: [], account: "iCloud", mailbox: "INBOX" },
+    ]);
+
+    expect(result[0].uids).toEqual([42]);
+  });
+
+  it("returns one object per result", () => {
+    const result = buildFlagResultJson([
+      { dryRun: false, uids: [42], added: [], removed: [], account: "iCloud", mailbox: "INBOX" },
+      { dryRun: false, uids: [99], added: [], removed: [], account: "Gmail", mailbox: "INBOX" },
+    ]);
+
+    expect(result).toHaveLength(2);
   });
 });

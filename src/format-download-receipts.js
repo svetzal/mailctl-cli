@@ -10,7 +10,7 @@
 /**
  * @typedef {{ mode: "listVendors", configVendors: string[], recentVendors: VendorEntry[] }
  *   | { mode: "reprocess", reprocessed: number, skipped: number, errors: number }
- *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, alreadyHave: number, errors: number } }
+ *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, alreadyHave: number, errors: number }, records?: object[] }
  * } DownloadReceiptsResult
  */
 
@@ -58,4 +58,22 @@ export function formatDownloadReceiptsResultText(result, opts) {
     `Already have:  ${result.stats.alreadyHave}`,
     `Errors:        ${result.stats.errors}`,
   ].join("\n");
+}
+
+/**
+ * Build a JSON-ready object for a download-receipts result.
+ * Handles the three operating modes: listVendors, reprocess, and download.
+ *
+ * @param {DownloadReceiptsResult} result
+ * @returns {object}
+ */
+export function buildDownloadReceiptsJson(result) {
+  if (result.mode === "listVendors") {
+    return { configVendors: result.configVendors, recentVendors: result.recentVendors };
+  }
+  if (result.mode === "reprocess") {
+    const { mode, ...rest } = result;
+    return rest;
+  }
+  return { stats: result.stats, records: result.records };
 }

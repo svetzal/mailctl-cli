@@ -6,23 +6,37 @@ import { simpleParser } from "mailparser";
 import { loadAccounts } from "./accounts.js";
 import { classifyCommand } from "./classify-command.js";
 import { collectValues, filterAccountsByName, resolveCommandContext } from "./cli-helpers.js";
-import { formatContactsText } from "./contacts.js";
 import { contactsCommand } from "./contacts-command.js";
 import { downloadReceiptsCommand } from "./download-receipts-command.js";
 import { downloadReceipts } from "./downloader.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
-import { formatAttachmentListText, formatAttachmentSavedText } from "./format-attachment.js";
-import { formatDownloadResultText } from "./format-download.js";
-import { formatDownloadReceiptsResultText } from "./format-download-receipts.js";
-import { formatFlagResultText } from "./format-flag.js";
-import { formatFoldersText } from "./format-folders.js";
+import {
+  buildAttachmentListJson,
+  buildAttachmentSavedJson,
+  formatAttachmentListText,
+  formatAttachmentSavedText,
+} from "./format-attachment.js";
+import { buildContactsJson, formatContactsText } from "./format-contacts.js";
+import { buildDownloadJson, formatDownloadResultText } from "./format-download.js";
+import { buildDownloadReceiptsJson, formatDownloadReceiptsResultText } from "./format-download-receipts.js";
+import { buildFlagResultJson, formatFlagResultText } from "./format-flag.js";
+import { buildFoldersJson, formatFoldersText } from "./format-folders.js";
+import { buildImportClassificationsJson } from "./format-import-classifications.js";
+import { buildInboxJson, formatInboxText } from "./format-inbox.js";
 import { buildInitJsonResult, formatInitResultText } from "./format-init.js";
-import { formatMoveResultText } from "./format-move.js";
-import { formatReplyDryRunText, formatReplySentText } from "./format-reply.js";
-import { formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
-import { formatSearchResultsText } from "./format-search.js";
-import { formatSortResultText } from "./format-sort.js";
+import { buildMoveJson, formatMoveResultText } from "./format-move.js";
+import { buildReadJson, formatReadResultText } from "./format-read.js";
+import {
+  buildReplyDryRunJson,
+  buildReplySentJson,
+  formatReplyDryRunText,
+  formatReplySentText,
+} from "./format-reply.js";
+import { buildClassifyJson, buildScanJson, formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
+import { buildSearchJson, formatSearchResultsText } from "./format-search.js";
+import { buildSortJson, formatSortResultText } from "./format-sort.js";
+import { buildThreadJson, formatThreadText } from "./format-thread.js";
 import { ConfirmGateway } from "./gateways/confirm-gateway.js";
 import { EditorGateway } from "./gateways/editor-gateway.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
@@ -30,13 +44,11 @@ import { KeychainGateway } from "./gateways/keychain-gateway.js";
 import { SmtpGateway } from "./gateways/smtp-gateway.js";
 import { forEachAccount, listMailboxes } from "./imap-client.js";
 import { importClassificationsCommand } from "./import-classifications-command.js";
-import { formatInboxText } from "./inbox.js";
 import { inboxCommand } from "./inbox-command.js";
 import { initCommand } from "./init.js";
 import { loadOpenAiKey } from "./keychain.js";
 import { moveCommand } from "./move-command.js";
 import { readCommand } from "./read-command.js";
-import { buildReadResult, formatReadResultText } from "./read-email.js";
 import { renderAuthEvent } from "./render-auth-events.js";
 import { renderDownloadEvent } from "./render-download-events.js";
 import { renderDownloadReceiptsEvent } from "./render-download-receipts-events.js";
@@ -46,7 +58,6 @@ import { replyCommand } from "./reply-command.js";
 import { scanCommand } from "./scan-command.js";
 import { searchCommand } from "./search-command.js";
 import { sortReceipts } from "./sorter.js";
-import { formatThreadText } from "./thread.js";
 import { threadCommand } from "./thread-command.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -164,7 +175,7 @@ program
       console.error(`Saved sender summary to ${summaryPath}`);
 
       if (json) {
-        console.log(JSON.stringify({ total, senders }));
+        console.log(JSON.stringify(buildScanJson(total, senders)));
         return;
       }
 
@@ -186,7 +197,7 @@ program
       });
 
       if (json) {
-        console.log(JSON.stringify({ unclassified: unclassifiedList }));
+        console.log(JSON.stringify(buildClassifyJson(unclassifiedList)));
       } else {
         console.log(formatUnclassifiedText(unclassifiedList));
       }
@@ -207,7 +218,7 @@ program
       });
 
       if (json) {
-        console.log(JSON.stringify({ imported, path }));
+        console.log(JSON.stringify(buildImportClassificationsJson(imported, path)));
       } else {
         console.log(`Imported ${imported} classifications to ${path}`);
       }
@@ -237,7 +248,7 @@ program
       );
 
       if (json) {
-        console.log(JSON.stringify(stats));
+        console.log(JSON.stringify(buildSortJson(stats)));
         return;
       }
 
@@ -270,7 +281,7 @@ program
       );
 
       if (json) {
-        console.log(JSON.stringify(stats));
+        console.log(JSON.stringify(buildDownloadJson(stats)));
         return;
       }
 
@@ -308,14 +319,7 @@ program
       );
 
       if (json) {
-        if (result.mode === "listVendors") {
-          console.log(JSON.stringify({ configVendors: result.configVendors, recentVendors: result.recentVendors }));
-        } else if (result.mode === "reprocess") {
-          const { mode, ...rest } = result;
-          console.log(JSON.stringify(rest));
-        } else {
-          console.log(JSON.stringify({ stats: result.stats, records: result.records }));
-        }
+        console.log(JSON.stringify(buildDownloadReceiptsJson(result)));
         return;
       }
 
@@ -352,9 +356,7 @@ program
       for (const w of warnings) console.error(w);
 
       if (json) {
-        // Strip internal messageId from JSON output
-        const output = allResults.map(({ messageId, ...rest }) => rest);
-        console.log(JSON.stringify(output));
+        console.log(JSON.stringify(buildSearchJson(allResults)));
       } else if (allResults.length > 0) {
         console.log(formatSearchResultsText(allResults));
       }
@@ -374,8 +376,6 @@ program
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
       const maxBodyExplicit = opts.maxBody !== undefined;
       const maxBody = maxBodyExplicit ? parseInt(opts.maxBody, 10) : 3000;
-      // In JSON mode, include full body unless --max-body was explicitly set
-      const effectiveMaxBody = json && !maxBodyExplicit ? Infinity : maxBody;
 
       const { account: acct, parsed } = await readCommand(uid, opts, {
         targetAccounts,
@@ -387,11 +387,15 @@ program
       console.error(`\n=== ${acct.name} ===`);
 
       if (json) {
-        const result = buildReadResult(parsed, acct.name, uid, {
-          maxBody: effectiveMaxBody,
-          includeHeaders: !!opts.headers,
-        });
-        console.log(JSON.stringify(result));
+        console.log(
+          JSON.stringify(
+            buildReadJson(parsed, acct.name, uid, {
+              maxBody,
+              maxBodyExplicit,
+              includeHeaders: !!opts.headers,
+            }),
+          ),
+        );
       } else {
         console.log(
           formatReadResultText(parsed, {
@@ -426,8 +430,7 @@ program
       );
 
       if (json) {
-        const flat = allAccountFolders.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
-        console.log(JSON.stringify(flat));
+        console.log(JSON.stringify(buildFoldersJson(allAccountFolders)));
       } else {
         console.log(formatFoldersText(allAccountFolders));
       }
@@ -461,7 +464,7 @@ program
 
       if (result.list) {
         if (json) {
-          console.log(JSON.stringify({ account: result.account, uid: result.uid, attachments: result.attachments }));
+          console.log(JSON.stringify(buildAttachmentListJson(result)));
         } else {
           console.log(formatAttachmentListText(result.attachments));
         }
@@ -470,14 +473,7 @@ program
 
       if ("path" in result) {
         if (json) {
-          console.log(
-            JSON.stringify({
-              path: result.path,
-              filename: result.filename,
-              size: result.size,
-              contentType: result.contentType,
-            }),
-          );
+          console.log(JSON.stringify(buildAttachmentSavedJson(result)));
         } else {
           console.log(formatAttachmentSavedText(result.path));
         }
@@ -504,7 +500,7 @@ program
       });
 
       if (json) {
-        console.log(JSON.stringify({ ...stats, results }));
+        console.log(JSON.stringify(buildMoveJson(stats, results)));
       } else {
         console.log(formatMoveResultText(stats));
       }
@@ -527,7 +523,7 @@ program
       });
 
       if (json) {
-        console.log(JSON.stringify(allResults));
+        console.log(JSON.stringify(buildInboxJson(allResults)));
       } else {
         console.log(formatInboxText(resultsByAccount));
       }
@@ -556,9 +552,8 @@ program
       });
 
       if (json) {
-        for (const flagResult of results) {
-          const { dryRun, ...rest } = flagResult;
-          console.log(JSON.stringify(dryRun ? { dryRun: true, ...rest } : rest));
+        for (const obj of buildFlagResultJson(results)) {
+          console.log(JSON.stringify(obj));
         }
       } else {
         console.log(formatFlagResultText(results));
@@ -600,7 +595,7 @@ program
       if ("dryRun" in result) {
         const { message } = result;
         if (json) {
-          console.log(JSON.stringify({ dryRun: true, message }));
+          console.log(JSON.stringify(buildReplyDryRunJson(message)));
         } else {
           console.log(formatReplyDryRunText(message));
         }
@@ -608,7 +603,7 @@ program
       }
 
       if (json) {
-        console.log(JSON.stringify({ sent: result.sent, messageId: result.messageId, accepted: result.accepted }));
+        console.log(JSON.stringify(buildReplySentJson(result)));
       } else {
         console.log(formatReplySentText(result));
       }
@@ -635,7 +630,7 @@ program
       for (const { account: acctName, threadSize, fallback, messages } of results) {
         console.error(`\n=== ${acctName} ===`);
         if (json) {
-          console.log(JSON.stringify({ account: acctName, threadSize, fallback, messages }));
+          console.log(JSON.stringify(buildThreadJson(acctName, threadSize, fallback, messages)));
         } else {
           console.log(formatThreadText(messages, { full: opts.full, fallback }));
         }
@@ -661,7 +656,7 @@ program
       });
 
       if (json) {
-        console.log(JSON.stringify(contacts));
+        console.log(JSON.stringify(buildContactsJson(contacts)));
       } else {
         console.log(formatContactsText(contacts, { sinceLabel }));
       }

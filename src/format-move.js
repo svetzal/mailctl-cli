@@ -19,3 +19,14 @@
 export function formatMoveResultText(stats) {
   return `\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped (dry-run)`;
 }
+
+/**
+ * Build a JSON-ready object for a move result.
+ *
+ * @param {MoveStats} stats
+ * @param {object[]} results
+ * @returns {object}
+ */
+export function buildMoveJson(stats, results) {
+  return { ...stats, results };
+}

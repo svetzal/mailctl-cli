@@ -30,3 +30,17 @@ export function formatFlagResultText(results) {
 
   return lines.join("\n");
 }
+
+/**
+ * Build JSON-ready objects for flag operation results.
+ * Dry-run results include { dryRun: true, ...rest }; live results omit the dryRun field.
+ *
+ * @param {FlagResult[]} results
+ * @returns {object[]}
+ */
+export function buildFlagResultJson(results) {
+  return results.map((flagResult) => {
+    const { dryRun, ...rest } = flagResult;
+    return dryRun ? { dryRun: true, ...rest } : rest;
+  });
+}

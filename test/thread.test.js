@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
-import { findThread, formatThreadText, parseReferences, stripSubjectPrefixes } from "../src/thread.js";
+import { buildThreadJson, formatThreadText } from "../src/format-thread.js";
+import { findThread, parseReferences, stripSubjectPrefixes } from "../src/thread.js";
 import { makeLock } from "./helpers.js";
 
 function makeDate(str = "2025-03-01T12:00:00Z") {
@@ -393,5 +394,35 @@ describe("formatThreadText", () => {
     ];
     const text = formatThreadText(messages, { full: true });
     expect(text).toContain("full body content here");
+  });
+});
+
+// ── buildThreadJson ────────────────────────────────────────────────────────────
+
+describe("buildThreadJson", () => {
+  const messages = [{ uid: 1, subject: "Hello", from: "a@b.com", fromName: "Alice" }];
+
+  it("includes account", () => {
+    const result = buildThreadJson("iCloud", 1, false, messages);
+
+    expect(result.account).toBe("iCloud");
+  });
+
+  it("includes threadSize", () => {
+    const result = buildThreadJson("iCloud", 3, false, messages);
+
+    expect(result.threadSize).toBe(3);
+  });
+
+  it("includes fallback flag", () => {
+    const result = buildThreadJson("iCloud", 1, true, messages);
+
+    expect(result.fallback).toBe(true);
+  });
+
+  it("includes messages array", () => {
+    const result = buildThreadJson("iCloud", 1, false, messages);
+
+    expect(result.messages).toBe(messages);
   });
 });

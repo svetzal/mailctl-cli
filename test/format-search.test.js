@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatSearchResultsText } from "../src/format-search.js";
+import { buildSearchJson, formatSearchResultsText } from "../src/format-search.js";
 
 describe("formatSearchResultsText", () => {
   const result = {
@@ -99,5 +99,33 @@ describe("formatSearchResultsText", () => {
     it("still contains uid", () => {
       expect(text).toContain("UID:42");
     });
+  });
+});
+
+// ── buildSearchJson ────────────────────────────────────────────────────────────
+
+describe("buildSearchJson", () => {
+  it("strips the internal messageId field from results", () => {
+    const results = [{ mailbox: "INBOX", uid: 42, messageId: "<abc@example.com>", subject: "Hello" }];
+    const output = buildSearchJson(results);
+
+    expect(output[0]).not.toHaveProperty("messageId");
+  });
+
+  it("preserves other fields", () => {
+    const results = [{ mailbox: "INBOX", uid: 42, messageId: "<abc@example.com>", subject: "Hello" }];
+    const output = buildSearchJson(results);
+
+    expect(output[0].subject).toBe("Hello");
+  });
+
+  it("returns one object per result", () => {
+    const results = [
+      { mailbox: "INBOX", uid: 1, messageId: "<a@x.com>" },
+      { mailbox: "Sent", uid: 2, messageId: "<b@x.com>" },
+    ];
+    const output = buildSearchJson(results);
+
+    expect(output).toHaveLength(2);
   });
 });

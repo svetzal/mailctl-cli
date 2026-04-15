@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatMoveResultText } from "../src/format-move.js";
+import { buildMoveJson, formatMoveResultText } from "../src/format-move.js";
 
 describe("formatMoveResultText", () => {
   describe("formats a single account move summary", () => {
@@ -44,5 +44,24 @@ describe("formatMoveResultText", () => {
     it("shows dry-run indicator", () => {
       expect(text).toContain("(dry-run)");
     });
+  });
+});
+
+// ── buildMoveJson ─────────────────────────────────────────────────────────────
+
+describe("buildMoveJson", () => {
+  const stats = { moved: 3, failed: 0, skipped: 0 };
+  const results = [{ uid: 42, account: "iCloud", status: "moved" }];
+
+  it("spreads stats fields into the result", () => {
+    const json = buildMoveJson(stats, results);
+
+    expect(json.moved).toBe(3);
+  });
+
+  it("includes results array", () => {
+    const json = buildMoveJson(stats, results);
+
+    expect(json.results).toBe(results);
   });
 });

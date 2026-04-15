@@ -37,3 +37,23 @@ export function formatAttachmentListText(attachments) {
 export function formatAttachmentSavedText(path) {
   return path;
 }
+
+/**
+ * Build a JSON-ready object for an attachment listing result.
+ *
+ * @param {{ account: string, uid: string|number, attachments: AttachmentEntry[] }} result
+ * @returns {{ account: string, uid: string|number, attachments: AttachmentEntry[] }}
+ */
+export function buildAttachmentListJson(result) {
+  return { account: result.account, uid: result.uid, attachments: result.attachments };
+}
+
+/**
+ * Build a JSON-ready object for a saved attachment result.
+ *
+ * @param {{ path: string, filename: string, size: number, contentType: string }} result
+ * @returns {{ path: string, filename: string, size: number, contentType: string }}
+ */
+export function buildAttachmentSavedJson(result) {
+  return { path: result.path, filename: result.filename, size: result.size, contentType: result.contentType };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatFoldersText } from "../src/format-folders.js";
+import { buildFoldersJson, formatFoldersText } from "../src/format-folders.js";
 
 // ── formatFoldersText ─────────────────────────────────────────────────────────
 
@@ -52,5 +52,53 @@ describe("formatFoldersText", () => {
     const text = formatFoldersText([]);
 
     expect(text).toBe("");
+  });
+});
+
+// ── buildFoldersJson ──────────────────────────────────────────────────────────
+
+describe("buildFoldersJson", () => {
+  const input = [
+    {
+      account: "iCloud",
+      folders: [
+        { path: "INBOX", specialUse: null },
+        { path: "Sent Messages", specialUse: "\\Sent" },
+      ],
+    },
+    {
+      account: "Gmail",
+      folders: [{ path: "INBOX", specialUse: null }],
+    },
+  ];
+
+  it("flattens folders from all accounts", () => {
+    const result = buildFoldersJson(input);
+
+    expect(result).toHaveLength(3);
+  });
+
+  it("tags each folder with its account name", () => {
+    const result = buildFoldersJson(input);
+
+    expect(result[0].account).toBe("iCloud");
+  });
+
+  it("includes the folder path", () => {
+    const result = buildFoldersJson(input);
+
+    expect(result[0].path).toBe("INBOX");
+  });
+
+  it("includes specialUse attribute", () => {
+    const result = buildFoldersJson(input);
+
+    expect(result[1].specialUse).toBe("\\Sent");
+  });
+
+  it("returns an empty array for empty input", () => {
+    const result = buildFoldersJson([]);
+
+    expect(result).toEqual([]);
   });
 });

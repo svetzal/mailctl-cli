@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildReadResult, formatReadResultText } from "../src/read-email.js";
+import { buildReadJson, buildReadResult, formatReadResultText } from "../src/format-read.js";
 
 /**
  * Create a minimal mock of a mailparser ParsedMail object.
@@ -266,5 +266,41 @@ describe("formatReadResultText", () => {
     it("contains the custom header name", () => {
       expect(text).toContain("x-custom");
     });
+  });
+});
+
+// ── buildReadJson ─────────────────────────────────────────────────────────────
+
+describe("buildReadJson", () => {
+  it("returns full body when maxBodyExplicit is false (JSON mode default)", () => {
+    const longText = "A".repeat(5000);
+    const parsed = mockParsed({ text: longText });
+    const result = buildReadJson(parsed, "icloud", "1", {
+      maxBody: 3000,
+      maxBodyExplicit: false,
+      includeHeaders: false,
+    });
+
+    expect(result.body.length).toBe(5000);
+  });
+
+  it("respects maxBody when maxBodyExplicit is true", () => {
+    const longText = "A".repeat(5000);
+    const parsed = mockParsed({ text: longText });
+    const result = buildReadJson(parsed, "icloud", "1", { maxBody: 100, maxBodyExplicit: true, includeHeaders: false });
+
+    expect(result.body.length).toBe(100);
+  });
+
+  it("includes account and uid in the result", () => {
+    const parsed = mockParsed();
+    const result = buildReadJson(parsed, "icloud", "42", {
+      maxBody: 3000,
+      maxBodyExplicit: false,
+      includeHeaders: false,
+    });
+
+    expect(result.account).toBe("icloud");
+    expect(result.uid).toBe(42);
   });
 });
