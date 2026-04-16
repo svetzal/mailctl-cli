@@ -6,6 +6,7 @@
 
 import { sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { htmlToText } from "./html-to-text.js";
+import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
  * Strip common reply/forward prefixes from a subject line.
@@ -45,42 +46,38 @@ export function parseReferences(references) {
  * @returns {Promise<number[]>} UIDs found
  */
 async function searchMailboxForThread(client, mailboxPath, messageIds, onProgress) {
-  let lock;
-  try {
-    lock = await client.getMailboxLock(mailboxPath);
-  } catch (err) {
-    // Mailbox inaccessible — skip gracefully
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
-    return [];
-  }
+  return (
+    (await withMailboxLock(
+      client,
+      mailboxPath,
+      async () => {
+        const uidSet = new Set();
 
-  try {
-    const uidSet = new Set();
+        for (const mid of messageIds) {
+          const headerSearches = [
+            { header: { "Message-ID": mid } },
+            { header: { References: mid } },
+            { header: { "In-Reply-To": mid } },
+          ];
 
-    for (const mid of messageIds) {
-      const headerSearches = [
-        { header: { "Message-ID": mid } },
-        { header: { References: mid } },
-        { header: { "In-Reply-To": mid } },
-      ];
-
-      for (const criteria of headerSearches) {
-        try {
-          const uids = await client.search(criteria, { uid: true });
-          if (uids && uids.length > 0) {
-            for (const uid of uids) uidSet.add(uid);
+          for (const criteria of headerSearches) {
+            try {
+              const uids = await client.search(criteria, { uid: true });
+              if (uids && uids.length > 0) {
+                for (const uid of uids) uidSet.add(uid);
+              }
+            } catch (err) {
+              // Header search not supported, caller will handle fallback
+              onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+            }
           }
-        } catch (err) {
-          // Header search not supported, caller will handle fallback
-          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
         }
-      }
-    }
 
-    return [...uidSet];
-  } finally {
-    lock.release();
-  }
+        return [...uidSet];
+      },
+      { onProgress },
+    )) ?? []
+  );
 }
 
 /**
@@ -93,25 +90,23 @@ async function searchMailboxForThread(client, mailboxPath, messageIds, onProgres
  * @returns {Promise<number[]>} UIDs found
  */
 async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgress) {
-  let lock;
-  try {
-    lock = await client.getMailboxLock(mailboxPath);
-  } catch (err) {
-    // Mailbox inaccessible — skip gracefully
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
-    return [];
-  }
-
-  try {
-    const uids = await client.search({ subject: baseSubject }, { uid: true });
-    return uids && uids.length > 0 ? [...uids] : [];
-  } catch (err) {
-    // Search failed — return empty results
-    onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
-    return [];
-  } finally {
-    lock.release();
-  }
+  return (
+    (await withMailboxLock(
+      client,
+      mailboxPath,
+      async () => {
+        try {
+          const uids = await client.search({ subject: baseSubject }, { uid: true });
+          return uids && uids.length > 0 ? [...uids] : [];
+        } catch (err) {
+          // Search failed — return empty results
+          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+          return [];
+        }
+      },
+      { onProgress },
+    )) ?? []
+  );
 }
 
 /**
@@ -128,55 +123,51 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgre
 async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullBody = false, onProgress = () => {}) {
   if (uids.length === 0) return [];
 
-  let lock;
-  try {
-    lock = await client.getMailboxLock(mailboxPath);
-  } catch (err) {
-    // Mailbox inaccessible — skip gracefully
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
-    return [];
-  }
+  return (
+    (await withMailboxLock(
+      client,
+      mailboxPath,
+      async () => {
+        const uidRange = uids.join(",");
+        const results = [];
+        const fetchFields = {
+          envelope: true,
+          uid: true,
+          source: true,
+        };
 
-  try {
-    const uidRange = uids.join(",");
-    const results = [];
-    const fetchFields = {
-      envelope: true,
-      uid: true,
-      source: true,
-    };
+        for await (const msg of client.fetch(uidRange, fetchFields, { uid: true })) {
+          const env = msg.envelope;
+          const from = env.from?.[0];
 
-    for await (const msg of client.fetch(uidRange, fetchFields, { uid: true })) {
-      const env = msg.envelope;
-      const from = env.from?.[0];
+          let bodyText = "";
+          if (msg.source) {
+            const { simpleParser } = await import("mailparser");
+            const parsed = await simpleParser(msg.source);
+            bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
+          }
 
-      let bodyText = "";
-      if (msg.source) {
-        const { simpleParser } = await import("mailparser");
-        const parsed = await simpleParser(msg.source);
-        bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
-      }
+          const snippet = bodyText.substring(0, 150).replace(/\n/g, " ").trim();
 
-      const snippet = bodyText.substring(0, 150).replace(/\n/g, " ").trim();
+          results.push({
+            uid: msg.uid,
+            account: accountName,
+            mailbox: mailboxPath,
+            date: env.date,
+            from: from?.address || "",
+            fromName: sanitizeForAgentOutput(from?.name || ""),
+            subject: sanitizeForAgentOutput(env.subject || ""),
+            messageId: env.messageId || "",
+            snippet: sanitizeForAgentOutput(snippet),
+            body: sanitizeForAgentOutput(fullBody ? bodyText : ""),
+          });
+        }
 
-      results.push({
-        uid: msg.uid,
-        account: accountName,
-        mailbox: mailboxPath,
-        date: env.date,
-        from: from?.address || "",
-        fromName: sanitizeForAgentOutput(from?.name || ""),
-        subject: sanitizeForAgentOutput(env.subject || ""),
-        messageId: env.messageId || "",
-        snippet: sanitizeForAgentOutput(snippet),
-        body: sanitizeForAgentOutput(fullBody ? bodyText : ""),
-      });
-    }
-
-    return results;
-  } finally {
-    lock.release();
-  }
+        return results;
+      },
+      { onProgress },
+    )) ?? []
+  );
 }
 
 /**
@@ -204,38 +195,58 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   let anchorInReplyTo = "";
   let anchorSubject = "";
 
-  let lock;
-  try {
-    lock = await client.getMailboxLock(mailboxPath);
-  } catch (err) {
-    // Mailbox inaccessible — skip gracefully
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
-    return { messages: [], fallback: false };
+  const anchorResult = await withMailboxLock(
+    client,
+    mailboxPath,
+    async () => {
+      const uidStr = String(uid);
+      /** @type {{ messageId: string, subject: string, references: string, inReplyTo: string } | null} */
+      let headers = null;
+      for await (const msg of client.fetch(
+        uidStr,
+        {
+          envelope: true,
+          headers: true,
+          uid: true,
+        },
+        { uid: true },
+      )) {
+        let references = "";
+        let inReplyTo = "";
+        if (msg.headers) {
+          const headersText = msg.headers.toString();
+          const refsMatch = headersText.match(/^References:\s*(.+?)(?=\r?\n\S|\r?\n\r?\n)/ims);
+          if (refsMatch) references = refsMatch[1].replace(/\r?\n\s+/g, " ").trim();
+          const replyMatch = headersText.match(/^In-Reply-To:\s*(.+?)$/im);
+          if (replyMatch) inReplyTo = replyMatch[1].trim();
+        }
+        headers = {
+          messageId: msg.envelope.messageId || "",
+          subject: msg.envelope.subject || "",
+          references,
+          inReplyTo,
+        };
+      }
+      return headers;
+    },
+    {
+      onLockFailed: (err) => {
+        onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
+        return { messages: [], fallback: false };
+      },
+    },
+  );
+
+  // onLockFailed returns { messages, fallback } shape — detect and propagate
+  if (anchorResult && "messages" in anchorResult) {
+    return anchorResult;
   }
 
-  try {
-    const uidStr = String(uid);
-    for await (const msg of client.fetch(
-      uidStr,
-      {
-        envelope: true,
-        headers: true,
-        uid: true,
-      },
-      { uid: true },
-    )) {
-      anchorMessageId = msg.envelope.messageId || "";
-      anchorSubject = msg.envelope.subject || "";
-      if (msg.headers) {
-        const headersText = msg.headers.toString();
-        const refsMatch = headersText.match(/^References:\s*(.+?)(?=\r?\n\S|\r?\n\r?\n)/ims);
-        if (refsMatch) anchorReferences = refsMatch[1].replace(/\r?\n\s+/g, " ").trim();
-        const replyMatch = headersText.match(/^In-Reply-To:\s*(.+?)$/im);
-        if (replyMatch) anchorInReplyTo = replyMatch[1].trim();
-      }
-    }
-  } finally {
-    lock.release();
+  if (anchorResult) {
+    anchorMessageId = anchorResult.messageId;
+    anchorSubject = anchorResult.subject;
+    anchorReferences = anchorResult.references;
+    anchorInReplyTo = anchorResult.inReplyTo;
   }
 
   if (!anchorMessageId && !anchorReferences && !anchorInReplyTo) {

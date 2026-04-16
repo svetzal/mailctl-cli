@@ -1,3 +1,5 @@
+import { withMailboxLock } from "./imap-orchestration.js";
+
 /**
  * Find which mailbox contains a given UID.
  * Tries INBOX first, then scans all provided mailbox paths.
@@ -35,23 +37,21 @@ export async function detectMailbox(client, uid, mailboxPaths, onProgress = () =
  * @returns {Promise<boolean>}
  */
 async function searchMailboxForUid(client, mailboxPath, uid, onProgress) {
-  let lock;
-  try {
-    lock = await client.getMailboxLock(mailboxPath);
-  } catch (err) {
-    // Mailbox inaccessible — skip gracefully
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
-    return false;
-  }
-
-  try {
-    const found = await client.search({ uid }, { uid: true });
-    return found && found.length > 0;
-  } catch (err) {
-    // Search failed — return empty results
-    onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
-    return false;
-  } finally {
-    lock.release();
-  }
+  return (
+    (await withMailboxLock(
+      client,
+      mailboxPath,
+      async () => {
+        try {
+          const found = await client.search({ uid }, { uid: true });
+          return found && found.length > 0;
+        } catch (err) {
+          // Search failed — return false
+          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+          return false;
+        }
+      },
+      { onProgress },
+    )) ?? false
+  );
 }

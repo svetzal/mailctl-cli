@@ -6,6 +6,7 @@
 
 import { deduplicateByMessageId } from "./dedup.js";
 import { filterSearchMailboxes } from "./imap-client.js";
+import { withMailboxLock } from "./imap-orchestration.js";
 import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 
 /**
@@ -19,80 +20,77 @@ import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.
  * @returns {Promise<Array>}
  */
 export async function searchMailboxForReceipts(client, accountName, mailboxPath, since, onProgress = () => {}) {
-  let lock;
-  try {
-    lock = await client.getMailboxLock(mailboxPath);
-  } catch (err) {
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
-    return [];
-  }
+  return (
+    (await withMailboxLock(
+      client,
+      mailboxPath,
+      async () => {
+        const messageCount = client.mailbox?.exists;
+        onProgress({ type: "mailbox-search-start", mailbox: mailboxPath, messageCount });
+        const allUids = new Set();
 
-  try {
-    const messageCount = client.mailbox?.exists;
-    onProgress({ type: "mailbox-search-start", mailbox: mailboxPath, messageCount });
-    const allUids = new Set();
+        // Subject-based search
+        for (const term of RECEIPT_SUBJECT_TERMS) {
+          const criteria = { subject: term };
+          if (since) criteria.since = since;
+          try {
+            const uids = await client.search(criteria, { uid: true });
+            if (uids) for (const uid of uids) allUids.add(uid);
+          } catch (err) {
+            onProgress({ type: "search-term-error", mailbox: mailboxPath, term, error: err });
+          }
+        }
 
-    // Subject-based search
-    for (const term of RECEIPT_SUBJECT_TERMS) {
-      const criteria = { subject: term };
-      if (since) criteria.since = since;
-      try {
-        const uids = await client.search(criteria, { uid: true });
-        if (uids) for (const uid of uids) allUids.add(uid);
-      } catch (err) {
-        onProgress({ type: "search-term-error", mailbox: mailboxPath, term, error: err });
-      }
-    }
+        // Sender-based search
+        for (const pattern of BILLING_SENDER_PATTERNS) {
+          const criteria = { from: pattern };
+          if (since) criteria.since = since;
+          try {
+            const uids = await client.search(criteria, { uid: true });
+            if (uids) for (const uid of uids) allUids.add(uid);
+          } catch (err) {
+            onProgress({ type: "search-term-error", mailbox: mailboxPath, pattern, error: err });
+          }
+        }
 
-    // Sender-based search
-    for (const pattern of BILLING_SENDER_PATTERNS) {
-      const criteria = { from: pattern };
-      if (since) criteria.since = since;
-      try {
-        const uids = await client.search(criteria, { uid: true });
-        if (uids) for (const uid of uids) allUids.add(uid);
-      } catch (err) {
-        onProgress({ type: "search-term-error", mailbox: mailboxPath, pattern, error: err });
-      }
-    }
+        if (allUids.size === 0) return [];
 
-    if (allUids.size === 0) return [];
+        onProgress({ type: "mailbox-candidates", mailbox: mailboxPath, count: allUids.size });
 
-    onProgress({ type: "mailbox-candidates", mailbox: mailboxPath, count: allUids.size });
+        const results = [];
+        const uidRange = [...allUids].join(",");
+        try {
+          for await (const msg of client.fetch(
+            uidRange,
+            {
+              envelope: true,
+              headers: ["message-id"],
+              uid: true,
+            },
+            { uid: true },
+          )) {
+            const env = msg.envelope;
+            const from = env.from?.[0];
+            results.push({
+              account: accountName,
+              mailbox: mailboxPath,
+              uid: msg.uid,
+              messageId: env.messageId || "",
+              date: env.date,
+              fromAddress: from?.address?.toLowerCase() || "unknown",
+              fromName: from?.name || "",
+              subject: env.subject || "",
+            });
+          }
+        } catch (err) {
+          onProgress({ type: "mailbox-fetch-error", error: err });
+        }
 
-    const results = [];
-    const uidRange = [...allUids].join(",");
-    try {
-      for await (const msg of client.fetch(
-        uidRange,
-        {
-          envelope: true,
-          headers: ["message-id"],
-          uid: true,
-        },
-        { uid: true },
-      )) {
-        const env = msg.envelope;
-        const from = env.from?.[0];
-        results.push({
-          account: accountName,
-          mailbox: mailboxPath,
-          uid: msg.uid,
-          messageId: env.messageId || "",
-          date: env.date,
-          fromAddress: from?.address?.toLowerCase() || "unknown",
-          fromName: from?.name || "",
-          subject: env.subject || "",
-        });
-      }
-    } catch (err) {
-      onProgress({ type: "mailbox-fetch-error", error: err });
-    }
-
-    return results;
-  } finally {
-    lock.release();
-  }
+        return results;
+      },
+      { onProgress },
+    )) ?? []
+  );
 }
 
 /**

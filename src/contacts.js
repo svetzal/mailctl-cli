@@ -4,6 +4,7 @@
 
 import { sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { listMailboxes } from "./imap-client.js";
+import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
  * Extract contacts from recent email envelopes.
@@ -53,69 +54,65 @@ export async function extractContacts(client, _accountName, opts) {
  * @returns {Promise<Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>>}
  */
 async function scanMailboxContacts(client, mailboxPath, since, direction, onProgress) {
-  /** @type {Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>} */
-  const entries = [];
+  return (
+    (await withMailboxLock(
+      client,
+      mailboxPath,
+      async () => {
+        /** @type {Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>} */
+        const entries = [];
 
-  let lock;
-  try {
-    lock = await client.getMailboxLock(mailboxPath);
-  } catch (err) {
-    // Mailbox inaccessible — skip gracefully
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
-    return entries;
-  }
-
-  try {
-    let uids;
-    try {
-      uids = await client.search({ since }, { uid: true });
-    } catch (err) {
-      // Search failed — return empty results
-      onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
-      return entries;
-    }
-
-    if (!uids || uids.length === 0) return entries;
-
-    const uidRange = uids.join(",");
-
-    for await (const msg of client.fetch(uidRange, { envelope: true, uid: true }, { uid: true })) {
-      const env = msg.envelope;
-      const date = env.date || new Date(0);
-
-      if (direction === "received") {
-        // Extract From addresses
-        for (const addr of env.from || []) {
-          if (addr.address) {
-            entries.push({
-              address: addr.address.toLowerCase(),
-              name: sanitizeForAgentOutput(addr.name || ""),
-              date,
-              direction: "received",
-            });
-          }
+        let uids;
+        try {
+          uids = await client.search({ since }, { uid: true });
+        } catch (err) {
+          // Search failed — return empty results
+          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+          return entries;
         }
-      } else {
-        // Extract To and CC addresses
-        for (const list of [env.to, env.cc]) {
-          for (const addr of list || []) {
-            if (addr.address) {
-              entries.push({
-                address: addr.address.toLowerCase(),
-                name: sanitizeForAgentOutput(addr.name || ""),
-                date,
-                direction: "sent",
-              });
+
+        if (!uids || uids.length === 0) return entries;
+
+        const uidRange = uids.join(",");
+
+        for await (const msg of client.fetch(uidRange, { envelope: true, uid: true }, { uid: true })) {
+          const env = msg.envelope;
+          const date = env.date || new Date(0);
+
+          if (direction === "received") {
+            // Extract From addresses
+            for (const addr of env.from || []) {
+              if (addr.address) {
+                entries.push({
+                  address: addr.address.toLowerCase(),
+                  name: sanitizeForAgentOutput(addr.name || ""),
+                  date,
+                  direction: "received",
+                });
+              }
+            }
+          } else {
+            // Extract To and CC addresses
+            for (const list of [env.to, env.cc]) {
+              for (const addr of list || []) {
+                if (addr.address) {
+                  entries.push({
+                    address: addr.address.toLowerCase(),
+                    name: sanitizeForAgentOutput(addr.name || ""),
+                    date,
+                    direction: "sent",
+                  });
+                }
+              }
             }
           }
         }
-      }
-    }
-  } finally {
-    lock.release();
-  }
 
-  return entries;
+        return entries;
+      },
+      { onProgress },
+    )) ?? []
+  );
 }
 
 /**

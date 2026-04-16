@@ -1,4 +1,5 @@
 import { ImapFlow } from "imapflow";
+import { withMailboxLock } from "./imap-orchestration.js";
 import { getM365AccessToken } from "./m365-auth.js";
 import { RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 import { buildScanResult } from "./scan-helpers.js";
@@ -50,59 +51,57 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
 
   // Deduplicate UIDs per mailbox to avoid fetching the same message twice
   for (const mailbox of mailboxes) {
-    let lock;
-    try {
-      lock = await client.getMailboxLock(mailbox);
-    } catch (err) {
-      // mailbox doesn't exist on this account, skip
-      onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
-      continue;
-    }
+    const perMailbox = await withMailboxLock(
+      client,
+      mailbox,
+      async () => {
+        const mailboxResults = [];
+        // @ts-expect-error — imapflow types client.mailbox as false|MailboxObject; ?. handles the false case at runtime
+        onProgress({ type: "mailbox-start", mailbox, count: client.mailbox?.exists });
+        const allUids = new Set();
 
-    try {
-      // @ts-expect-error — imapflow types client.mailbox as false|MailboxObject; ?. handles the false case at runtime
-      onProgress({ type: "mailbox-start", mailbox, count: client.mailbox?.exists });
-      const allUids = new Set();
+        for (const term of RECEIPT_SUBJECT_TERMS) {
+          const searchCriteria = {
+            subject: term,
+          };
+          if (opts.since) {
+            searchCriteria.since = opts.since;
+          }
 
-      for (const term of RECEIPT_SUBJECT_TERMS) {
-        const searchCriteria = {
-          subject: term,
-        };
-        if (opts.since) {
-          searchCriteria.since = opts.since;
+          let uids;
+          try {
+            uids = await client.search(searchCriteria, { uid: true });
+          } catch (err) {
+            onProgress({ type: "search-error", term, error: err });
+            continue;
+          }
+
+          if (!uids || uids.length === 0) continue;
+          for (const uid of uids) allUids.add(uid);
         }
 
-        let uids;
+        if (allUids.size === 0) {
+          onProgress({ type: "mailbox-empty", mailbox });
+          return mailboxResults;
+        }
+
+        onProgress({ type: "mailbox-matches", mailbox, count: allUids.size });
+
+        // Fetch envelopes for all unique UIDs (as comma-separated range string)
+        const uidRange = [...allUids].join(",");
         try {
-          uids = await client.search(searchCriteria, { uid: true });
+          for await (const msg of client.fetch(uidRange, { envelope: true, uid: true }, { uid: true })) {
+            mailboxResults.push(buildScanResult(accountName, mailbox, msg));
+          }
         } catch (err) {
-          onProgress({ type: "search-error", term, error: err });
-          continue;
+          onProgress({ type: "fetch-error", error: err });
         }
 
-        if (!uids || uids.length === 0) continue;
-        for (const uid of uids) allUids.add(uid);
-      }
-
-      if (allUids.size === 0) {
-        onProgress({ type: "mailbox-empty", mailbox });
-        continue;
-      }
-
-      onProgress({ type: "mailbox-matches", mailbox, count: allUids.size });
-
-      // Fetch envelopes for all unique UIDs (as comma-separated range string)
-      const uidRange = [...allUids].join(",");
-      try {
-        for await (const msg of client.fetch(uidRange, { envelope: true, uid: true }, { uid: true })) {
-          results.push(buildScanResult(accountName, mailbox, msg));
-        }
-      } catch (err) {
-        onProgress({ type: "fetch-error", error: err });
-      }
-    } finally {
-      lock.release();
-    }
+        return mailboxResults;
+      },
+      { onProgress },
+    );
+    if (perMailbox) results.push(...perMailbox);
   }
 
   return results;

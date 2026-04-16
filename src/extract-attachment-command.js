@@ -8,6 +8,7 @@ import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { filterSearchMailboxes } from "./imap-client.js";
+import { withMailboxLock } from "./imap-orchestration.js";
 import { detectMailbox } from "./mailbox-detect.js";
 
 /**
@@ -52,69 +53,63 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
       if (!mailbox) return;
     }
 
-    let lock;
-    try {
-      lock = await client.getMailboxLock(mailbox);
-    } catch (err) {
-      // Mailbox inaccessible — skip gracefully
-      onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
-      return;
-    }
-
-    try {
-      // Fetch BODYSTRUCTURE to enumerate attachments without downloading the full message
-      let bodyStructure;
-      try {
-        for await (const fetched of client.fetch(String(uid), { bodyStructure: true }, { uid: true })) {
-          bodyStructure = fetched.bodyStructure;
+    await withMailboxLock(
+      client,
+      mailbox,
+      async () => {
+        // Fetch BODYSTRUCTURE to enumerate attachments without downloading the full message
+        let bodyStructure;
+        try {
+          for await (const fetched of client.fetch(String(uid), { bodyStructure: true }, { uid: true })) {
+            bodyStructure = fetched.bodyStructure;
+          }
+        } catch (err) {
+          // Fetch failed — skip gracefully
+          onProgress({ type: "search-failed", mailbox, error: err });
+          return;
         }
-      } catch (err) {
-        // Fetch failed — skip gracefully
-        onProgress({ type: "search-failed", mailbox, error: err });
-        return;
-      }
 
-      if (!bodyStructure) return;
+        if (!bodyStructure) return;
 
-      const listing = buildAttachmentListing(findAttachmentParts(bodyStructure));
+        const listing = buildAttachmentListing(findAttachmentParts(bodyStructure));
 
-      if (opts.list) {
+        if (opts.list) {
+          result = {
+            found: true,
+            list: true,
+            account: acct.name,
+            uid: parseInt(uid, 10),
+            attachments: listing,
+          };
+          return;
+        }
+
+        // Save mode — validateAttachmentIndex throws on invalid index
+        const att = validateAttachmentIndex(listing, attachmentIndex, uid);
+        const filename = att.filename !== "(unnamed)" ? att.filename : `attachment_${attachmentIndex}`;
+
+        // Download just the specific MIME part, not the entire message
+        const { content } = await client.download(String(uid), att.part, { uid: true });
+        const chunks = [];
+        for await (const chunk of content) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+
+        const outputDir = resolve(opts.output ?? ".");
+        fsGateway.mkdir(outputDir);
+        const outPath = join(outputDir, filename);
+        fsGateway.writeFile(outPath, buffer);
+
         result = {
           found: true,
-          list: true,
-          account: acct.name,
-          uid: parseInt(uid, 10),
-          attachments: listing,
+          list: false,
+          path: outPath,
+          filename,
+          size: buffer.length,
+          contentType: att.contentType,
         };
-        return;
-      }
-
-      // Save mode — validateAttachmentIndex throws on invalid index
-      const att = validateAttachmentIndex(listing, attachmentIndex, uid);
-      const filename = att.filename !== "(unnamed)" ? att.filename : `attachment_${attachmentIndex}`;
-
-      // Download just the specific MIME part, not the entire message
-      const { content } = await client.download(String(uid), att.part, { uid: true });
-      const chunks = [];
-      for await (const chunk of content) chunks.push(chunk);
-      const buffer = Buffer.concat(chunks);
-
-      const outputDir = resolve(opts.output ?? ".");
-      fsGateway.mkdir(outputDir);
-      const outPath = join(outputDir, filename);
-      fsGateway.writeFile(outPath, buffer);
-
-      result = {
-        found: true,
-        list: false,
-        path: outPath,
-        filename,
-        size: buffer.length,
-        contentType: att.contentType,
-      };
-    } finally {
-      lock.release();
-    }
+      },
+      { onProgress },
+    );
   });
 
   return result;

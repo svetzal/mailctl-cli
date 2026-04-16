@@ -8,6 +8,7 @@
 import { filterAccountsByName } from "./cli-helpers.js";
 import { applyFlagChanges, computeFlagChanges } from "./flag-messages.js";
 import { filterSearchMailboxes } from "./imap-client.js";
+import { withMailboxLock } from "./imap-orchestration.js";
 import { detectMailbox } from "./mailbox-detect.js";
 import { groupUidsByAccount, parseUidArgs } from "./move-logic.js";
 
@@ -89,26 +90,26 @@ export async function flagCommand(uids, opts, deps) {
         return;
       }
 
-      let lock;
-      try {
-        lock = await client.getMailboxLock(mailbox);
-      } catch (err) {
-        throw new Error(`Could not open mailbox "${mailbox}" on ${acct.name}: ${err.message}`);
-      }
-
-      try {
-        const flagResult = await applyFlagChanges(client, uidRange, changes);
-        results.push({
-          dryRun: false,
-          uids: acctUids.map(Number),
-          added: flagResult.added,
-          removed: flagResult.removed,
-          account: acct.name,
-          mailbox,
-        });
-      } finally {
-        lock.release();
-      }
+      await withMailboxLock(
+        client,
+        mailbox,
+        async () => {
+          const flagResult = await applyFlagChanges(client, uidRange, changes);
+          results.push({
+            dryRun: false,
+            uids: acctUids.map(Number),
+            added: flagResult.added,
+            removed: flagResult.removed,
+            account: acct.name,
+            mailbox,
+          });
+        },
+        {
+          onLockFailed: (err) => {
+            throw new Error(`Could not open mailbox "${mailbox}" on ${acct.name}: ${err.message}`);
+          },
+        },
+      );
     });
   }
 

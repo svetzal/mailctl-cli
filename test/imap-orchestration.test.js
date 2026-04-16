@@ -1,6 +1,61 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
-import { forEachMailboxGroup, groupByMailbox } from "../src/imap-orchestration.js";
+import { forEachMailboxGroup, groupByMailbox, withMailboxLock } from "../src/imap-orchestration.js";
 import { makeLock } from "./helpers.js";
+
+// ── withMailboxLock ───────────────────────────────────────────────────────────
+
+describe("withMailboxLock", () => {
+  it("returns the result of fn when lock is acquired", async () => {
+    const lock = makeLock();
+    const client = { getMailboxLock: mock(() => Promise.resolve(lock)) };
+
+    const result = await withMailboxLock(client, "INBOX", async () => "hello");
+
+    expect(result).toBe("hello");
+  });
+
+  it("releases the lock after fn resolves", async () => {
+    const lock = makeLock();
+    const client = { getMailboxLock: mock(() => Promise.resolve(lock)) };
+
+    await withMailboxLock(client, "INBOX", async () => {});
+
+    expect(lock.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases the lock even when fn throws", async () => {
+    const lock = makeLock();
+    const client = { getMailboxLock: mock(() => Promise.resolve(lock)) };
+
+    await withMailboxLock(client, "INBOX", async () => {
+      throw new Error("boom");
+    }).catch(() => {});
+
+    expect(lock.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits mailbox-lock-failed and returns undefined when lock acquisition fails and no onLockFailed", async () => {
+    const error = new Error("no such mailbox");
+    const client = { getMailboxLock: mock(() => Promise.reject(error)) };
+    const onProgress = mock(() => {});
+
+    const result = await withMailboxLock(client, "INBOX", async () => "unreachable", { onProgress });
+
+    expect(result).toBeUndefined();
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+  });
+
+  it("calls onLockFailed and returns its result when lock acquisition fails and onLockFailed is provided", async () => {
+    const error = new Error("no such mailbox");
+    const client = { getMailboxLock: mock(() => Promise.reject(error)) };
+    const onLockFailed = mock(() => "fallback");
+
+    const result = await withMailboxLock(client, "INBOX", async () => "unreachable", { onLockFailed });
+
+    expect(result).toBe("fallback");
+    expect(onLockFailed).toHaveBeenCalledWith(error);
+  });
+});
 
 // ── groupByMailbox ────────────────────────────────────────────────────────────
 

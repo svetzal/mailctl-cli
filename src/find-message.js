@@ -8,6 +8,7 @@
  */
 
 import { filterSearchMailboxes } from "./imap-client.js";
+import { withMailboxLock } from "./imap-orchestration.js";
 import { detectMailbox } from "./mailbox-detect.js";
 
 /**
@@ -53,21 +54,15 @@ export async function withMessage(uid, opts, deps, fn, onProgress = () => {}) {
       if (!mailbox) return;
     }
 
-    let lock;
-    try {
-      lock = await client.getMailboxLock(mailbox);
-    } catch (err) {
-      // Mailbox inaccessible — skip gracefully
-      onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
-      return;
-    }
-
-    try {
-      const result = await fn(client, acct, mailbox);
-      outcome = { result, account: acct, mailbox };
-    } finally {
-      lock.release();
-    }
+    await withMailboxLock(
+      client,
+      mailbox,
+      async () => {
+        const result = await fn(client, acct, mailbox);
+        outcome = { result, account: acct, mailbox };
+      },
+      { onProgress },
+    );
   });
 
   if (!outcome) {
