@@ -31,10 +31,10 @@ import { detectMailbox } from "./mailbox-detect.js";
  * @param {ExtractAttachmentCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<
- *   | { found: false }
  *   | { found: true, list: true, account: string, uid: number, attachments: Array }
  *   | { found: true, list: false, path: string, filename: string, size: number, contentType: string }
  * >}
+ * @throws {Error} when the UID is not found in any account
  */
 export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount, listMailboxes, fsGateway } = deps;
@@ -111,6 +111,10 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
       { onProgress },
     );
   });
+
+  if (!result.found) {
+    throw new Error(`Could not find UID ${uid} in any account.`);
+  }
 
   return result;
 }

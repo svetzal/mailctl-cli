@@ -22,12 +22,21 @@ import { groupUidsByAccount, parseUidArgs } from "./move-logic.js";
 
 /**
  * @typedef {object} FlagResult
- * @property {boolean} dryRun
- * @property {number[]} uids
- * @property {string[]} added
- * @property {string[]} removed
+ * @property {string} status - "flagged", "skipped", or "failed"
+ * @property {boolean} [dryRun]
+ * @property {number[]} [uids]
+ * @property {string[]} [added]
+ * @property {string[]} [removed]
  * @property {string} account
- * @property {string} mailbox
+ * @property {string} [mailbox]
+ * @property {string} [error]
+ */
+
+/**
+ * @typedef {object} FlagStats
+ * @property {number} flagged
+ * @property {number} failed
+ * @property {number} skipped
  */
 
 /**
@@ -36,7 +45,7 @@ import { groupUidsByAccount, parseUidArgs } from "./move-logic.js";
  * @param {string[]} uids - raw UID arguments from the CLI
  * @param {object} opts - CLI options (read, unread, star, unstar, mailbox, dryRun)
  * @param {FlagCommandDeps} deps - injected dependencies
- * @returns {Promise<FlagResult[]>} array of per-account flag results
+ * @returns {Promise<{ stats: FlagStats, results: FlagResult[] }>}
  */
 export async function flagCommand(uids, opts, deps) {
   const { accounts, account, forEachAccount, listMailboxes } = deps;
@@ -55,6 +64,7 @@ export async function flagCommand(uids, opts, deps) {
   }
 
   const byAccount = groupUidsByAccount(parsed);
+  const stats = { flagged: 0, failed: 0, skipped: 0 };
   /** @type {FlagResult[]} */
   const results = [];
 
@@ -62,7 +72,10 @@ export async function flagCommand(uids, opts, deps) {
     const targetAccounts = filterAccountsByName(accounts, acctKey);
 
     if (targetAccounts.length === 0) {
-      throw new Error(`Account "${acctKey}" not found.`);
+      const msg = `Account "${acctKey}" not found.`;
+      stats.failed++;
+      results.push({ status: "failed", account: acctKey, uids: acctUids.map(Number), error: msg });
+      continue;
     }
 
     await forEachAccount(targetAccounts, async (client, acct) => {
@@ -74,12 +87,17 @@ export async function flagCommand(uids, opts, deps) {
         const paths = filterSearchMailboxes(allBoxes);
         mailbox = await detectMailbox(client, acctUids[0], paths);
         if (!mailbox) {
-          throw new Error(`UID ${acctUids[0]} not found in any mailbox on ${acct.name}`);
+          const msg = `UID ${acctUids[0]} not found in any mailbox on ${acct.name}`;
+          stats.failed++;
+          results.push({ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg });
+          return;
         }
       }
 
       if (opts.dryRun) {
+        stats.skipped++;
         results.push({
+          status: "skipped",
           dryRun: true,
           uids: acctUids.map(Number),
           added: changes.add,
@@ -94,24 +112,39 @@ export async function flagCommand(uids, opts, deps) {
         client,
         mailbox,
         async () => {
-          const flagResult = await applyFlagChanges(client, uidRange, changes);
-          results.push({
-            dryRun: false,
-            uids: acctUids.map(Number),
-            added: flagResult.added,
-            removed: flagResult.removed,
-            account: acct.name,
-            mailbox,
-          });
+          try {
+            const flagResult = await applyFlagChanges(client, uidRange, changes);
+            stats.flagged++;
+            results.push({
+              status: "flagged",
+              dryRun: false,
+              uids: acctUids.map(Number),
+              added: flagResult.added,
+              removed: flagResult.removed,
+              account: acct.name,
+              mailbox,
+            });
+          } catch (err) {
+            stats.failed++;
+            results.push({
+              status: "failed",
+              account: acct.name,
+              uids: acctUids.map(Number),
+              mailbox,
+              error: err.message,
+            });
+          }
         },
         {
           onLockFailed: (err) => {
-            throw new Error(`Could not open mailbox "${mailbox}" on ${acct.name}: ${err.message}`);
+            const msg = `Could not open mailbox "${mailbox}" on ${acct.name}: ${err.message}`;
+            stats.failed++;
+            results.push({ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg });
           },
         },
       );
     });
   }
 
-  return results;
+  return { stats, results };
 }

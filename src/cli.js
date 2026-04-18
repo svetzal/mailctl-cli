@@ -457,11 +457,6 @@ program
         fsGateway: new FileSystemGateway(),
       });
 
-      if (!result.found) {
-        if (!opts.list) throw new Error(`Could not find UID ${uid} in any account.`);
-        return;
-      }
-
       if (result.list) {
         if (json) {
           console.log(JSON.stringify(buildAttachmentListJson(result)));
@@ -544,7 +539,7 @@ program
     withErrorHandling(async (uids, opts) => {
       const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
 
-      const results = await flagCommand(uids, opts, {
+      const { stats, results } = await flagCommand(uids, opts, {
         accounts,
         account: account || null,
         forEachAccount,
@@ -552,11 +547,9 @@ program
       });
 
       if (json) {
-        for (const obj of buildFlagResultJson(results)) {
-          console.log(JSON.stringify(obj));
-        }
+        console.log(JSON.stringify(buildFlagResultJson(stats, results)));
       } else {
-        console.log(formatFlagResultText(results));
+        console.log(formatFlagResultText(stats, results));
       }
     }),
   );

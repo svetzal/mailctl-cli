@@ -5,21 +5,27 @@
 
 /**
  * @typedef {import("./flag-command.js").FlagResult} FlagResult
+ * @typedef {import("./flag-command.js").FlagStats} FlagStats
  */
 
 /**
  * Format a human-readable summary of flag operation results.
  *
+ * @param {FlagStats} stats
  * @param {FlagResult[]} results - array of per-account flag results
  * @returns {string}
  */
-export function formatFlagResultText(results) {
+export function formatFlagResultText(stats, results) {
   const lines = [];
 
   for (const flagResult of results) {
-    const uidRange = flagResult.uids.join(",");
-    const parts = [...flagResult.added.map((f) => `+${f}`), ...flagResult.removed.map((f) => `-${f}`)];
-    const label = flagResult.uids.length === 1 ? `UID ${uidRange}` : `UIDs ${uidRange}`;
+    if (flagResult.status === "failed") {
+      lines.push(`Error (${flagResult.account}): ${flagResult.error}`);
+      continue;
+    }
+    const uidRange = (flagResult.uids ?? []).join(",");
+    const parts = [...(flagResult.added ?? []).map((f) => `+${f}`), ...(flagResult.removed ?? []).map((f) => `-${f}`)];
+    const label = (flagResult.uids ?? []).length === 1 ? `UID ${uidRange}` : `UIDs ${uidRange}`;
 
     if (flagResult.dryRun) {
       lines.push(`[DRY RUN] Would flag ${label}: ${parts.join(" ")}`);
@@ -28,19 +34,17 @@ export function formatFlagResultText(results) {
     }
   }
 
+  lines.push(`\nSummary: ${stats.flagged} flagged, ${stats.failed} failed, ${stats.skipped} skipped`);
   return lines.join("\n");
 }
 
 /**
- * Build JSON-ready objects for flag operation results.
- * Dry-run results include { dryRun: true, ...rest }; live results omit the dryRun field.
+ * Build a JSON-ready object for flag operation results.
  *
+ * @param {FlagStats} stats
  * @param {FlagResult[]} results
- * @returns {object[]}
+ * @returns {object}
  */
-export function buildFlagResultJson(results) {
-  return results.map((flagResult) => {
-    const { dryRun, ...rest } = flagResult;
-    return dryRun ? { dryRun: true, ...rest } : rest;
-  });
+export function buildFlagResultJson(stats, results) {
+  return { ...stats, results };
 }

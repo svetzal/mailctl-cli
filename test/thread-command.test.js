@@ -60,7 +60,7 @@ describe("threadCommand", () => {
       _client: notFoundClient,
     });
 
-    await expect(threadCommand("99", {}, deps)).rejects.toThrow("UID 99 not found in any mailbox");
+    await expect(threadCommand("99", {}, deps)).rejects.toThrow("Could not find UID 99 in any account.");
   });
 
   it("uses explicit --mailbox option without detection", async () => {
@@ -113,5 +113,36 @@ describe("threadCommand", () => {
     expect(result[0].account).toBe("My Account");
     expect(typeof result[0].threadSize).toBe("number");
     expect(typeof result[0].fallback).toBe("boolean");
+  });
+
+  it("checks other accounts when UID is not on the first account", async () => {
+    const deps = makeDeps({
+      forEachAccount: mock(async (_accounts, fn) => {
+        // First call: UID not found (search returns empty)
+        const notFoundClient = {
+          getMailboxLock: mock(() => Promise.resolve(makeLock())),
+          search: mock(() => Promise.resolve([])),
+          fetch: mock(async function* () {}),
+        };
+        await fn(notFoundClient, makeAccount({ name: "Account A" }));
+
+        // Second call: UID found and thread retrieved
+        const foundClient = {
+          getMailboxLock: mock(() => Promise.resolve(makeLock())),
+          search: mock(() => Promise.resolve([42])),
+          fetch: mock(async function* () {
+            yield {
+              uid: 42,
+              envelope: { messageId: "<msg-42@test.com>", subject: "Hello", from: [] },
+              bodyParts: new Map(),
+            };
+          }),
+        };
+        await fn(foundClient, makeAccount({ name: "Account B" }));
+      }),
+    });
+
+    const result = await threadCommand("42", {}, deps);
+    expect(result[0].account).toBe("Account B");
   });
 });

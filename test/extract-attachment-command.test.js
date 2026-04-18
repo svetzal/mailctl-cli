@@ -114,7 +114,7 @@ describe("extractAttachmentCommand", () => {
       });
     });
 
-    it("returns empty attachments array when message has no attachments", async () => {
+    it("throws when message has no parseable body structure", async () => {
       const noAttachClient = makeClient({ bodyStructure: null });
       const deps = makeDeps({
         forEachAccount: mock(async (_accounts, fn) => {
@@ -122,10 +122,10 @@ describe("extractAttachmentCommand", () => {
         }),
         _client: noAttachClient,
       });
-      const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
 
-      // null bodyStructure means we return early — found stays false
-      expect(result.found).toBe(false);
+      await expect(extractAttachmentCommand("42", 0, { list: true }, deps)).rejects.toThrow(
+        "Could not find UID 42 in any account.",
+      );
     });
   });
 
@@ -215,18 +215,19 @@ describe("extractAttachmentCommand", () => {
   });
 
   describe("mailbox detection", () => {
-    it("returns found: false when UID is not in any account", async () => {
+    it("throws when UID is not found in any account", async () => {
       const deps = makeDeps({
         forEachAccount: mock(async (_accounts, _fn) => {
           // Never calls fn — simulates UID not found
         }),
       });
-      const result = await extractAttachmentCommand("99", 0, { list: true }, deps);
 
-      expect(result.found).toBe(false);
+      await expect(extractAttachmentCommand("99", 0, { list: true }, deps)).rejects.toThrow(
+        "Could not find UID 99 in any account.",
+      );
     });
 
-    it("skips account when mailbox lock fails", async () => {
+    it("throws when UID is not found after skipping accounts with lock failures", async () => {
       const lockFailClient = {
         getMailboxLock: mock(() => Promise.reject(new Error("Lock failed"))),
         search: mock(() => Promise.resolve([99])),
@@ -239,9 +240,10 @@ describe("extractAttachmentCommand", () => {
         }),
         _client: lockFailClient,
       });
-      const result = await extractAttachmentCommand("42", 0, { list: true }, deps);
 
-      expect(result.found).toBe(false);
+      await expect(extractAttachmentCommand("42", 0, { list: true }, deps)).rejects.toThrow(
+        "Could not find UID 42 in any account.",
+      );
     });
 
     it("emits mailbox-lock-failed when mailbox lock fails", async () => {
@@ -259,7 +261,9 @@ describe("extractAttachmentCommand", () => {
         }),
         _client: lockFailClient,
       });
-      await extractAttachmentCommand("42", 0, { list: true, mailbox: "INBOX" }, deps, onProgress);
+      await expect(
+        extractAttachmentCommand("42", 0, { list: true, mailbox: "INBOX" }, deps, onProgress),
+      ).rejects.toThrow("Could not find UID 42 in any account.");
 
       expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
     });

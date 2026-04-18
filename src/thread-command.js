@@ -47,7 +47,7 @@ export async function threadCommand(uid, opts, deps, onProgress = () => {}) {
       const paths = filterSearchMailboxes(allBoxes);
       mailbox = await detectMailbox(client, uid, paths);
       if (!mailbox) {
-        throw new Error(`UID ${uid} not found in any mailbox on ${acct.name}`);
+        return;
       }
     }
 
@@ -68,6 +68,10 @@ export async function threadCommand(uid, opts, deps, onProgress = () => {}) {
       messages,
     });
   });
+
+  if (results.length === 0) {
+    throw new Error(`Could not find UID ${uid} in any account.`);
+  }
 
   return results;
 }
