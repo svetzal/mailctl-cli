@@ -19,6 +19,14 @@ import { detectMailbox } from "./mailbox-detect.js";
  */
 
 /**
+ * @param {string} uid
+ * @returns {Error}
+ */
+export function uidNotFoundError(uid) {
+  return new Error(`Could not find UID ${uid} in any account.`);
+}
+
+/**
  * Find a message by UID across accounts and call the provided function with
  * the connected client, account, and detected mailbox.
  *
@@ -66,7 +74,7 @@ export async function withMessage(uid, opts, deps, fn, onProgress = () => {}) {
   });
 
   if (!outcome) {
-    throw new Error(`Could not find UID ${uid} in any account.`);
+    throw uidNotFoundError(uid);
   }
 
   return outcome;

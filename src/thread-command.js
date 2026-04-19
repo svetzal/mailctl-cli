@@ -4,6 +4,7 @@
  * Extracts the orchestration logic from the cli.js thread handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
+import { uidNotFoundError } from "./find-message.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { detectMailbox } from "./mailbox-detect.js";
 import { findThread } from "./thread.js";
@@ -70,7 +71,7 @@ export async function threadCommand(uid, opts, deps, onProgress = () => {}) {
   });
 
   if (results.length === 0) {
-    throw new Error(`Could not find UID ${uid} in any account.`);
+    throw uidNotFoundError(uid);
   }
 
   return results;

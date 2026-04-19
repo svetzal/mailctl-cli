@@ -105,6 +105,9 @@ function withErrorHandling(fn) {
 /** Shared keychain gateway — instantiated once, used by requireAccounts and openAiKey. */
 const _keychain = new KeychainGateway();
 
+/** Shared filesystem gateway — stateless thin wrapper, safe to share. */
+const _fs = new FileSystemGateway();
+
 /**
  * Load and validate accounts, throwing a consistent error if none configured.
  */
@@ -163,7 +166,7 @@ program
         {
           account: account || null,
           dataDir: DATA_DIR,
-          fsGateway: new FileSystemGateway(),
+          fsGateway: _fs,
         },
         (event) => {
           const line = renderScanEvent(event);
@@ -193,7 +196,7 @@ program
       const json = resolveJson(opts);
 
       const { unclassifiedList } = classifyCommand(opts.input, opts.output, {
-        fsGateway: new FileSystemGateway(),
+        fsGateway: _fs,
       });
 
       if (json) {
@@ -214,7 +217,7 @@ program
       const json = resolveJson(opts);
 
       const { imported, path } = importClassificationsCommand(file, opts.output, {
-        fsGateway: new FileSystemGateway(),
+        fsGateway: _fs,
       });
 
       if (json) {
@@ -454,7 +457,7 @@ program
         targetAccounts,
         forEachAccount,
         listMailboxes,
-        fsGateway: new FileSystemGateway(),
+        fsGateway: _fs,
       });
 
       if (result.list) {
@@ -574,7 +577,7 @@ program
         forEachAccount,
         listMailboxes,
         simpleParser,
-        fsGateway: new FileSystemGateway(),
+        fsGateway: _fs,
         smtpGateway: new SmtpGateway(),
         editorGateway: new EditorGateway(),
         confirmGateway: new ConfirmGateway(),

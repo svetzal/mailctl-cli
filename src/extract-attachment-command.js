@@ -7,6 +7,7 @@
 import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
+import { uidNotFoundError } from "./find-message.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { detectMailbox } from "./mailbox-detect.js";
@@ -113,7 +114,7 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
   });
 
   if (!result.found) {
-    throw new Error(`Could not find UID ${uid} in any account.`);
+    throw uidNotFoundError(uid);
   }
 
   return result;
