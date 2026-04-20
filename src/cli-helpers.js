@@ -99,6 +99,17 @@ export function resolveAccounts(accountFilter, loadAccountsFn) {
  */
 
 /**
+ * Format output for either JSON or human-readable text mode.
+ * @param {boolean} json - Whether JSON output is requested
+ * @param {unknown} jsonData - Data to serialize as JSON
+ * @param {string} textOutput - Human-readable text output
+ * @returns {string}
+ */
+export function formatOutput(json, jsonData, textOutput) {
+  return json ? JSON.stringify(jsonData) : textOutput;
+}
+
+/**
  * Resolve the common command context present in most CLI handlers:
  * json flag, account filter, full account list, and filtered account list.
  * Throws when an explicit account name matches no configured accounts.

@@ -2,11 +2,30 @@ import { describe, expect, it } from "bun:test";
 import {
   collectValues,
   filterAccountsByName,
+  formatOutput,
   headerValueToString,
   resolveAccounts,
   resolveCommandContext,
   sanitizeString,
 } from "../src/cli-helpers.js";
+
+// ── formatOutput ─────────────────────────────────────────────────────────────
+
+describe("formatOutput", () => {
+  it("returns JSON.stringify(jsonData) when json is true", () => {
+    const data = { count: 3, items: ["a", "b", "c"] };
+    expect(formatOutput(true, data, "ignored text")).toBe(JSON.stringify(data));
+  });
+
+  it("returns textOutput when json is false", () => {
+    expect(formatOutput(false, { count: 3 }, "3 items found")).toBe("3 items found");
+  });
+
+  it("handles complex nested objects in JSON mode", () => {
+    const nested = { user: { id: 1, roles: ["admin", "user"] }, meta: { page: 1 } };
+    expect(formatOutput(true, nested, "text")).toBe(JSON.stringify(nested));
+  });
+});
 
 // ── sanitizeString ────────────────────────────────────────────────────────────
 

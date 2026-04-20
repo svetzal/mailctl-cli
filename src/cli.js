@@ -5,7 +5,7 @@ import { program } from "commander";
 import { simpleParser } from "mailparser";
 import { loadAccounts } from "./accounts.js";
 import { classifyCommand } from "./classify-command.js";
-import { collectValues, filterAccountsByName, resolveCommandContext } from "./cli-helpers.js";
+import { collectValues, filterAccountsByName, formatOutput, resolveCommandContext } from "./cli-helpers.js";
 import { contactsCommand } from "./contacts-command.js";
 import { downloadReceiptsCommand } from "./download-receipts-command.js";
 import { downloadReceipts } from "./downloader.js";
@@ -177,12 +177,7 @@ program
       console.error(`Saved raw results to ${rawPath}`);
       console.error(`Saved sender summary to ${summaryPath}`);
 
-      if (json) {
-        console.log(JSON.stringify(buildScanJson(total, senders)));
-        return;
-      }
-
-      console.log(formatScanSummaryText(senders, total));
+      console.log(formatOutput(json, buildScanJson(total, senders), formatScanSummaryText(senders, total)));
     }),
   );
 
@@ -199,11 +194,7 @@ program
         fsGateway: _fs,
       });
 
-      if (json) {
-        console.log(JSON.stringify(buildClassifyJson(unclassifiedList)));
-      } else {
-        console.log(formatUnclassifiedText(unclassifiedList));
-      }
+      console.log(formatOutput(json, buildClassifyJson(unclassifiedList), formatUnclassifiedText(unclassifiedList)));
     }),
   );
 
@@ -220,11 +211,13 @@ program
         fsGateway: _fs,
       });
 
-      if (json) {
-        console.log(JSON.stringify(buildImportClassificationsJson(imported, path)));
-      } else {
-        console.log(`Imported ${imported} classifications to ${path}`);
-      }
+      console.log(
+        formatOutput(
+          json,
+          buildImportClassificationsJson(imported, path),
+          `Imported ${imported} classifications to ${path}`,
+        ),
+      );
     }),
   );
 
@@ -250,12 +243,7 @@ program
         },
       );
 
-      if (json) {
-        console.log(JSON.stringify(buildSortJson(stats)));
-        return;
-      }
-
-      console.log(formatSortResultText(stats));
+      console.log(formatOutput(json, buildSortJson(stats), formatSortResultText(stats)));
     }),
   );
 
@@ -283,12 +271,7 @@ program
         },
       );
 
-      if (json) {
-        console.log(JSON.stringify(buildDownloadJson(stats)));
-        return;
-      }
-
-      console.log(formatDownloadResultText(stats));
+      console.log(formatOutput(json, buildDownloadJson(stats), formatDownloadResultText(stats)));
     }),
   );
 
@@ -321,12 +304,9 @@ program
         },
       );
 
-      if (json) {
-        console.log(JSON.stringify(buildDownloadReceiptsJson(result)));
-        return;
-      }
-
-      console.log(formatDownloadReceiptsResultText(result, opts));
+      console.log(
+        formatOutput(json, buildDownloadReceiptsJson(result), formatDownloadReceiptsResultText(result, opts)),
+      );
     }),
   );
 
@@ -358,10 +338,8 @@ program
 
       for (const w of warnings) console.error(w);
 
-      if (json) {
-        console.log(JSON.stringify(buildSearchJson(allResults)));
-      } else if (allResults.length > 0) {
-        console.log(formatSearchResultsText(allResults));
+      if (json || allResults.length > 0) {
+        console.log(formatOutput(json, buildSearchJson(allResults), formatSearchResultsText(allResults)));
       }
     }),
   );
@@ -389,25 +367,21 @@ program
 
       console.error(`\n=== ${acct.name} ===`);
 
-      if (json) {
-        console.log(
-          JSON.stringify(
-            buildReadJson(parsed, acct.name, uid, {
-              maxBody,
-              maxBodyExplicit,
-              includeHeaders: !!opts.headers,
-            }),
-          ),
-        );
-      } else {
-        console.log(
+      console.log(
+        formatOutput(
+          json,
+          buildReadJson(parsed, acct.name, uid, {
+            maxBody,
+            maxBodyExplicit,
+            includeHeaders: !!opts.headers,
+          }),
           formatReadResultText(parsed, {
             maxBody,
             showHeaders: !!opts.headers,
             showRaw: !!opts.raw,
           }),
-        );
-      }
+        ),
+      );
     }),
   );
 
@@ -432,11 +406,7 @@ program
         renderAuthProgress,
       );
 
-      if (json) {
-        console.log(JSON.stringify(buildFoldersJson(allAccountFolders)));
-      } else {
-        console.log(formatFoldersText(allAccountFolders));
-      }
+      console.log(formatOutput(json, buildFoldersJson(allAccountFolders), formatFoldersText(allAccountFolders)));
     }),
   );
 
@@ -461,20 +431,12 @@ program
       });
 
       if (result.list) {
-        if (json) {
-          console.log(JSON.stringify(buildAttachmentListJson(result)));
-        } else {
-          console.log(formatAttachmentListText(result.attachments));
-        }
+        console.log(formatOutput(json, buildAttachmentListJson(result), formatAttachmentListText(result.attachments)));
         return;
       }
 
       if ("path" in result) {
-        if (json) {
-          console.log(JSON.stringify(buildAttachmentSavedJson(result)));
-        } else {
-          console.log(formatAttachmentSavedText(result.path));
-        }
+        console.log(formatOutput(json, buildAttachmentSavedJson(result), formatAttachmentSavedText(result.path)));
       }
     }),
   );
@@ -497,11 +459,7 @@ program
         listMailboxes,
       });
 
-      if (json) {
-        console.log(JSON.stringify(buildMoveJson(stats, results)));
-      } else {
-        console.log(formatMoveResultText(stats));
-      }
+      console.log(formatOutput(json, buildMoveJson(stats, results), formatMoveResultText(stats)));
     }),
   );
 
@@ -520,11 +478,7 @@ program
         forEachAccount,
       });
 
-      if (json) {
-        console.log(JSON.stringify(buildInboxJson(allResults)));
-      } else {
-        console.log(formatInboxText(resultsByAccount));
-      }
+      console.log(formatOutput(json, buildInboxJson(allResults), formatInboxText(resultsByAccount)));
     }),
   );
 
@@ -549,11 +503,7 @@ program
         listMailboxes,
       });
 
-      if (json) {
-        console.log(JSON.stringify(buildFlagResultJson(stats, results)));
-      } else {
-        console.log(formatFlagResultText(stats, results));
-      }
+      console.log(formatOutput(json, buildFlagResultJson(stats, results), formatFlagResultText(stats, results)));
     }),
   );
 
@@ -590,19 +540,11 @@ program
 
       if ("dryRun" in result) {
         const { message } = result;
-        if (json) {
-          console.log(JSON.stringify(buildReplyDryRunJson(message)));
-        } else {
-          console.log(formatReplyDryRunText(message));
-        }
+        console.log(formatOutput(json, buildReplyDryRunJson(message), formatReplyDryRunText(message)));
         return;
       }
 
-      if (json) {
-        console.log(JSON.stringify(buildReplySentJson(result)));
-      } else {
-        console.log(formatReplySentText(result));
-      }
+      console.log(formatOutput(json, buildReplySentJson(result), formatReplySentText(result)));
     }),
   );
 
@@ -625,11 +567,13 @@ program
 
       for (const { account: acctName, threadSize, fallback, messages } of results) {
         console.error(`\n=== ${acctName} ===`);
-        if (json) {
-          console.log(JSON.stringify(buildThreadJson(acctName, threadSize, fallback, messages)));
-        } else {
-          console.log(formatThreadText(messages, { full: opts.full, fallback }));
-        }
+        console.log(
+          formatOutput(
+            json,
+            buildThreadJson(acctName, threadSize, fallback, messages),
+            formatThreadText(messages, { full: opts.full, fallback }),
+          ),
+        );
       }
     }),
   );
@@ -651,11 +595,7 @@ program
         forEachAccount,
       });
 
-      if (json) {
-        console.log(JSON.stringify(buildContactsJson(contacts)));
-      } else {
-        console.log(formatContactsText(contacts, { sinceLabel }));
-      }
+      console.log(formatOutput(json, buildContactsJson(contacts), formatContactsText(contacts, { sinceLabel })));
     }),
   );
 
@@ -671,11 +611,7 @@ program
       const json = resolveJson(opts);
       const result = await initCommand(program.version() ?? "0.0.0", { global: !!opts.global, force: !!opts.force });
 
-      if (json) {
-        console.log(JSON.stringify(buildInitJsonResult(result)));
-      } else {
-        console.log(formatInitResultText(result));
-      }
+      console.log(formatOutput(json, buildInitJsonResult(result), formatInitResultText(result)));
     }),
   );
 
