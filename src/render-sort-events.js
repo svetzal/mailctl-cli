@@ -2,6 +2,7 @@
  * Pure renderer for sort progress events.
  * No I/O — returns a string (or null for unknown event types).
  */
+import { renderSharedEvent } from "./render-shared-events.js";
 
 /**
  * Render a sort progress event as a human-readable string.
@@ -27,11 +28,7 @@ export function renderSortEvent(event) {
       return `   ${event.icon} Moved ${event.count} messages: ${event.label}`;
     case "move-error":
       return `   ⚠️  Move failed (${event.label}): ${event.error.message}`;
-    case "mailbox-lock-failed":
-      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
-    case "search-failed":
-      return `   Search failed in ${event.mailbox}: ${event.error.message}`;
     default:
-      return null;
+      return renderSharedEvent(event);
   }
 }

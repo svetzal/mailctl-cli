@@ -53,6 +53,24 @@ export function parseUidArgs(uidArgs, defaultAccount) {
 }
 
 /**
+ * Parse, validate, and group raw UID CLI args in one step.
+ *
+ * Combines parseUidArgs → empty-check → groupUidsByAccount into a single call
+ * used by both move-command and flag-command.
+ *
+ * @param {string[]} uidArgs - raw CLI arguments
+ * @param {string|null} defaultAccount - value of --account option (or null)
+ * @returns {Map<string, string[]>} map of account key → UID array
+ * @throws {Error} when no UIDs are provided after parsing
+ * @throws {Error} when a UID has no prefix and no defaultAccount is provided
+ */
+export function parseAndGroupUids(uidArgs, defaultAccount) {
+  const parsed = parseUidArgs(uidArgs, defaultAccount);
+  if (parsed.length === 0) throw new Error("No UIDs provided.");
+  return groupUidsByAccount(parsed);
+}
+
+/**
  * Group parsed UID entries by (lowercase) account name.
  *
  * @param {ParsedUid[]} parsed

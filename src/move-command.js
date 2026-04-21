@@ -7,7 +7,7 @@
 
 import { filterAccountsByName } from "./cli-helpers.js";
 import { withMailboxLock } from "./imap-orchestration.js";
-import { groupUidsByAccount, parseUidArgs } from "./move-logic.js";
+import { parseAndGroupUids } from "./move-logic.js";
 
 /**
  * @typedef {object} MoveCommandDeps
@@ -34,13 +34,7 @@ export async function moveCommand(uids, opts, deps) {
   const sourceMailbox = opts.mailbox ?? "INBOX";
   const dryRun = opts.dryRun ?? false;
 
-  const parsed = parseUidArgs(uids, account || null);
-
-  if (parsed.length === 0) {
-    throw new Error("No UIDs provided.");
-  }
-
-  const byAccount = groupUidsByAccount(parsed);
+  const byAccount = parseAndGroupUids(uids, account || null);
 
   const stats = { moved: 0, failed: 0, skipped: 0 };
   /** @type {Array<{ account: string, uid: string, status: string, error?: string, reason?: string }>} */

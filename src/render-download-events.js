@@ -3,6 +3,7 @@
  * No I/O — returns a string (or null for unknown event types).
  */
 import { formatKB } from "./format-bytes.js";
+import { renderSharedEvent } from "./render-shared-events.js";
 
 /**
  * Render a download progress event as a human-readable string.
@@ -28,11 +29,7 @@ export function renderDownloadEvent(event) {
       return `   📄 Downloaded: ${event.filename} (${formatKB(event.size)})`;
     case "download-failed":
       return `      ⚠️  Download failed for ${event.filename}: ${event.error.message}`;
-    case "mailbox-lock-failed":
-      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
-    case "search-failed":
-      return `   Search failed in ${event.mailbox}: ${event.error.message}`;
     default:
-      return null;
+      return renderSharedEvent(event);
   }
 }

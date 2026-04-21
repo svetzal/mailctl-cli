@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { groupUidsByAccount, parseUidArgs } from "../src/move-logic.js";
+import { groupUidsByAccount, parseAndGroupUids, parseUidArgs } from "../src/move-logic.js";
 
 describe("parseUidArgs", () => {
   it("parses plain UIDs using the default account", () => {
@@ -103,5 +103,28 @@ describe("groupUidsByAccount", () => {
     const result = groupUidsByAccount([]);
 
     expect(result.size).toBe(0);
+  });
+});
+
+describe("parseAndGroupUids", () => {
+  it("throws when no UIDs are provided", () => {
+    expect(() => parseAndGroupUids([], null)).toThrow("No UIDs provided.");
+  });
+
+  it("returns a Map grouped by account for valid input", () => {
+    const result = parseAndGroupUids(["icloud:1", "icloud:2", "gmail:3"], null);
+
+    expect(result.get("icloud")).toEqual(["1", "2"]);
+    expect(result.get("gmail")).toEqual(["3"]);
+  });
+
+  it("uses the default account for unprefixed UIDs", () => {
+    const result = parseAndGroupUids(["42"], "icloud");
+
+    expect(result.get("icloud")).toEqual(["42"]);
+  });
+
+  it("throws when a UID has no prefix and no default account", () => {
+    expect(() => parseAndGroupUids(["99"], null)).toThrow('UID "99" has no account prefix');
   });
 });

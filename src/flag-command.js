@@ -10,7 +10,7 @@ import { applyFlagChanges, computeFlagChanges } from "./flag-messages.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { detectMailbox } from "./mailbox-detect.js";
-import { groupUidsByAccount, parseUidArgs } from "./move-logic.js";
+import { parseAndGroupUids } from "./move-logic.js";
 
 /**
  * @typedef {object} FlagCommandDeps
@@ -57,13 +57,7 @@ export async function flagCommand(uids, opts, deps) {
     unstar: opts.unstar,
   });
 
-  const parsed = parseUidArgs(uids, account || null);
-
-  if (parsed.length === 0) {
-    throw new Error("No UIDs provided.");
-  }
-
-  const byAccount = groupUidsByAccount(parsed);
+  const byAccount = parseAndGroupUids(uids, account || null);
   const stats = { flagged: 0, failed: 0, skipped: 0 };
   /** @type {FlagResult[]} */
   const results = [];

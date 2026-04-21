@@ -3,6 +3,7 @@
  * No I/O — returns a string (or null for unknown event types).
  */
 import { formatKB } from "./format-bytes.js";
+import { renderSharedEvent } from "./render-shared-events.js";
 
 /**
  * Render a download-receipts progress event as a human-readable string.
@@ -26,8 +27,6 @@ export function renderDownloadReceiptsEvent(event) {
       return `      ${event.count} candidates`;
     case "mailbox-fetch-error":
       return `      Fetch failed: ${event.error.message}`;
-    case "mailbox-lock-failed":
-      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
     case "search-term-error":
       return `   Search error in ${event.mailbox}: ${event.error.message}`;
     case "vendor-filter-applied":
@@ -97,6 +96,6 @@ export function renderDownloadReceiptsEvent(event) {
     case "reprocess-summary":
       return `\nReprocessed: ${event.reprocessed}, Skipped: ${event.skipped}, Reclassified: ${event.reclassified}, Errors: ${event.errors}`;
     default:
-      return null;
+      return renderSharedEvent(event);
   }
 }
