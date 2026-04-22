@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
-import { buildInboxJson, formatInboxText } from "../src/format-inbox.js";
+import { formatInboxText } from "../src/format-inbox.js";
 import { fetchInbox } from "../src/inbox.js";
 import { makeLock } from "./helpers.js";
 
@@ -239,16 +239,5 @@ describe("formatInboxText", () => {
     it("read message has open circle", () => {
       expect(text).toContain("\u25CB UID:2");
     });
-  });
-});
-
-// ── buildInboxJson ────────────────────────────────────────────────────────────
-
-describe("buildInboxJson", () => {
-  it("returns the allResults array unchanged", () => {
-    const allResults = [{ uid: 1, subject: "Hello", account: "iCloud" }];
-    const result = buildInboxJson(allResults);
-
-    expect(result).toBe(allResults);
   });
 });

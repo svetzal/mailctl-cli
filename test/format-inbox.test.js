@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildInboxJson, formatInboxText } from "../src/format-inbox.js";
+import { formatInboxText } from "../src/format-inbox.js";
 
 function makeMsg(overrides = {}) {
   return {
@@ -79,14 +79,5 @@ describe("formatInboxText", () => {
   it("uses address only when fromName is absent", () => {
     const map = new Map([["iCloud", [makeMsg({ fromName: "", from: "bare@example.com" })]]]);
     expect(formatInboxText(map)).toContain("bare@example.com");
-  });
-});
-
-// ── buildInboxJson ────────────────────────────────────────────────────────────
-
-describe("buildInboxJson", () => {
-  it("returns input array unchanged", () => {
-    const input = [{ uid: 1, subject: "Hello", account: "iCloud" }];
-    expect(buildInboxJson(input)).toBe(input);
   });
 });

@@ -35,16 +35,6 @@ export function formatInboxText(resultsByAccount) {
 }
 
 /**
- * Build a JSON-ready array for an inbox result.
- *
- * @param {object[]} allResults - flat list of inbox messages across accounts
- * @returns {object[]}
- */
-export function buildInboxJson(allResults) {
-  return allResults;
-}
-
-/**
  * Format a message date for display.
  * @param {Date} date
  * @returns {string}

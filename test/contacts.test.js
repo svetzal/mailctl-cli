@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { aggregateContacts, extractContacts } from "../src/contacts.js";
-import { buildContactsJson, formatContactsText } from "../src/format-contacts.js";
+import { formatContactsText } from "../src/format-contacts.js";
 import { makeLock } from "./helpers.js";
 
 /** @typedef {{address: string, name: string, date: Date, direction: 'sent'|'received'}} Entry */
@@ -394,16 +394,5 @@ describe("extractContacts", () => {
     });
 
     expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
-  });
-});
-
-// ── buildContactsJson ─────────────────────────────────────────────────────────
-
-describe("buildContactsJson", () => {
-  it("returns the contacts array unchanged", () => {
-    const contacts = [{ address: "alice@example.com", name: "Alice", count: 5 }];
-    const result = buildContactsJson(contacts);
-
-    expect(result).toBe(contacts);
   });
 });

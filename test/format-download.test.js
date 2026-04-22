@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildDownloadJson, formatDownloadResultText } from "../src/format-download.js";
+import { formatDownloadResultText } from "../src/format-download.js";
 
 describe("formatDownloadResultText", () => {
   it("includes the Download Complete header", () => {
@@ -45,16 +45,5 @@ describe("formatDownloadResultText", () => {
     it("shows skipped/error count", () => {
       expect(text).toContain("Skipped/Error: 1");
     });
-  });
-});
-
-// ── buildDownloadJson ─────────────────────────────────────────────────────────
-
-describe("buildDownloadJson", () => {
-  it("returns the stats object unchanged", () => {
-    const stats = { downloaded: 5, alreadyHave: 2, noPdf: 1, skipped: 0 };
-    const result = buildDownloadJson(stats);
-
-    expect(result).toBe(stats);
   });
 });

@@ -2,35 +2,16 @@
  * Pure renderer for M365 auth progress events.
  * No I/O — returns a string (or null for unknown event types).
  */
+import { createEventRenderer } from "./render-shared-events.js";
 
-/**
- * @typedef {object} AuthEvent
- * @property {string} type
- * @property {{ message: string }} [error]
- * @property {string} [verificationUri]
- * @property {string} [userCode]
- * @property {string} [account]
- */
-
-/**
- * Render an M365 auth progress event as a human-readable string.
- *
- * @param {AuthEvent} event
- * @returns {string | null}
- */
-export function renderAuthEvent(event) {
-  switch (event.type) {
-    case "token-refresh-failed":
-      return `   Token refresh failed: ${event.error?.message ?? "unknown error"}`;
-    case "device-code-prompt":
-      return `\nTo authenticate Microsoft 365, visit: ${event.verificationUri}\nEnter code: ${event.userCode}`;
-    case "auth-waiting":
-      return `Waiting for authentication...`;
-    case "auth-success":
-      return `Authentication successful. Tokens cached.`;
-    case "connect-error":
-      return `   ❌ Failed to connect to ${event.account}: ${event.error?.message ?? "unknown error"}`;
-    default:
-      return null;
-  }
-}
+export const renderAuthEvent = createEventRenderer(
+  {
+    "token-refresh-failed": (e) => `   Token refresh failed: ${e.error?.message ?? "unknown error"}`,
+    "device-code-prompt": (e) =>
+      `\nTo authenticate Microsoft 365, visit: ${e.verificationUri}\nEnter code: ${e.userCode}`,
+    "auth-waiting": () => `Waiting for authentication...`,
+    "auth-success": () => `Authentication successful. Tokens cached.`,
+    "connect-error": (e) => `   ❌ Failed to connect to ${e.account}: ${e.error?.message ?? "unknown error"}`,
+  },
+  { fallback: false },
+);

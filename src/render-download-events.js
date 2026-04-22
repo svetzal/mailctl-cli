@@ -3,33 +3,15 @@
  * No I/O — returns a string (or null for unknown event types).
  */
 import { formatKB } from "./format-bytes.js";
-import { renderSharedEvent } from "./render-shared-events.js";
+import { createEventRenderer } from "./render-shared-events.js";
 
-/**
- * Render a download progress event as a human-readable string.
- *
- * @param {object} event
- * @returns {string | null}
- */
-export function renderDownloadEvent(event) {
-  switch (event.type) {
-    case "download-account-start":
-      return `\n📎 Downloading from ${event.name} (${event.user})...`;
-    case "download-biz-count":
-      return `   🏢 ${event.count} business receipt emails to check for PDFs`;
-    case "fetch-structure-error":
-      return `      ⚠️  Could not fetch structure for UID ${event.uid}: ${event.error.message}`;
-    case "download-dry-run":
-      return `   📄 [DRY RUN] Would download: ${event.filename}`;
-    case "invalid-pdf":
-      return `      ⚠️  Skipping ${event.filename} — not a valid PDF`;
-    case "duplicate-content":
-      return `      ⏭️  Skipping ${event.filename} — duplicate content`;
-    case "downloaded":
-      return `   📄 Downloaded: ${event.filename} (${formatKB(event.size)})`;
-    case "download-failed":
-      return `      ⚠️  Download failed for ${event.filename}: ${event.error.message}`;
-    default:
-      return renderSharedEvent(event);
-  }
-}
+export const renderDownloadEvent = createEventRenderer({
+  "download-account-start": (e) => `\n📎 Downloading from ${e.name} (${e.user})...`,
+  "download-biz-count": (e) => `   🏢 ${e.count} business receipt emails to check for PDFs`,
+  "fetch-structure-error": (e) => `      ⚠️  Could not fetch structure for UID ${e.uid}: ${e.error.message}`,
+  "download-dry-run": (e) => `   📄 [DRY RUN] Would download: ${e.filename}`,
+  "invalid-pdf": (e) => `      ⚠️  Skipping ${e.filename} — not a valid PDF`,
+  "duplicate-content": (e) => `      ⏭️  Skipping ${e.filename} — duplicate content`,
+  downloaded: (e) => `   📄 Downloaded: ${e.filename} (${formatKB(e.size)})`,
+  "download-failed": (e) => `      ⚠️  Download failed for ${e.filename}: ${e.error.message}`,
+});

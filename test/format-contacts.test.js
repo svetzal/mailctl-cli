@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildContactsJson, formatContactsText } from "../src/format-contacts.js";
+import { formatContactsText } from "../src/format-contacts.js";
 
 function makeContact(overrides = {}) {
   return {
@@ -59,14 +59,5 @@ describe("formatContactsText", () => {
 
   it("numbers contacts starting from 1", () => {
     expect(formatContactsText([makeContact()], { sinceLabel: "x" })).toContain("1. ");
-  });
-});
-
-// ── buildContactsJson ─────────────────────────────────────────────────────────
-
-describe("buildContactsJson", () => {
-  it("returns input array unchanged", () => {
-    const contacts = [{ address: "alice@example.com", name: "Alice", count: 5 }];
-    expect(buildContactsJson(contacts)).toBe(contacts);
   });
 });

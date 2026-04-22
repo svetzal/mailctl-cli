@@ -29,16 +29,6 @@ export function formatContactsText(contacts, opts) {
 }
 
 /**
- * Build a JSON-ready array for a contacts result.
- *
- * @param {Array} contacts - aggregated contact list
- * @returns {Array}
- */
-export function buildContactsJson(contacts) {
-  return contacts;
-}
-
-/**
  * Format a contact's last-seen date for display.
  * @param {Date} date
  * @returns {string}

@@ -17,13 +17,13 @@ import {
   formatAttachmentListText,
   formatAttachmentSavedText,
 } from "./format-attachment.js";
-import { buildContactsJson, formatContactsText } from "./format-contacts.js";
-import { buildDownloadJson, formatDownloadResultText } from "./format-download.js";
+import { formatContactsText } from "./format-contacts.js";
+import { formatDownloadResultText } from "./format-download.js";
 import { buildDownloadReceiptsJson, formatDownloadReceiptsResultText } from "./format-download-receipts.js";
 import { buildFlagResultJson, formatFlagResultText } from "./format-flag.js";
 import { buildFoldersJson, formatFoldersText } from "./format-folders.js";
 import { buildImportClassificationsJson } from "./format-import-classifications.js";
-import { buildInboxJson, formatInboxText } from "./format-inbox.js";
+import { formatInboxText } from "./format-inbox.js";
 import { buildInitJsonResult, formatInitResultText } from "./format-init.js";
 import { buildMoveJson, formatMoveResultText } from "./format-move.js";
 import { buildReadJson, formatReadResultText } from "./format-read.js";
@@ -35,7 +35,7 @@ import {
 } from "./format-reply.js";
 import { buildClassifyJson, buildScanJson, formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
 import { buildSearchJson, formatSearchResultsText } from "./format-search.js";
-import { buildSortJson, formatSortResultText } from "./format-sort.js";
+import { formatSortResultText } from "./format-sort.js";
 import { buildThreadJson, formatThreadText } from "./format-thread.js";
 import { ConfirmGateway } from "./gateways/confirm-gateway.js";
 import { EditorGateway } from "./gateways/editor-gateway.js";
@@ -243,7 +243,7 @@ program
         },
       );
 
-      console.log(formatOutput(json, buildSortJson(stats), formatSortResultText(stats)));
+      console.log(formatOutput(json, stats, formatSortResultText(stats)));
     }),
   );
 
@@ -271,7 +271,7 @@ program
         },
       );
 
-      console.log(formatOutput(json, buildDownloadJson(stats), formatDownloadResultText(stats)));
+      console.log(formatOutput(json, stats, formatDownloadResultText(stats)));
     }),
   );
 
@@ -478,7 +478,7 @@ program
         forEachAccount,
       });
 
-      console.log(formatOutput(json, buildInboxJson(allResults), formatInboxText(resultsByAccount)));
+      console.log(formatOutput(json, allResults, formatInboxText(resultsByAccount)));
     }),
   );
 
@@ -595,7 +595,7 @@ program
         forEachAccount,
       });
 
-      console.log(formatOutput(json, buildContactsJson(contacts), formatContactsText(contacts, { sinceLabel })));
+      console.log(formatOutput(json, contacts, formatContactsText(contacts, { sinceLabel })));
     }),
   );
 

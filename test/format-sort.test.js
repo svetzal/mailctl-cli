@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildSortJson, formatSortResultText } from "../src/format-sort.js";
+import { formatSortResultText } from "../src/format-sort.js";
 
 describe("formatSortResultText", () => {
   it("includes the Sort Complete header", () => {
@@ -36,16 +36,5 @@ describe("formatSortResultText", () => {
     it("shows unclassified count", () => {
       expect(text).toContain("Unclassified: 1 (defaulted to personal)");
     });
-  });
-});
-
-// ── buildSortJson ─────────────────────────────────────────────────────────────
-
-describe("buildSortJson", () => {
-  it("returns the stats object unchanged", () => {
-    const stats = { moved: 5, skipped: 2, unclassified: 1 };
-    const result = buildSortJson(stats);
-
-    expect(result).toBe(stats);
   });
 });

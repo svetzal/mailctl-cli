@@ -23,3 +23,20 @@ export function renderSharedEvent(event) {
       return null;
   }
 }
+
+/**
+ * Create a table-driven event renderer from a map of event type → formatter function.
+ * Unknown events fall back to renderSharedEvent; pass `false` to disable the fallback
+ * (for renderers that don't share common events, e.g. auth).
+ *
+ * @param {Record<string, (event: object) => string>} eventMap
+ * @param {{ fallback?: boolean }} [opts]
+ * @returns {(event: object) => string | null}
+ */
+export function createEventRenderer(eventMap, { fallback = true } = {}) {
+  return (event) => {
+    const handler = eventMap[event.type];
+    if (handler) return handler(event);
+    return fallback ? renderSharedEvent(event) : null;
+  };
+}
