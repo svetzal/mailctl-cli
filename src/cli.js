@@ -7,8 +7,8 @@ import { loadAccounts } from "./accounts.js";
 import { classifyCommand } from "./classify-command.js";
 import { collectValues, filterAccountsByName, formatOutput, resolveCommandContext } from "./cli-helpers.js";
 import { contactsCommand } from "./contacts-command.js";
+import { downloadCommand } from "./download-command.js";
 import { downloadReceiptsCommand } from "./download-receipts-command.js";
-import { downloadReceipts } from "./downloader.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
 import {
@@ -47,6 +47,7 @@ import { importClassificationsCommand } from "./import-classifications-command.j
 import { inboxCommand } from "./inbox-command.js";
 import { initCommand } from "./init.js";
 import { loadOpenAiKey } from "./keychain.js";
+import { listFoldersCommand } from "./list-folders-command.js";
 import { moveCommand } from "./move-command.js";
 import { readCommand } from "./read-command.js";
 import { renderAuthEvent } from "./render-auth-events.js";
@@ -57,7 +58,7 @@ import { renderSortEvent } from "./render-sort-events.js";
 import { replyCommand } from "./reply-command.js";
 import { scanCommand } from "./scan-command.js";
 import { searchCommand } from "./search-command.js";
-import { sortReceipts } from "./sorter.js";
+import { sortCommand } from "./sort-command.js";
 import { threadCommand } from "./thread-command.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -230,18 +231,11 @@ program
     withErrorHandling(async (opts) => {
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
-      const stats = await sortReceipts(
-        {
-          months: parseInt(opts.months, 10),
-          dryRun: opts.dryRun,
-          account: account || undefined,
-        },
-        {},
-        (event) => {
-          const line = renderSortEvent(event);
-          if (line) console.error(line);
-        },
-      );
+
+      const stats = await sortCommand(opts, { account: account || null }, (event) => {
+        const line = renderSortEvent(event);
+        if (line) console.error(line);
+      });
 
       console.log(formatOutput(json, stats, formatSortResultText(stats)));
     }),
@@ -257,19 +251,11 @@ program
     withErrorHandling(async (opts) => {
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
-      const stats = await downloadReceipts(
-        {
-          months: parseInt(opts.months, 10),
-          dryRun: opts.dryRun,
-          outputDir: opts.output,
-          account: account || undefined,
-        },
-        {},
-        (event) => {
-          const line = renderDownloadEvent(event);
-          if (line) console.error(line);
-        },
-      );
+
+      const stats = await downloadCommand(opts, { account: account || null }, (event) => {
+        const line = renderDownloadEvent(event);
+        if (line) console.error(line);
+      });
 
       console.log(formatOutput(json, stats, formatDownloadResultText(stats)));
     }),
@@ -392,17 +378,9 @@ program
     withErrorHandling(async (opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-      const allAccountFolders = [];
-
-      await forEachAccount(
-        targetAccounts,
-        async (client, acct) => {
-          const folders = await listMailboxes(client);
-          allAccountFolders.push({
-            account: acct.name,
-            folders: folders.map((f) => ({ path: f.path, specialUse: f.specialUse || null })),
-          });
-        },
+      const { allAccountFolders } = await listFoldersCommand(
+        opts,
+        { targetAccounts, forEachAccount, listMailboxes },
         renderAuthProgress,
       );
 

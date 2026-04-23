@@ -48,7 +48,7 @@ mailctl classify                # output unclassified senders
 ### Project Structure
 
 ```text
-src/cli.js                     — CLI entry point: true thin dispatcher (~691 lines), each .action() is 5–15 lines with no inline event rendering logic
+src/cli.js                     — CLI entry point: true thin dispatcher (~604 lines), each .action() is 5–15 lines with no inline event rendering logic
 
 Command orchestrators (testable, injected deps):
 src/search-command.js          — Search orchestration (cross-account, date filters, dedup)
@@ -61,6 +61,9 @@ src/thread-command.js          — Thread orchestration (detect mailbox, cross-m
 src/inbox-command.js           — Inbox overview orchestration
 src/contacts-command.js        — Contact extraction and aggregation orchestration
 src/scan-command.js            — Receipt scan orchestration (scanAllAccounts + save results)
+src/sort-command.js            — Sort orchestration (classify, plan moves, dry-run)
+src/download-command.js        — Download orchestration (scan, PDF extraction, dedup)
+src/list-folders-command.js    — List-folders orchestration (per-account folder listing)
 src/classify-command.js        — Classify orchestration (load senders, filter unclassified)
 src/import-classifications-command.js — Import classifications orchestration (merge + write)
 src/download-receipts-command.js — Download-receipts orchestration (list/reprocess/download routing)
