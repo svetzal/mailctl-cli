@@ -17,3 +17,18 @@ export function formatSortResultText(stats) {
     `Unclassified: ${stats.unclassified} (defaulted to personal)`,
   ].join("\n");
 }
+
+/**
+ * Build a JSON-ready object for a sort result.
+ *
+ * @param {{ moved: number, skipped: number, alreadySorted: number, unclassified: number }} stats
+ * @returns {object}
+ */
+export function buildSortJson(stats) {
+  return {
+    moved: stats.moved,
+    skipped: stats.skipped,
+    alreadySorted: stats.alreadySorted,
+    unclassified: stats.unclassified,
+  };
+}

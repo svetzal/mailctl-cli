@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatDownloadResultText } from "../src/format-download.js";
+import { buildDownloadJson, formatDownloadResultText } from "../src/format-download.js";
 
 describe("formatDownloadResultText", () => {
   it("includes the Download Complete header", () => {
@@ -45,5 +45,26 @@ describe("formatDownloadResultText", () => {
     it("shows skipped/error count", () => {
       expect(text).toContain("Skipped/Error: 1");
     });
+  });
+});
+
+describe("buildDownloadJson", () => {
+  const stats = { downloaded: 5, alreadyHave: 2, noPdf: 1, skipped: 3 };
+  const result = buildDownloadJson(stats);
+
+  it("returns downloaded count", () => {
+    expect(result.downloaded).toBe(5);
+  });
+
+  it("returns alreadyHave count", () => {
+    expect(result.alreadyHave).toBe(2);
+  });
+
+  it("returns noPdf count", () => {
+    expect(result.noPdf).toBe(1);
+  });
+
+  it("returns skipped count", () => {
+    expect(result.skipped).toBe(3);
   });
 });

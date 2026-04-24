@@ -29,6 +29,27 @@ export function formatContactsText(contacts, opts) {
 }
 
 /**
+ * Build a JSON-ready object for contacts results.
+ *
+ * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
+ * @param {object} opts
+ * @param {string} opts.sinceLabel
+ * @returns {object}
+ */
+export function buildContactsJson(contacts, opts) {
+  return {
+    sinceLabel: opts.sinceLabel,
+    contacts: contacts.map((c) => ({
+      address: c.address,
+      name: c.name,
+      count: c.count,
+      lastSeen: c.lastSeen instanceof Date ? c.lastSeen.toISOString() : c.lastSeen,
+      direction: c.direction,
+    })),
+  };
+}
+
+/**
  * Format a contact's last-seen date for display.
  * @param {Date} date
  * @returns {string}

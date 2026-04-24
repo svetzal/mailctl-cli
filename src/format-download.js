@@ -18,3 +18,18 @@ export function formatDownloadResultText(stats) {
     `Skipped/Error: ${stats.skipped}`,
   ].join("\n");
 }
+
+/**
+ * Build a JSON-ready object for a download result.
+ *
+ * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
+ * @returns {object}
+ */
+export function buildDownloadJson(stats) {
+  return {
+    downloaded: stats.downloaded,
+    alreadyHave: stats.alreadyHave,
+    noPdf: stats.noPdf,
+    skipped: stats.skipped,
+  };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatInboxText } from "../src/format-inbox.js";
+import { buildInboxJson, formatInboxText } from "../src/format-inbox.js";
 
 function makeMsg(overrides = {}) {
   return {
@@ -79,5 +79,31 @@ describe("formatInboxText", () => {
   it("uses address only when fromName is absent", () => {
     const map = new Map([["iCloud", [makeMsg({ fromName: "", from: "bare@example.com" })]]]);
     expect(formatInboxText(map)).toContain("bare@example.com");
+  });
+});
+
+describe("buildInboxJson", () => {
+  const date = new Date("2025-01-15T10:30:00Z");
+  const msg = makeMsg({ uid: 42, date, subject: "Hello" });
+  const result = buildInboxJson([msg]);
+
+  it("returns one entry per message", () => {
+    expect(result).toHaveLength(1);
+  });
+
+  it("serializes date as ISO string", () => {
+    expect(result[0].date).toBe("2025-01-15T10:30:00.000Z");
+  });
+
+  it("preserves uid", () => {
+    expect(result[0].uid).toBe(42);
+  });
+
+  it("preserves subject", () => {
+    expect(result[0].subject).toBe("Hello");
+  });
+
+  it("preserves unread flag", () => {
+    expect(result[0].unread).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatContactsText } from "../src/format-contacts.js";
+import { buildContactsJson, formatContactsText } from "../src/format-contacts.js";
 
 function makeContact(overrides = {}) {
   return {
@@ -59,5 +59,31 @@ describe("formatContactsText", () => {
 
   it("numbers contacts starting from 1", () => {
     expect(formatContactsText([makeContact()], { sinceLabel: "x" })).toContain("1. ");
+  });
+});
+
+describe("buildContactsJson", () => {
+  const lastSeen = new Date("2026-01-15T00:00:00Z");
+  const contact = makeContact({ lastSeen });
+  const result = buildContactsJson([contact], { sinceLabel: "last 6 months" });
+
+  it("includes sinceLabel", () => {
+    expect(result.sinceLabel).toBe("last 6 months");
+  });
+
+  it("includes contacts array", () => {
+    expect(result.contacts).toHaveLength(1);
+  });
+
+  it("serializes lastSeen as ISO string", () => {
+    expect(result.contacts[0].lastSeen).toBe("2026-01-15T00:00:00.000Z");
+  });
+
+  it("preserves address", () => {
+    expect(result.contacts[0].address).toBe("alice@example.com");
+  });
+
+  it("preserves direction", () => {
+    expect(result.contacts[0].direction).toBe("received");
   });
 });
