@@ -5,7 +5,7 @@
  * be tested independently. All IMAP I/O is injected via deps.
  */
 import { fetchInbox } from "./inbox.js";
-import { parseDate } from "./parse-date.js";
+import { parseIntOption, parseSinceOption } from "./parse-options.js";
 
 /**
  * @typedef {object} InboxCommandDeps
@@ -24,8 +24,8 @@ import { parseDate } from "./parse-date.js";
 export async function inboxCommand(opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount } = deps;
 
-  const limit = parseInt(opts.limit ?? "10", 10);
-  const since = opts.since ? parseDate(opts.since) : parseDate("7d");
+  const limit = parseIntOption(opts.limit, 10);
+  const since = parseSinceOption(opts.since, "7d");
 
   /** @type {Map<string, Array>} */
   const resultsByAccount = new Map();

@@ -7,7 +7,7 @@
 
 import { getConfigSelfAddresses } from "./config.js";
 import { aggregateContacts, extractContacts } from "./contacts.js";
-import { parseDate } from "./parse-date.js";
+import { parseIntOption, parseSinceOption } from "./parse-options.js";
 
 /**
  * @typedef {object} ContactsCommandDeps
@@ -26,8 +26,8 @@ import { parseDate } from "./parse-date.js";
 export async function contactsCommand(opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount } = deps;
 
-  const limit = parseInt(opts.limit ?? "25", 10);
-  const since = opts.since ? parseDate(opts.since) : parseDate("6m");
+  const limit = parseIntOption(opts.limit, 25);
+  const since = parseSinceOption(opts.since, "6m");
 
   const sinceLabel = opts.since
     ? `since ${since.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}`

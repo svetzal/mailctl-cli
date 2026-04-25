@@ -6,6 +6,7 @@
  */
 
 import { downloadReceipts as _downloadReceipts } from "./downloader.js";
+import { parseIntOption } from "./parse-options.js";
 
 /**
  * @typedef {object} DownloadCommandDeps
@@ -26,7 +27,7 @@ export async function downloadCommand(opts, deps, onProgress = () => {}) {
 
   return await downloadReceipts(
     {
-      months: parseInt(opts.months ?? "24", 10),
+      months: parseIntOption(opts.months, 24),
       dryRun: opts.dryRun ?? false,
       outputDir: opts.output,
       account: account || undefined,

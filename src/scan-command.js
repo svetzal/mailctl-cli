@@ -5,6 +5,7 @@
  * be tested independently. All I/O is injected via deps.
  */
 
+import { parseIntOption } from "./parse-options.js";
 import { ensureDataDir, saveScanResults } from "./scan-data.js";
 import { aggregateBySender, scanAllAccounts } from "./scanner.js";
 
@@ -28,7 +29,7 @@ export async function scanCommand(opts, deps, onProgress = () => {}) {
 
   const results = await scanAllAccounts(
     {
-      months: parseInt(opts.months ?? "12", 10),
+      months: parseIntOption(opts.months, 12),
       allMailboxes: opts.allMailboxes ?? false,
       account: account || undefined,
     },

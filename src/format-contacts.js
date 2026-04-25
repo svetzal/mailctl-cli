@@ -2,6 +2,7 @@
  * Pure formatting functions for the contacts command.
  * No I/O — same inputs always produce the same outputs.
  */
+import { formatShortDate } from "./format-date.js";
 
 /**
  * Format contacts as human-readable text.
@@ -21,7 +22,7 @@ export function formatContactsText(contacts, opts) {
     const display = c.name ? `${c.name} <${c.address}>` : c.address;
     const msgs = `${c.count} msgs`;
     const dir = c.direction === "both" ? "both" : c.direction === "sent" ? "sent" : "recv";
-    const dateStr = formatContactDate(c.lastSeen);
+    const dateStr = formatShortDate(c.lastSeen);
     lines.push(`${num}. ${display.padEnd(50)} ${msgs.padStart(8)}  (${dir})   last: ${dateStr}`);
   }
 
@@ -47,14 +48,4 @@ export function buildContactsJson(contacts, opts) {
       direction: c.direction,
     })),
   };
-}
-
-/**
- * Format a contact's last-seen date for display.
- * @param {Date} date
- * @returns {string}
- */
-function formatContactDate(date) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 }

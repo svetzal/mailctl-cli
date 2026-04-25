@@ -8,6 +8,7 @@
 import { resolveDateFilters } from "./date-filters.js";
 import { deduplicateByMessageId } from "./dedup.js";
 import { filterSearchMailboxes } from "./imap-client.js";
+import { parseIntOption } from "./parse-options.js";
 import { searchMailbox } from "./search.js";
 
 /**
@@ -34,7 +35,7 @@ export async function searchCommand(query, opts, deps, onProgress = () => {}) {
     throw new Error("Provide a search query or use --from, --to, --subject, or --body to filter.");
   }
 
-  const limit = parseInt(opts.limit ?? "20", 10);
+  const limit = parseIntOption(opts.limit, 20);
 
   const { since, before, warnings } = resolveDateFilters({
     months: opts.months,

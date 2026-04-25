@@ -7,6 +7,7 @@
 import { uidNotFoundError } from "./find-message.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { detectMailbox } from "./mailbox-detect.js";
+import { parseIntOption } from "./parse-options.js";
 import { findThread } from "./thread.js";
 
 /**
@@ -36,7 +37,7 @@ import { findThread } from "./thread.js";
  */
 export async function threadCommand(uid, opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount, listMailboxes } = deps;
-  const limit = parseInt(opts.limit ?? "50", 10);
+  const limit = parseIntOption(opts.limit, 50);
 
   /** @type {ThreadResult[]} */
   const results = [];

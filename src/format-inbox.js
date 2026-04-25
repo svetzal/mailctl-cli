@@ -2,6 +2,7 @@
  * Pure formatting functions for the inbox command.
  * No I/O — same inputs always produce the same outputs.
  */
+import { formatShortDate, isValidDate } from "./format-date.js";
 
 /**
  * Format inbox results as human-readable text.
@@ -59,7 +60,7 @@ export function buildInboxJson(allResults) {
  * @returns {string}
  */
 function formatMessageDate(date) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  if (!isValidDate(date)) return "";
   const now = new Date();
   const isToday =
     date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
@@ -67,5 +68,5 @@ function formatMessageDate(date) {
   if (isToday) {
     return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
   }
-  return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+  return formatShortDate(date);
 }

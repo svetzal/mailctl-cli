@@ -4,7 +4,7 @@
  * Extracts the routing logic from the cli.js download-receipts handler so it can
  * be tested independently. Dynamic imports are injected for the heavy sub-modules.
  */
-import { parseDate } from "./parse-date.js";
+import { parseIntOption, parseSinceOption } from "./parse-options.js";
 
 /**
  * @typedef {object} DownloadReceiptsCommandDeps
@@ -30,11 +30,11 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
   if (opts.listVendors) {
     const { listReceiptVendors } = await importDownloadReceipts();
     const { getVendorDisplayNames, getVendorDomainMap } = await importVendorMap();
-    const sinceDate = opts.since ? parseDate(opts.since) : null;
+    const sinceDate = parseSinceOption(opts.since, null);
 
     const vendors = await listReceiptVendors(
       {
-        months: parseInt(opts.months ?? "12", 10),
+        months: parseIntOption(opts.months, 12),
         since: sinceDate || undefined,
         account: account || null,
       },
@@ -51,7 +51,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
 
   if (opts.reprocess) {
     const { reprocessReceipts } = await importDownloadReceipts();
-    const sinceDate = opts.since ? parseDate(opts.since) : null;
+    const sinceDate = parseSinceOption(opts.since, null);
 
     const result = await reprocessReceipts(
       {
@@ -71,7 +71,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
   const { stats, records } = await downloadReceiptEmails(
     {
       outputDir: opts.output ?? ".",
-      months: parseInt(opts.months ?? "12", 10),
+      months: parseIntOption(opts.months, 12),
       since: opts.since || null,
       account: account || null,
       vendor: opts.vendor || null,

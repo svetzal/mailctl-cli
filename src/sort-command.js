@@ -5,6 +5,7 @@
  * be tested independently.
  */
 
+import { parseIntOption } from "./parse-options.js";
 import { sortReceipts } from "./sorter.js";
 
 /**
@@ -25,7 +26,7 @@ export async function sortCommand(opts, deps, onProgress = () => {}) {
 
   return await sortReceipts(
     {
-      months: parseInt(opts.months ?? "24", 10),
+      months: parseIntOption(opts.months, 24),
       dryRun: opts.dryRun ?? false,
       account: account || undefined,
     },
