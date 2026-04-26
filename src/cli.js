@@ -141,6 +141,82 @@ function renderAuthProgress(event) {
   if (line) console.error(line);
 }
 
+function renderScanProgress(event) {
+  const line = renderScanEvent(event);
+  if (line) console.error(line);
+}
+
+function renderSortProgress(event) {
+  const line = renderSortEvent(event);
+  if (line) console.error(line);
+}
+
+function renderDownloadProgress(event) {
+  const line = renderDownloadEvent(event);
+  if (line) console.error(line);
+}
+
+function renderDownloadReceiptsProgress(event) {
+  const line = renderDownloadReceiptsEvent(event);
+  if (line) console.error(line);
+}
+
+/**
+ * @param {boolean} json
+ * @param {object} parsed
+ * @param {string} acctName
+ * @param {string} uid
+ * @param {object} opts
+ */
+function formatReadOutput(json, parsed, acctName, uid, opts) {
+  const maxBody = opts.maxBody !== undefined ? parseInt(opts.maxBody, 10) : 3000;
+  const maxBodyExplicit = opts.maxBody !== undefined;
+  return formatOutput(
+    json,
+    buildReadJson(parsed, acctName, uid, { maxBody, maxBodyExplicit, includeHeaders: !!opts.headers }),
+    formatReadResultText(parsed, { maxBody, showHeaders: !!opts.headers, showRaw: !!opts.raw }),
+  );
+}
+
+/**
+ * @param {boolean} json
+ * @param {object} result
+ */
+function formatReplyOutput(json, result) {
+  if ("dryRun" in result) {
+    const { message } = result;
+    return formatOutput(json, buildReplyDryRunJson(message), formatReplyDryRunText(message));
+  }
+  return formatOutput(json, buildReplySentJson(result), formatReplySentText(result));
+}
+
+/**
+ * @param {boolean} json
+ * @param {Array} results
+ * @param {object} opts
+ */
+function formatThreadOutput(json, results, opts) {
+  return results.map(({ account, threadSize, fallback, messages }) => ({
+    account,
+    output: formatOutput(
+      json,
+      buildThreadJson(account, threadSize, fallback, messages),
+      formatThreadText(messages, { full: opts.full, fallback }),
+    ),
+  }));
+}
+
+/**
+ * @param {boolean} json
+ * @param {object} result
+ */
+function formatAttachmentOutput(json, result) {
+  if (result.list) {
+    return formatOutput(json, buildAttachmentListJson(result), formatAttachmentListText(result.attachments));
+  }
+  return formatOutput(json, buildAttachmentSavedJson(result), formatAttachmentSavedText(result.path));
+}
+
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
@@ -164,20 +240,12 @@ program
 
       const { total, senders, rawPath, summaryPath } = await scanCommand(
         opts,
-        {
-          account: account || null,
-          dataDir: DATA_DIR,
-          fsGateway: _fs,
-        },
-        (event) => {
-          const line = renderScanEvent(event);
-          if (line) console.error(line);
-        },
+        { account: account || null, dataDir: DATA_DIR, fsGateway: _fs },
+        renderScanProgress,
       );
 
       console.error(`Saved raw results to ${rawPath}`);
       console.error(`Saved sender summary to ${summaryPath}`);
-
       console.log(formatOutput(json, buildScanJson(total, senders), formatScanSummaryText(senders, total)));
     }),
   );
@@ -208,9 +276,7 @@ program
     withErrorHandling(async (file, opts) => {
       const json = resolveJson(opts);
 
-      const { imported, path } = importClassificationsCommand(file, opts.output, {
-        fsGateway: _fs,
-      });
+      const { imported, path } = importClassificationsCommand(file, opts.output, { fsGateway: _fs });
 
       console.log(
         formatOutput(
@@ -232,10 +298,7 @@ program
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
 
-      const stats = await sortCommand(opts, { account: account || null }, (event) => {
-        const line = renderSortEvent(event);
-        if (line) console.error(line);
-      });
+      const stats = await sortCommand(opts, { account: account || null }, renderSortProgress);
 
       console.log(formatOutput(json, buildSortJson(stats), formatSortResultText(stats)));
     }),
@@ -252,10 +315,7 @@ program
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
 
-      const stats = await downloadCommand(opts, { account: account || null }, (event) => {
-        const line = renderDownloadEvent(event);
-        if (line) console.error(line);
-      });
+      const stats = await downloadCommand(opts, { account: account || null }, renderDownloadProgress);
 
       console.log(formatOutput(json, buildDownloadJson(stats), formatDownloadResultText(stats)));
     }),
@@ -276,20 +336,13 @@ program
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
 
-      const result = await downloadReceiptsCommand(
-        opts,
-        {
-          account: account || null,
-          openAiKey: getOpenAiKey(),
-          importDownloadReceipts: () => import("./download-receipts.js"),
-          importVendorMap: () => import("./vendor-map.js"),
-        },
-        (event) => {
-          const line = renderDownloadReceiptsEvent(event);
-          if (line) console.error(line);
-        },
-      );
-
+      const deps = {
+        account: account || null,
+        openAiKey: getOpenAiKey(),
+        importDownloadReceipts: () => import("./download-receipts.js"),
+        importVendorMap: () => import("./vendor-map.js"),
+      };
+      const result = await downloadReceiptsCommand(opts, deps, renderDownloadReceiptsProgress);
       console.log(
         formatOutput(json, buildDownloadReceiptsJson(result), formatDownloadReceiptsResultText(result, opts)),
       );
@@ -341,8 +394,6 @@ program
   .action(
     withErrorHandling(async (uid, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
-      const maxBodyExplicit = opts.maxBody !== undefined;
-      const maxBody = maxBodyExplicit ? parseInt(opts.maxBody, 10) : 3000;
 
       const { account: acct, parsed } = await readCommand(uid, opts, {
         targetAccounts,
@@ -352,22 +403,7 @@ program
       });
 
       console.error(`\n=== ${acct.name} ===`);
-
-      console.log(
-        formatOutput(
-          json,
-          buildReadJson(parsed, acct.name, uid, {
-            maxBody,
-            maxBodyExplicit,
-            includeHeaders: !!opts.headers,
-          }),
-          formatReadResultText(parsed, {
-            maxBody,
-            showHeaders: !!opts.headers,
-            showRaw: !!opts.raw,
-          }),
-        ),
-      );
+      console.log(formatReadOutput(json, parsed, acct.name, uid, opts));
     }),
   );
 
@@ -399,23 +435,15 @@ program
   .action(
     withErrorHandling(async (uid, index, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
-      const attachmentIndex = parseInt(index, 10);
 
-      const result = await extractAttachmentCommand(uid, attachmentIndex, opts, {
+      const result = await extractAttachmentCommand(uid, parseInt(index, 10), opts, {
         targetAccounts,
         forEachAccount,
         listMailboxes,
         fsGateway: _fs,
       });
 
-      if (result.list) {
-        console.log(formatOutput(json, buildAttachmentListJson(result), formatAttachmentListText(result.attachments)));
-        return;
-      }
-
-      if ("path" in result) {
-        console.log(formatOutput(json, buildAttachmentSavedJson(result), formatAttachmentSavedText(result.path)));
-      }
+      console.log(formatAttachmentOutput(json, result));
     }),
   );
 
@@ -500,7 +528,7 @@ program
     withErrorHandling(async (uid, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-      const result = await replyCommand(uid, opts, {
+      const deps = {
         targetAccounts,
         forEachAccount,
         listMailboxes,
@@ -509,20 +537,10 @@ program
         smtpGateway: new SmtpGateway(),
         editorGateway: new EditorGateway(),
         confirmGateway: new ConfirmGateway(),
-      });
-
-      if ("aborted" in result) {
-        console.error("Aborted.");
-        return;
-      }
-
-      if ("dryRun" in result) {
-        const { message } = result;
-        console.log(formatOutput(json, buildReplyDryRunJson(message), formatReplyDryRunText(message)));
-        return;
-      }
-
-      console.log(formatOutput(json, buildReplySentJson(result), formatReplySentText(result)));
+      };
+      const result = await replyCommand(uid, opts, deps);
+      if ("aborted" in result) return void console.error("Aborted.");
+      console.log(formatReplyOutput(json, result));
     }),
   );
 
@@ -543,15 +561,9 @@ program
         listMailboxes,
       });
 
-      for (const { account: acctName, threadSize, fallback, messages } of results) {
-        console.error(`\n=== ${acctName} ===`);
-        console.log(
-          formatOutput(
-            json,
-            buildThreadJson(acctName, threadSize, fallback, messages),
-            formatThreadText(messages, { full: opts.full, fallback }),
-          ),
-        );
+      for (const { account, output } of formatThreadOutput(json, results, opts)) {
+        console.error(`\n=== ${account} ===`);
+        console.log(output);
       }
     }),
   );
