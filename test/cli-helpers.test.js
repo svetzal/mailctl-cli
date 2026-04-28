@@ -1,13 +1,173 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 import {
   collectValues,
+  createProgressRenderer,
+  createResolveAccount,
+  createResolveJson,
   filterAccountsByName,
   formatOutput,
   headerValueToString,
   resolveAccounts,
   resolveCommandContext,
   sanitizeString,
+  withErrorHandling,
 } from "../src/cli-helpers.js";
+
+// ── createResolveJson ─────────────────────────────────────────────────────────
+
+describe("createResolveJson", () => {
+  it("returns true when opts.json is true", () => {
+    const resolveJson = createResolveJson(() => ({}));
+    expect(resolveJson({ json: true })).toBe(true);
+  });
+
+  it("returns true when global opts.json is true", () => {
+    const resolveJson = createResolveJson(() => ({ json: true }));
+    expect(resolveJson({})).toBe(true);
+  });
+
+  it("returns false when neither opts.json nor global json is set", () => {
+    const resolveJson = createResolveJson(() => ({}));
+    expect(resolveJson({})).toBe(false);
+  });
+
+  it("local opts take precedence: true when opts.json is true even if global is false", () => {
+    const resolveJson = createResolveJson(() => ({ json: false }));
+    expect(resolveJson({ json: true })).toBe(true);
+  });
+});
+
+// ── createResolveAccount ──────────────────────────────────────────────────────
+
+describe("createResolveAccount", () => {
+  it("returns opts.account when set", () => {
+    const resolveAccount = createResolveAccount(() => ({}));
+    expect(resolveAccount({ account: "iCloud" })).toBe("iCloud");
+  });
+
+  it("returns global opts.account when local opts.account is not set", () => {
+    const resolveAccount = createResolveAccount(() => ({ account: "Gmail" }));
+    expect(resolveAccount({})).toBe("Gmail");
+  });
+
+  it("returns undefined when neither is set", () => {
+    const resolveAccount = createResolveAccount(() => ({}));
+    expect(resolveAccount({})).toBeUndefined();
+  });
+
+  it("local opts take precedence over global", () => {
+    const resolveAccount = createResolveAccount(() => ({ account: "Gmail" }));
+    expect(resolveAccount({ account: "iCloud" })).toBe("iCloud");
+  });
+});
+
+// ── withErrorHandling ─────────────────────────────────────────────────────────
+
+describe("withErrorHandling", () => {
+  it("returns a function", () => {
+    const wrapped = withErrorHandling(
+      async () => {},
+      () => false,
+    );
+    expect(typeof wrapped).toBe("function");
+  });
+
+  it("calls the wrapped function with all arguments", async () => {
+    const inner = mock(async () => {});
+    const wrapped = withErrorHandling(inner, () => false);
+    await wrapped("a", "b");
+    expect(inner).toHaveBeenCalledWith("a", "b");
+  });
+
+  it("outputs JSON error when resolveJsonFn returns true", async () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const wrapped = withErrorHandling(
+      async () => {
+        throw new Error("boom");
+      },
+      () => true,
+    );
+    try {
+      await wrapped({});
+    } catch {}
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({ error: "boom" }));
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it("outputs text error when resolveJsonFn returns false", async () => {
+    const errSpy = spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const wrapped = withErrorHandling(
+      async () => {
+        throw new Error("boom");
+      },
+      () => false,
+    );
+    try {
+      await wrapped({});
+    } catch {}
+    expect(errSpy).toHaveBeenCalledWith("Error: boom");
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it("calls process.exit(1) on error", async () => {
+    spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const wrapped = withErrorHandling(
+      async () => {
+        throw new Error("boom");
+      },
+      () => false,
+    );
+    try {
+      await wrapped({});
+    } catch {}
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    exitSpy.mockRestore();
+  });
+});
+
+// ── createProgressRenderer ────────────────────────────────────────────────────
+
+describe("createProgressRenderer", () => {
+  it("returns a function", () => {
+    const renderer = createProgressRenderer(() => null);
+    expect(typeof renderer).toBe("function");
+  });
+
+  it("calls the render function with the event", () => {
+    const renderFn = mock(() => null);
+    const renderer = createProgressRenderer(renderFn);
+    const event = { type: "progress" };
+    renderer(event);
+    expect(renderFn).toHaveBeenCalledWith(event);
+  });
+
+  it("writes non-null render results to stderr", () => {
+    const spy = spyOn(console, "error").mockImplementation(() => {});
+    const renderer = createProgressRenderer(() => "progress line");
+    renderer({});
+    expect(spy).toHaveBeenCalledWith("progress line");
+    spy.mockRestore();
+  });
+
+  it("does not write to stderr when render function returns null", () => {
+    const spy = spyOn(console, "error").mockImplementation(() => {});
+    const renderer = createProgressRenderer(() => null);
+    renderer({});
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
 
 // ── formatOutput ─────────────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@
  * No I/O — same inputs always produce the same outputs.
  */
 
-import { headerValueToString } from "./cli-helpers.js";
+import { formatOutput, headerValueToString } from "./cli-helpers.js";
 import { assessContent, sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { htmlToText } from "./html-to-text.js";
 import { extractUnsubscribeLinks } from "./unsubscribe.js";
@@ -116,4 +116,24 @@ export function buildReadJson(parsed, acctName, uid, opts) {
     maxBody: effectiveMaxBody,
     includeHeaders: opts.includeHeaders,
   });
+}
+
+/**
+ * Format the output for the read command, selecting JSON or text mode.
+ *
+ * @param {boolean} json
+ * @param {object} parsed - mailparser ParsedMail result
+ * @param {string} acctName - account name
+ * @param {string} uid - message UID
+ * @param {{ maxBody?: string|number, headers?: boolean, raw?: boolean }} opts
+ * @returns {string}
+ */
+export function formatReadOutput(json, parsed, acctName, uid, opts) {
+  const maxBody = opts.maxBody !== undefined ? parseInt(String(opts.maxBody), 10) : 3000;
+  const maxBodyExplicit = opts.maxBody !== undefined;
+  return formatOutput(
+    json,
+    buildReadJson(parsed, acctName, uid, { maxBody, maxBodyExplicit, includeHeaders: !!opts.headers }),
+    formatReadResultText(parsed, { maxBody, showHeaders: !!opts.headers, showRaw: !!opts.raw }),
+  );
 }

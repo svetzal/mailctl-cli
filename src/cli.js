@@ -5,18 +5,22 @@ import { program } from "commander";
 import { simpleParser } from "mailparser";
 import { loadAccounts } from "./accounts.js";
 import { classifyCommand } from "./classify-command.js";
-import { collectValues, filterAccountsByName, formatOutput, resolveCommandContext } from "./cli-helpers.js";
+import {
+  collectValues,
+  createProgressRenderer,
+  createResolveAccount,
+  createResolveJson,
+  filterAccountsByName,
+  formatOutput,
+  resolveCommandContext,
+  withErrorHandling,
+} from "./cli-helpers.js";
 import { contactsCommand } from "./contacts-command.js";
 import { downloadCommand } from "./download-command.js";
 import { downloadReceiptsCommand } from "./download-receipts-command.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
-import {
-  buildAttachmentListJson,
-  buildAttachmentSavedJson,
-  formatAttachmentListText,
-  formatAttachmentSavedText,
-} from "./format-attachment.js";
+import { formatAttachmentOutput } from "./format-attachment.js";
 import { buildContactsJson, formatContactsText } from "./format-contacts.js";
 import { buildDownloadJson, formatDownloadResultText } from "./format-download.js";
 import { buildDownloadReceiptsJson, formatDownloadReceiptsResultText } from "./format-download-receipts.js";
@@ -26,17 +30,12 @@ import { buildImportClassificationsJson } from "./format-import-classifications.
 import { buildInboxJson, formatInboxText } from "./format-inbox.js";
 import { buildInitJsonResult, formatInitResultText } from "./format-init.js";
 import { buildMoveJson, formatMoveResultText } from "./format-move.js";
-import { buildReadJson, formatReadResultText } from "./format-read.js";
-import {
-  buildReplyDryRunJson,
-  buildReplySentJson,
-  formatReplyDryRunText,
-  formatReplySentText,
-} from "./format-reply.js";
+import { formatReadOutput } from "./format-read.js";
+import { formatReplyOutput } from "./format-reply.js";
 import { buildClassifyJson, buildScanJson, formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
 import { buildSearchJson, formatSearchResultsText } from "./format-search.js";
 import { buildSortJson, formatSortResultText } from "./format-sort.js";
-import { buildThreadJson, formatThreadText } from "./format-thread.js";
+import { formatThreadOutput } from "./format-thread.js";
 import { ConfirmGateway } from "./gateways/confirm-gateway.js";
 import { EditorGateway } from "./gateways/editor-gateway.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
@@ -64,44 +63,8 @@ import { threadCommand } from "./thread-command.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
-/**
- * Resolve the --json flag from either command-level or global options.
- * @param {object} opts - command-level options
- * @returns {boolean}
- */
-function resolveJson(opts) {
-  return !!(opts.json || program.opts().json);
-}
-
-/**
- * Resolve the --account flag from either command-level or global options.
- * @param {object} opts - command-level options
- * @returns {string|undefined}
- */
-function resolveAccount(opts) {
-  return opts.account || program.opts().account;
-}
-
-/**
- * Wrap a command action with consistent error handling.
- * Catches errors and outputs them appropriately for --json or human mode.
- */
-function withErrorHandling(fn) {
-  return async (...args) => {
-    try {
-      await fn(...args);
-    } catch (err) {
-      const localOpts = args[args.length - 1]?.opts?.() ?? args[args.length - 1] ?? {};
-      const json = resolveJson(localOpts);
-      if (json) {
-        console.log(JSON.stringify({ error: err.message }));
-      } else {
-        console.error(`Error: ${err.message}`);
-      }
-      process.exit(1);
-    }
-  };
-}
+const resolveJson = createResolveJson(() => program.opts());
+const resolveAccount = createResolveAccount(() => program.opts());
 
 /** Shared keychain gateway — instantiated once, used by requireAccounts and openAiKey. */
 const _keychain = new KeychainGateway();
@@ -132,90 +95,13 @@ function getOpenAiKey() {
 /** Shared dependency object for resolveCommandContext calls throughout this file. */
 const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccountsByName };
 
-/**
- * Render M365 auth progress events to stderr.
- * @param {object} event
- */
-function renderAuthProgress(event) {
-  const line = renderAuthEvent(event);
-  if (line) console.error(line);
-}
+const wrapAction = (/** @type {(...args: any[]) => Promise<void>} */ fn) => withErrorHandling(fn, resolveJson);
 
-function renderScanProgress(event) {
-  const line = renderScanEvent(event);
-  if (line) console.error(line);
-}
-
-function renderSortProgress(event) {
-  const line = renderSortEvent(event);
-  if (line) console.error(line);
-}
-
-function renderDownloadProgress(event) {
-  const line = renderDownloadEvent(event);
-  if (line) console.error(line);
-}
-
-function renderDownloadReceiptsProgress(event) {
-  const line = renderDownloadReceiptsEvent(event);
-  if (line) console.error(line);
-}
-
-/**
- * @param {boolean} json
- * @param {object} parsed
- * @param {string} acctName
- * @param {string} uid
- * @param {object} opts
- */
-function formatReadOutput(json, parsed, acctName, uid, opts) {
-  const maxBody = opts.maxBody !== undefined ? parseInt(opts.maxBody, 10) : 3000;
-  const maxBodyExplicit = opts.maxBody !== undefined;
-  return formatOutput(
-    json,
-    buildReadJson(parsed, acctName, uid, { maxBody, maxBodyExplicit, includeHeaders: !!opts.headers }),
-    formatReadResultText(parsed, { maxBody, showHeaders: !!opts.headers, showRaw: !!opts.raw }),
-  );
-}
-
-/**
- * @param {boolean} json
- * @param {object} result
- */
-function formatReplyOutput(json, result) {
-  if ("dryRun" in result) {
-    const { message } = result;
-    return formatOutput(json, buildReplyDryRunJson(message), formatReplyDryRunText(message));
-  }
-  return formatOutput(json, buildReplySentJson(result), formatReplySentText(result));
-}
-
-/**
- * @param {boolean} json
- * @param {Array} results
- * @param {object} opts
- */
-function formatThreadOutput(json, results, opts) {
-  return results.map(({ account, threadSize, fallback, messages }) => ({
-    account,
-    output: formatOutput(
-      json,
-      buildThreadJson(account, threadSize, fallback, messages),
-      formatThreadText(messages, { full: opts.full, fallback }),
-    ),
-  }));
-}
-
-/**
- * @param {boolean} json
- * @param {object} result
- */
-function formatAttachmentOutput(json, result) {
-  if (result.list) {
-    return formatOutput(json, buildAttachmentListJson(result), formatAttachmentListText(result.attachments));
-  }
-  return formatOutput(json, buildAttachmentSavedJson(result), formatAttachmentSavedText(result.path));
-}
+const renderAuthProgress = createProgressRenderer(renderAuthEvent);
+const renderScanProgress = createProgressRenderer(renderScanEvent);
+const renderSortProgress = createProgressRenderer(renderSortEvent);
+const renderDownloadProgress = createProgressRenderer(renderDownloadEvent);
+const renderDownloadReceiptsProgress = createProgressRenderer(renderDownloadReceiptsEvent);
 
 program
   .name("mailctl")
@@ -234,7 +120,7 @@ program
   .option("-o, --output <file>", "write raw results to JSON file")
   .option("--summary", "output aggregated sender summary (default)", true)
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
 
@@ -256,7 +142,7 @@ program
   .option("-i, --input <file>", "sender summary JSON", join(DATA_DIR, "senders.json"))
   .option("-o, --output <file>", "classification output", join(DATA_DIR, "classifications.json"))
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const json = resolveJson(opts);
 
       const { unclassifiedList } = classifyCommand(opts.input, opts.output, {
@@ -273,7 +159,7 @@ program
   .argument("<file>", "JSON file with classifications")
   .option("-o, --output <file>", "classification store", join(DATA_DIR, "classifications.json"))
   .action(
-    withErrorHandling(async (file, opts) => {
+    wrapAction(async (file, opts) => {
       const json = resolveJson(opts);
 
       const { imported, path } = importClassificationsCommand(file, opts.output, { fsGateway: _fs });
@@ -294,7 +180,7 @@ program
   .option("-m, --months <n>", "months to look back", "24")
   .option("-n, --dry-run", "show what would be moved without actually moving", false)
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
 
@@ -311,7 +197,7 @@ program
   .option("-n, --dry-run", "show what would be downloaded without downloading", false)
   .option("-o, --output <dir>", "override output directory")
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
 
@@ -332,7 +218,7 @@ program
   .option("--vendor <name>", "filter to a specific vendor (substring match)")
   .option("--list-vendors", "list vendors found in recent receipts", false)
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const json = resolveJson(opts);
       const account = resolveAccount(opts);
 
@@ -366,7 +252,7 @@ program
   .option("--exclude-mailbox <path>", "mailbox(es) to exclude (repeatable or comma-separated)", collectValues, [])
   .option("-l, --limit <n>", "max results per mailbox per account", "20")
   .action(
-    withErrorHandling(async (query, opts) => {
+    wrapAction(async (query, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const { allResults, warnings } = await searchCommand(query, opts, {
@@ -392,7 +278,7 @@ program
   .option("--raw", "output original HTML without stripping (for HTML emails)")
   .option("--headers", "include raw email headers in output")
   .action(
-    withErrorHandling(async (uid, opts) => {
+    wrapAction(async (uid, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const { account: acct, parsed } = await readCommand(uid, opts, {
@@ -411,7 +297,7 @@ program
   .command("list-folders")
   .description("List all IMAP folders for each configured account")
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const { allAccountFolders } = await listFoldersCommand(
@@ -433,7 +319,7 @@ program
   .option("-o, --output <dir>", "output directory", ".")
   .option("--list", "list attachments without downloading")
   .action(
-    withErrorHandling(async (uid, index, opts) => {
+    wrapAction(async (uid, index, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const result = await extractAttachmentCommand(uid, parseInt(index, 10), opts, {
@@ -455,7 +341,7 @@ program
   .option("--mailbox <source>", "source mailbox to move from", "INBOX")
   .option("-n, --dry-run", "show what would be moved without executing", false)
   .action(
-    withErrorHandling(async (uids, opts) => {
+    wrapAction(async (uids, opts) => {
       const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
 
       const { stats, results } = await moveCommand(uids, opts, {
@@ -476,7 +362,7 @@ program
   .option("--unread", "only show unread messages", false)
   .option("--since <date>", "only messages on or after this date (default: 7d)")
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const { resultsByAccount, allResults } = await inboxCommand(opts, {
@@ -499,7 +385,7 @@ program
   .option("--mailbox <path>", "mailbox containing the messages (auto-detects if omitted)")
   .option("-n, --dry-run", "show what would change without modifying", false)
   .action(
-    withErrorHandling(async (uids, opts) => {
+    wrapAction(async (uids, opts) => {
       const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
 
       const { stats, results } = await flagCommand(uids, opts, {
@@ -525,7 +411,7 @@ program
   .option("-n, --dry-run", "show composed email without sending", false)
   .option("-y, --yes", "skip confirmation when using --edit", false)
   .action(
-    withErrorHandling(async (uid, opts) => {
+    wrapAction(async (uid, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const deps = {
@@ -552,7 +438,7 @@ program
   .option("-l, --limit <n>", "max messages to show", "50")
   .option("--full", "show full message bodies", false)
   .action(
-    withErrorHandling(async (uid, opts) => {
+    wrapAction(async (uid, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const results = await threadCommand(uid, opts, {
@@ -577,7 +463,7 @@ program
   .option("--received", "only show people you've received FROM", false)
   .option("--search <text>", "filter contacts by name or address")
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
       const { contacts, sinceLabel } = await contactsCommand(opts, {
@@ -599,7 +485,7 @@ program
   .option("-g, --global", "install to ~/.claude (global) instead of .claude/ in CWD")
   .option("--force", "overwrite even if installed skill is from a newer version")
   .action(
-    withErrorHandling(async (opts) => {
+    wrapAction(async (opts) => {
       const json = resolveJson(opts);
       const result = await initCommand(program.version() ?? "0.0.0", { global: !!opts.global, force: !!opts.force });
 

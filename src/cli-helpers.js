@@ -110,6 +110,65 @@ export function formatOutput(json, jsonData, textOutput) {
 }
 
 /**
+ * Create a resolver for the --json flag that checks command-level opts first,
+ * then falls back to global program opts.
+ *
+ * @param {() => object} getGlobalOpts - returns the global Commander options object
+ * @returns {(opts: object) => boolean}
+ */
+export function createResolveJson(getGlobalOpts) {
+  return (opts) => !!(opts.json || getGlobalOpts().json);
+}
+
+/**
+ * Create a resolver for the --account flag that checks command-level opts first,
+ * then falls back to global program opts.
+ *
+ * @param {() => object} getGlobalOpts - returns the global Commander options object
+ * @returns {(opts: object) => string|undefined}
+ */
+export function createResolveAccount(getGlobalOpts) {
+  return (opts) => opts.account || getGlobalOpts().account;
+}
+
+/**
+ * Wrap a command action with consistent error handling.
+ * Catches errors and outputs them appropriately for --json or human mode.
+ *
+ * @param {(...args: any[]) => Promise<void>} fn - the command action to wrap
+ * @param {(opts: object) => boolean} resolveJsonFn - resolves the json flag from command opts
+ * @returns {(...args: any[]) => Promise<void>}
+ */
+export function withErrorHandling(fn, resolveJsonFn) {
+  return async (...args) => {
+    try {
+      await fn(...args);
+    } catch (err) {
+      const localOpts = args[args.length - 1]?.opts?.() ?? args[args.length - 1] ?? {};
+      const json = resolveJsonFn(localOpts);
+      if (json) {
+        console.log(JSON.stringify({ error: /** @type {Error} */ (err).message }));
+      } else {
+        console.error(`Error: ${/** @type {Error} */ (err).message}`);
+      }
+      process.exit(1);
+    }
+  };
+}
+
+/**
+ * Create a progress-rendering function that writes non-null render results to stderr.
+ * @param {(event: object) => string|null} renderFn - pure event-to-string renderer
+ * @returns {(event: object) => void}
+ */
+export function createProgressRenderer(renderFn) {
+  return (event) => {
+    const line = renderFn(event);
+    if (line) console.error(line);
+  };
+}
+
+/**
  * Resolve the common command context present in most CLI handlers:
  * json flag, account filter, full account list, and filtered account list.
  * Throws when an explicit account name matches no configured accounts.

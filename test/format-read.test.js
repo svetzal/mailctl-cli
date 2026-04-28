@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildReadJson, buildReadResult } from "../src/format-read.js";
+import { buildReadJson, buildReadResult, formatReadOutput } from "../src/format-read.js";
 
 function mockParsed(overrides = {}) {
   return {
@@ -41,5 +41,27 @@ describe("buildReadJson", () => {
 
     expect(withHeaders).toHaveProperty("headers");
     expect(withoutHeaders).not.toHaveProperty("headers");
+  });
+});
+
+// ── formatReadOutput ──────────────────────────────────────────────────────────
+
+describe("formatReadOutput", () => {
+  it("returns JSON string when json is true", () => {
+    const result = formatReadOutput(true, mockParsed(), "icloud", "42", {});
+    const parsed = JSON.parse(result);
+    expect(parsed).toHaveProperty("account", "icloud");
+  });
+
+  it("returns text string when json is false", () => {
+    const result = formatReadOutput(false, mockParsed(), "icloud", "42", {});
+    expect(typeof result).toBe("string");
+    expect(result).toContain("Body text");
+  });
+
+  it("defaults maxBody to 3000 when opts.maxBody is not set", () => {
+    const longBody = "x".repeat(4000);
+    const result = formatReadOutput(false, mockParsed({ text: longBody }), "icloud", "42", {});
+    expect(result.length).toBeLessThan(longBody.length);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildThreadJson, formatThreadText } from "../src/format-thread.js";
+import { buildThreadJson, formatThreadOutput, formatThreadText } from "../src/format-thread.js";
 
 function makeMsg(overrides = {}) {
   return {
@@ -88,5 +88,34 @@ describe("buildThreadJson", () => {
   it("passes messages array through unchanged", () => {
     const messages = [{ subject: "Hello" }];
     expect(buildThreadJson("iCloud", 1, false, messages).messages).toBe(messages);
+  });
+});
+
+// ── formatThreadOutput ─────────────────────────────────────────────────────────
+
+describe("formatThreadOutput", () => {
+  const messages = [makeMsg()];
+  const results = [{ account: "iCloud", threadSize: 1, fallback: false, messages }];
+
+  it("returns one entry per result", () => {
+    const output = formatThreadOutput(false, results, {});
+    expect(output).toHaveLength(1);
+  });
+
+  it("preserves account name in output entries", () => {
+    const output = formatThreadOutput(false, results, {});
+    expect(output[0].account).toBe("iCloud");
+  });
+
+  it("returns JSON string in JSON mode", () => {
+    const output = formatThreadOutput(true, results, {});
+    const parsed = JSON.parse(output[0].output);
+    expect(parsed.account).toBe("iCloud");
+  });
+
+  it("returns text string in text mode", () => {
+    const output = formatThreadOutput(false, results, {});
+    expect(typeof output[0].output).toBe("string");
+    expect(output[0].output).toContain("Hello");
   });
 });

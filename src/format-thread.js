@@ -3,6 +3,8 @@
  * No I/O — same inputs always produce the same outputs.
  */
 
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * Format thread results as human-readable text.
  *
@@ -67,4 +69,23 @@ export function formatThreadText(messages, opts = {}) {
  */
 export function buildThreadJson(acctName, threadSize, fallback, messages) {
   return { account: acctName, threadSize, fallback, messages };
+}
+
+/**
+ * Format the output for all thread results, selecting JSON or text mode per account.
+ *
+ * @param {boolean} json
+ * @param {Array<{ account: string, threadSize: number, fallback: boolean, messages: object[] }>} results
+ * @param {{ full?: boolean }} opts
+ * @returns {Array<{ account: string, output: string }>}
+ */
+export function formatThreadOutput(json, results, opts) {
+  return results.map(({ account, threadSize, fallback, messages }) => ({
+    account,
+    output: formatOutput(
+      json,
+      buildThreadJson(account, threadSize, fallback, messages),
+      formatThreadText(messages, { full: opts.full, fallback }),
+    ),
+  }));
 }

@@ -3,6 +3,7 @@ import {
   buildAttachmentListJson,
   buildAttachmentSavedJson,
   formatAttachmentListText,
+  formatAttachmentOutput,
   formatAttachmentSavedText,
 } from "../src/format-attachment.js";
 
@@ -114,5 +115,38 @@ describe("buildAttachmentSavedJson", () => {
 
   it("includes contentType", () => {
     expect(result.contentType).toBe("application/pdf");
+  });
+});
+
+// ── formatAttachmentOutput ────────────────────────────────────────────────────
+
+describe("formatAttachmentOutput", () => {
+  const attachments = [{ index: 0, filename: "invoice.pdf", contentType: "application/pdf", size: 12345, part: "1" }];
+  const listResult = { list: true, account: "iCloud", uid: 42, attachments };
+  const savedResult = {
+    path: "/tmp/invoice.pdf",
+    filename: "invoice.pdf",
+    size: 12345,
+    contentType: "application/pdf",
+  };
+
+  it("returns JSON listing in JSON mode when list is true", () => {
+    const output = JSON.parse(formatAttachmentOutput(true, listResult));
+    expect(output).toHaveProperty("attachments");
+  });
+
+  it("returns text listing in text mode when list is true", () => {
+    const output = formatAttachmentOutput(false, listResult);
+    expect(output).toContain("invoice.pdf");
+  });
+
+  it("returns JSON saved result in JSON mode when list is falsy", () => {
+    const output = JSON.parse(formatAttachmentOutput(true, savedResult));
+    expect(output.path).toBe("/tmp/invoice.pdf");
+  });
+
+  it("returns path text in text mode when list is falsy", () => {
+    const output = formatAttachmentOutput(false, savedResult);
+    expect(output).toBe("/tmp/invoice.pdf");
   });
 });

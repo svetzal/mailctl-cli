@@ -3,6 +3,7 @@ import {
   buildReplyDryRunJson,
   buildReplySentJson,
   formatReplyDryRunText,
+  formatReplyOutput,
   formatReplySentText,
 } from "../src/format-reply.js";
 
@@ -139,5 +140,37 @@ describe("buildReplySentJson", () => {
     const result = buildReplySentJson(sentResult);
 
     expect(result.accepted).toEqual(["them@example.com"]);
+  });
+});
+
+// ── formatReplyOutput ─────────────────────────────────────────────────────────
+
+describe("formatReplyOutput", () => {
+  const dryRunResult = { dryRun: true, message: baseMessage };
+  const sentResult = {
+    sent: true,
+    messageId: "<sent-id@example.com>",
+    accepted: ["them@example.com"],
+    message: baseMessage,
+  };
+
+  it("returns JSON for dry-run result in JSON mode", () => {
+    const output = JSON.parse(formatReplyOutput(true, dryRunResult));
+    expect(output.dryRun).toBe(true);
+  });
+
+  it("returns dry-run text in text mode", () => {
+    const output = formatReplyOutput(false, dryRunResult);
+    expect(output).toContain("--- Dry Run: Composed Reply ---");
+  });
+
+  it("returns JSON for sent result in JSON mode", () => {
+    const output = JSON.parse(formatReplyOutput(true, sentResult));
+    expect(output.sent).toBe(true);
+  });
+
+  it("returns sent text in text mode", () => {
+    const output = formatReplyOutput(false, sentResult);
+    expect(output).toContain("them@example.com");
   });
 });

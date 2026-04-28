@@ -3,6 +3,8 @@
  * No I/O — same inputs always produce the same outputs.
  */
 
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {object} AttachmentEntry
  * @property {number} index - 0-based attachment index
@@ -56,4 +58,25 @@ export function buildAttachmentListJson(result) {
  */
 export function buildAttachmentSavedJson(result) {
   return { path: result.path, filename: result.filename, size: result.size, contentType: result.contentType };
+}
+
+/**
+ * @typedef {{ list: boolean, account: string, uid: string|number, attachments: AttachmentEntry[] }} AttachmentListResult
+ * @typedef {{ path: string, filename: string, size: number, contentType: string }} AttachmentSavedResult
+ */
+
+/**
+ * Format the output for the extract-attachment command, selecting JSON or text mode.
+ *
+ * @param {boolean} json
+ * @param {AttachmentListResult | AttachmentSavedResult} result
+ * @returns {string}
+ */
+export function formatAttachmentOutput(json, result) {
+  if (/** @type {AttachmentListResult} */ (result).list) {
+    const listResult = /** @type {AttachmentListResult} */ (result);
+    return formatOutput(json, buildAttachmentListJson(listResult), formatAttachmentListText(listResult.attachments));
+  }
+  const savedResult = /** @type {AttachmentSavedResult} */ (result);
+  return formatOutput(json, buildAttachmentSavedJson(savedResult), formatAttachmentSavedText(savedResult.path));
 }

@@ -3,6 +3,8 @@
  * No I/O — same inputs always produce the same outputs.
  */
 
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {object} ReplyMessage
  * @property {string} from - sender address
@@ -69,4 +71,23 @@ export function buildReplyDryRunJson(message) {
  */
 export function buildReplySentJson(result) {
   return { sent: result.sent, messageId: result.messageId, accepted: result.accepted };
+}
+
+/**
+ * Format the output for the reply command, selecting JSON or text mode.
+ *
+ * @param {boolean} json
+ * @param {{ dryRun?: boolean, message?: ReplyMessage } | ReplySentResult} result
+ * @returns {string}
+ */
+export function formatReplyOutput(json, result) {
+  if ("dryRun" in result) {
+    const { message } = /** @type {{ dryRun: boolean, message: ReplyMessage }} */ (result);
+    return formatOutput(json, buildReplyDryRunJson(message), formatReplyDryRunText(message));
+  }
+  return formatOutput(
+    json,
+    buildReplySentJson(/** @type {ReplySentResult} */ (result)),
+    formatReplySentText(/** @type {ReplySentResult} */ (result)),
+  );
 }
