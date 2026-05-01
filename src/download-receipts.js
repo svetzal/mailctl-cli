@@ -78,7 +78,15 @@ async function processReceiptMessage(client, msg, context) {
       (a) => a.contentType === "application/pdf" || a.filename?.toLowerCase().endsWith(".pdf"),
     );
 
-    const extractionText = resolveExtractionText(pdfAttachments, bodyText, msg.uid, fs, subprocess, onProgress);
+    const extractionText = resolveExtractionText(
+      pdfAttachments,
+      bodyText,
+      msg.uid,
+      fs,
+      subprocess,
+      onProgress,
+      (err, ctx) => onProgress({ type: "docling-conversion-failed", uid: msg.uid, pdfPath: ctx.pdfPath, error: err }),
+    );
     const metadata = await extractReceiptMetadata(
       llm,
       extractionText,
@@ -195,8 +203,12 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
 
   const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
-  const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs);
-  const existingHashes = loadExistingHashes(outputDir, fs);
+  const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs, (err, ctx) =>
+    onProgress({ type: "output-tree-error", path: ctx.path, level: ctx.level, error: err }),
+  );
+  const existingHashes = loadExistingHashes(outputDir, fs, (err, ctx) =>
+    onProgress({ type: "output-tree-error", path: ctx.path, level: ctx.level, error: err }),
+  );
   const usedPaths = new Set();
 
   const stats = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, alreadyHave: 0, errors: 0 };

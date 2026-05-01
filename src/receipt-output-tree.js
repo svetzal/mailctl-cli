@@ -53,9 +53,10 @@ export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
  * Returns a Set of invoice numbers that already have sidecars.
  * @param {string} outputDir
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
  * @returns {Set<string>}
  */
-export function loadExistingInvoiceNumbers(outputDir, fs) {
+export function loadExistingInvoiceNumbers(outputDir, fs, onError = () => {}) {
   const numbers = new Set();
   walkOutputTree(
     outputDir,
@@ -65,7 +66,7 @@ export function loadExistingInvoiceNumbers(outputDir, fs) {
       const data = /** @type {any} */ (fs.readJson(filePath));
       if (data.invoice_number) numbers.add(data.invoice_number);
     },
-    (err, ctx) => console.error(`mailctl: error reading output tree at ${ctx.path} (${ctx.level}): ${err.message}`),
+    onError,
   );
   return numbers;
 }
@@ -74,9 +75,10 @@ export function loadExistingInvoiceNumbers(outputDir, fs) {
  * Scan existing PDF files in the output tree for SHA-256 content hashes.
  * @param {string} outputDir
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
  * @returns {Set<string>}
  */
-export function loadExistingHashes(outputDir, fs) {
+export function loadExistingHashes(outputDir, fs, onError = () => {}) {
   const hashes = new Set();
   walkOutputTree(
     outputDir,
@@ -86,7 +88,7 @@ export function loadExistingHashes(outputDir, fs) {
       const buf = fs.readBuffer(filePath);
       hashes.add(createHash("sha256").update(buf).digest("hex"));
     },
-    (err, ctx) => console.error(`mailctl: error reading output tree at ${ctx.path} (${ctx.level}): ${err.message}`),
+    onError,
   );
   return hashes;
 }

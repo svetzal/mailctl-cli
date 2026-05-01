@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { findPdfParts } from "./attachment-parts.js";
 import { resolveAccounts } from "./cli-helpers.js";
-import { debug } from "./debug.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -173,8 +172,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
         const buf = fs.readBuffer(join(outputDir, f));
         existingHashes.add(createHash("sha256").update(buf).digest("hex"));
       } catch (err) {
-        // Hash file missing or unreadable — treat as not downloaded
-        debug("downloader", "hash read failed, will re-download", err);
+        onProgress({ type: "hash-read-error", file: f, error: err });
       }
     }
   }

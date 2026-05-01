@@ -140,4 +140,60 @@ describe("pdfToText", () => {
 
     expect(result).toBeNull();
   });
+
+  describe("calls onError with the full Error object when docling subprocess throws", () => {
+    it("calls onError callback", () => {
+      const errors = [];
+      const mockFs = /** @type {any} */ ({
+        exists: mock(() => true),
+        mkdir: mock(() => {}),
+        rm: mock(() => {}),
+      });
+      const mockSubprocess = /** @type {any} */ ({
+        execFileSync: mock(() => {
+          throw new Error("docling timeout");
+        }),
+      });
+
+      pdfToText("/some/file.pdf", mockFs, mockSubprocess, (err, ctx) => errors.push({ err, ctx }));
+
+      expect(errors.length).toBe(1);
+    });
+
+    it("passes the full Error object (not just message) to onError", () => {
+      const errors = [];
+      const mockFs = /** @type {any} */ ({
+        exists: mock(() => true),
+        mkdir: mock(() => {}),
+        rm: mock(() => {}),
+      });
+      const mockSubprocess = /** @type {any} */ ({
+        execFileSync: mock(() => {
+          throw new Error("docling timeout");
+        }),
+      });
+
+      pdfToText("/some/file.pdf", mockFs, mockSubprocess, (err, ctx) => errors.push({ err, ctx }));
+
+      expect(errors[0].err).toBeInstanceOf(Error);
+    });
+
+    it("context includes pdfPath", () => {
+      const errors = [];
+      const mockFs = /** @type {any} */ ({
+        exists: mock(() => true),
+        mkdir: mock(() => {}),
+        rm: mock(() => {}),
+      });
+      const mockSubprocess = /** @type {any} */ ({
+        execFileSync: mock(() => {
+          throw new Error("docling timeout");
+        }),
+      });
+
+      pdfToText("/some/file.pdf", mockFs, mockSubprocess, (err, ctx) => errors.push({ err, ctx }));
+
+      expect(errors[0].ctx.pdfPath).toBe("/some/file.pdf");
+    });
+  });
 });

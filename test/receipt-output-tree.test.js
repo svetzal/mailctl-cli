@@ -279,6 +279,28 @@ describe("loadExistingInvoiceNumbers", () => {
     const result = loadExistingInvoiceNumbers(tmpDir, REAL_FS);
     expect(result.size).toBe(0);
   });
+
+  describe("calls onError when reading a JSON sidecar file fails", () => {
+    it("calls the onError callback when readJson throws", () => {
+      const errors = [];
+      const monthDir = join(tmpDir, "2025", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(join(monthDir, "bad.json"), "not valid json");
+
+      loadExistingInvoiceNumbers(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it("passes the full Error object to onError", () => {
+      const errors = [];
+      const monthDir = join(tmpDir, "2025", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(join(monthDir, "bad.json"), "not valid json");
+
+      loadExistingInvoiceNumbers(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+      expect(errors[0].err).toBeInstanceOf(Error);
+    });
+  });
 });
 
 // ── loadExistingHashes ────────────────────────────────────────────────────────
@@ -350,6 +372,44 @@ describe("loadExistingHashes", () => {
 
       const result = loadExistingHashes(tmpDir, REAL_FS);
       expect(result.has(createHash("sha256").update(otherPdf).digest("hex"))).toBe(true);
+    });
+  });
+
+  describe("calls onError when reading a PDF file fails", () => {
+    it("calls the onError callback when readBuffer throws", () => {
+      const errors = [];
+      const monthDir = join(tmpDir, "2025", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(join(monthDir, "invoice.pdf"), FAKE_PDF);
+
+      const throwingFs = {
+        exists: (p) => REAL_FS.exists(p),
+        readdir: (p) => REAL_FS.readdir(p),
+        readBuffer: () => {
+          throw new Error("disk error");
+        },
+      };
+
+      loadExistingHashes(tmpDir, /** @type {any} */ (throwingFs), (err, ctx) => errors.push({ err, ctx }));
+      expect(errors.length).toBe(1);
+    });
+
+    it("passes the full Error object to onError", () => {
+      const errors = [];
+      const monthDir = join(tmpDir, "2025", "03");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(join(monthDir, "invoice.pdf"), FAKE_PDF);
+
+      const throwingFs = {
+        exists: (p) => REAL_FS.exists(p),
+        readdir: (p) => REAL_FS.readdir(p),
+        readBuffer: () => {
+          throw new Error("disk error");
+        },
+      };
+
+      loadExistingHashes(tmpDir, /** @type {any} */ (throwingFs), (err, ctx) => errors.push({ err, ctx }));
+      expect(errors[0].err.message).toBe("disk error");
     });
   });
 });

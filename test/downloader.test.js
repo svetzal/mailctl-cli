@@ -241,4 +241,54 @@ describe("downloadReceipts", () => {
 
     expect(deps.saveManifest).toHaveBeenCalledTimes(1);
   });
+
+  describe("emits hash-read-error via onProgress when readBuffer throws for an existing PDF", () => {
+    it("emits a hash-read-error event", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      deps.fs.exists = mock(() => true);
+      deps.fs.readdir = /** @type {any} */ (mock(() => ["existing.pdf"]));
+      deps.fs.readBuffer = mock(() => {
+        throw new Error("read failure");
+      });
+
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "hash-read-error");
+      expect(event).toBeDefined();
+    });
+
+    it("event includes the file name", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      deps.fs.exists = mock(() => true);
+      deps.fs.readdir = /** @type {any} */ (mock(() => ["existing.pdf"]));
+      deps.fs.readBuffer = mock(() => {
+        throw new Error("read failure");
+      });
+
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "hash-read-error");
+      expect(event.file).toBe("existing.pdf");
+    });
+
+    it("event includes the full Error object", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      deps.fs.exists = mock(() => true);
+      deps.fs.readdir = /** @type {any} */ (mock(() => ["existing.pdf"]));
+      deps.fs.readBuffer = mock(() => {
+        throw new Error("read failure");
+      });
+
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "hash-read-error");
+      expect(event.error).toBeInstanceOf(Error);
+    });
+  });
 });
