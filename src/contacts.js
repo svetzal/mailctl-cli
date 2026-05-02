@@ -1,5 +1,5 @@
 /**
- * Contact extraction — scan envelopes from recent messages to build a frequency-ranked contact list.
+ * Contact extraction — frequency-ranked contact list from recent message envelopes.
  */
 
 import { sanitizeForAgentOutput } from "./content-sanitizer.js";
@@ -7,7 +7,6 @@ import { listMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
- * Extract contacts from recent email envelopes.
  * Scans INBOX for received messages (From) and Sent folder for sent messages (To/CC).
  * @param {any} client - connected IMAP client
  * @param {string} _accountName
@@ -45,7 +44,6 @@ export async function extractContacts(client, _accountName, opts) {
 }
 
 /**
- * Scan a single mailbox and extract contact entries from envelopes.
  * @param {any} client
  * @param {string} mailboxPath
  * @param {Date} since
@@ -116,8 +114,6 @@ async function scanMailboxContacts(client, mailboxPath, since, direction, onProg
 }
 
 /**
- * Aggregate raw contact entries into deduplicated, ranked contacts.
- * Pure function — no I/O.
  * @param {Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>} entries
  * @param {object} [opts]
  * @param {string} [opts.search] - filter by name or address substring

@@ -1,11 +1,4 @@
 /**
- * Pure formatting functions for the sort command final results.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
- * Format sort command final results as human-readable text.
- *
  * @param {{ moved: number, skipped: number, unclassified: number }} stats
  * @returns {string}
  */
@@ -19,8 +12,6 @@ export function formatSortResultText(stats) {
 }
 
 /**
- * Build a JSON-ready object for a sort result.
- *
  * @param {{ moved: number, skipped: number, alreadySorted: number, unclassified: number }} stats
  * @returns {object}
  */

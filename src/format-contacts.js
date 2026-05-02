@@ -1,11 +1,6 @@
-/**
- * Pure formatting functions for the contacts command.
- * No I/O — same inputs always produce the same outputs.
- */
 import { formatShortDate } from "./format-date.js";
 
 /**
- * Format contacts as human-readable text.
  * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
  * @param {object} opts
  * @param {string} opts.sinceLabel
@@ -30,8 +25,6 @@ export function formatContactsText(contacts, opts) {
 }
 
 /**
- * Build a JSON-ready object for contacts results.
- *
  * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
  * @param {object} opts
  * @param {string} opts.sinceLabel

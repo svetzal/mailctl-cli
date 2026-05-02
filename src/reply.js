@@ -6,7 +6,6 @@
 import { htmlToText } from "./html-to-text.js";
 
 /**
- * Build reply headers from the original parsed email.
  * @param {object} original - parsed email (from mailparser)
  * @param {string} _fromAddress - sender's address (the replying user)
  * @returns {{ to: string, subject: string, inReplyTo: string, references: string }}
@@ -34,7 +33,6 @@ export function buildReplyHeaders(original, _fromAddress) {
 }
 
 /**
- * Build the reply body with the user's message and quoted original.
  * @param {string} userMessage - the reply text
  * @param {object} original - parsed email (from mailparser)
  * @param {object} [opts]
@@ -88,7 +86,6 @@ export function buildEditorTemplate(headers, quotedBody) {
 }
 
 /**
- * Parse editor content: strip comment lines and return the reply text.
  * @param {string} content - raw editor file content
  * @returns {string}
  */

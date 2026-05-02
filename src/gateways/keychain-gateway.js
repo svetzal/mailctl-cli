@@ -1,7 +1,5 @@
 /**
- * Keychain Gateway — reads secrets from macOS Keychain via the security CLI.
  * All keychain I/O is isolated here so tests can inject a mock instead.
- * Contains no logic to test.
  */
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
@@ -31,7 +29,6 @@ export class KeychainGateway {
   }
 
   /**
-   * Read a secret from a keychain by service name.
    * @param {string} service - keychain service name
    * @param {string} [keychainPath] - path to the keychain file (defaults to newt keychain)
    * @returns {string|null} secret value, or null if not found

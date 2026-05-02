@@ -1,16 +1,9 @@
 /**
- * Pure formatting functions for the flag command.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
  * @typedef {import("./flag-command.js").FlagResult} FlagResult
  * @typedef {import("./flag-command.js").FlagStats} FlagStats
  */
 
 /**
- * Format a human-readable summary of flag operation results.
- *
  * @param {FlagStats} stats
  * @param {FlagResult[]} results - array of per-account flag results
  * @returns {string}
@@ -39,8 +32,6 @@ export function formatFlagResultText(stats, results) {
 }
 
 /**
- * Build a JSON-ready object for flag operation results.
- *
  * @param {FlagStats} stats
  * @param {FlagResult[]} results
  * @returns {object}

@@ -7,7 +7,6 @@
 import { getConfigVendorAddressMap, getConfigVendorDomainMap } from "./config.js";
 
 /**
- * Get sender-address -> display-name map.
  * Values use spaces (e.g. "Springer Nature").
  * @returns {Record<string, string>}
  */
@@ -16,7 +15,7 @@ export function getVendorDisplayNames() {
 }
 
 /**
- * Get sender-address -> filesystem-safe name map (spaces replaced with hyphens).
+ * Spaces in display names are replaced with hyphens for filesystem safety.
  * @returns {Record<string, string>}
  */
 export function getVendorFilenameNames() {
@@ -25,7 +24,7 @@ export function getVendorFilenameNames() {
 }
 
 /**
- * Get email domain -> vendor name map for fallback lookups.
+ * Used as a fallback when sender address is not in the address map.
  * @returns {Record<string, string>}
  */
 export function getVendorDomainMap() {
@@ -38,8 +37,8 @@ export function getVendorDomainMap() {
  * and configured vendor names from vendorAddressMap/vendorDomainMap.
  * Case-insensitive, substring match.
  *
- * @param {string} filter - user's vendor filter string
- * @param {string | null} fromAddress - sender email address
+ * @param {string} filter
+ * @param {string | null} fromAddress
  * @param {string | null} [fromName] - sender display name
  * @returns {boolean}
  */

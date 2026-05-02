@@ -15,7 +15,6 @@ export const HTML_ENTITIES = {
 };
 
 /**
- * Convert HTML to readable plain text by stripping tags and decoding entities.
  * @param {string} html
  * @returns {string}
  */

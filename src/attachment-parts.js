@@ -4,8 +4,7 @@
  */
 
 /**
- * Get the filename from a BODYSTRUCTURE part, checking both
- * Content-Disposition parameters and Content-Type parameters.
+ * Checks both Content-Disposition parameters and Content-Type parameters.
  * @param {object} part - BODYSTRUCTURE part node
  * @returns {string|null}
  */

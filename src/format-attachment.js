@@ -1,8 +1,3 @@
-/**
- * Pure formatting functions for the extract-attachment command.
- * No I/O — same inputs always produce the same outputs.
- */
-
 import { formatOutput } from "./cli-helpers.js";
 
 /**
@@ -15,8 +10,6 @@ import { formatOutput } from "./cli-helpers.js";
  */
 
 /**
- * Format a human-readable listing of attachments.
- *
  * @param {AttachmentEntry[]} attachments - list of attachment entries
  * @returns {string}
  */
@@ -31,8 +24,6 @@ export function formatAttachmentListText(attachments) {
 }
 
 /**
- * Format the saved attachment path as a human-readable string.
- *
  * @param {string} path - the absolute path where the attachment was saved
  * @returns {string}
  */
@@ -41,8 +32,6 @@ export function formatAttachmentSavedText(path) {
 }
 
 /**
- * Build a JSON-ready object for an attachment listing result.
- *
  * @param {{ account: string, uid: string|number, attachments: AttachmentEntry[] }} result
  * @returns {{ account: string, uid: string|number, attachments: AttachmentEntry[] }}
  */
@@ -51,8 +40,6 @@ export function buildAttachmentListJson(result) {
 }
 
 /**
- * Build a JSON-ready object for a saved attachment result.
- *
  * @param {{ path: string, filename: string, size: number, contentType: string }} result
  * @returns {{ path: string, filename: string, size: number, contentType: string }}
  */
@@ -66,8 +53,6 @@ export function buildAttachmentSavedJson(result) {
  */
 
 /**
- * Format the output for the extract-attachment command, selecting JSON or text mode.
- *
  * @param {boolean} json
  * @param {AttachmentListResult | AttachmentSavedResult} result
  * @returns {string}

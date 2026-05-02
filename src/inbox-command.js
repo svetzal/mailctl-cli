@@ -14,8 +14,6 @@ import { parseIntOption, parseSinceOption } from "./parse-options.js";
  */
 
 /**
- * Orchestrate fetching recent inbox messages across accounts.
- *
  * @param {object} opts - CLI options (limit, unread, since)
  * @param {InboxCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events

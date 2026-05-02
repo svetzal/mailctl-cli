@@ -27,14 +27,11 @@ export function uidNotFoundError(uid) {
 }
 
 /**
- * Find a message by UID across accounts and call the provided function with
- * the connected client, account, and detected mailbox.
- *
  * The lock lifecycle is managed internally — `fn` receives the client while the
  * mailbox is locked, and the lock is released in a finally block after `fn` returns.
  *
  * @template T
- * @param {string} uid - message UID to locate
+ * @param {string} uid
  * @param {object} opts - CLI options (may contain opts.mailbox to skip auto-detection)
  * @param {object} deps
  * @param {object[]} deps.targetAccounts

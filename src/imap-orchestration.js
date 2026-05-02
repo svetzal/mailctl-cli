@@ -45,9 +45,6 @@ export async function withMailboxLock(client, mailboxPath, fn, { onProgress = ()
 }
 
 /**
- * Group scan results by mailbox path.
- * Pure function — same inputs always produce same output.
- *
  * @template {{ mailbox: string }} T
  * @param {T[]} results - array of items that each carry a .mailbox property
  * @returns {Map<string, T[]>}

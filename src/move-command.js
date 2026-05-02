@@ -18,8 +18,6 @@ import { parseAndGroupUids } from "./move-logic.js";
  */
 
 /**
- * Orchestrate moving emails by UID to a destination IMAP folder.
- *
  * Parses raw UID args, groups by account, validates the destination folder
  * exists on each account, then moves or dry-runs the operation.
  *

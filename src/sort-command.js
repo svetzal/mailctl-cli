@@ -14,8 +14,6 @@ import { sortReceipts } from "./sorter.js";
  */
 
 /**
- * Orchestrate sorting receipt emails into Business/Personal IMAP folders.
- *
  * @param {object} opts - CLI options (months, dryRun)
  * @param {SortCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events

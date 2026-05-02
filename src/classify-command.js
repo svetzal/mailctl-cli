@@ -21,8 +21,6 @@
  */
 
 /**
- * Orchestrate loading senders and returning the unclassified subset.
- *
  * @param {string} inputFile - path to senders.json
  * @param {string} outputFile - path to classifications.json
  * @param {ClassifyCommandDeps} deps - injected dependencies

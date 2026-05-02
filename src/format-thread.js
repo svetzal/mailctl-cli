@@ -1,13 +1,6 @@
-/**
- * Pure formatting functions for the thread command.
- * No I/O — same inputs always produce the same outputs.
- */
-
 import { formatOutput } from "./cli-helpers.js";
 
 /**
- * Format thread results as human-readable text.
- *
  * @param {Array} messages
  * @param {object} [opts]
  * @param {boolean} [opts.full=false] - show full bodies
@@ -59,8 +52,6 @@ export function formatThreadText(messages, opts = {}) {
 }
 
 /**
- * Build a JSON-ready object for a thread result.
- *
  * @param {string} acctName - account name
  * @param {number} threadSize - number of messages in the thread
  * @param {boolean} fallback - true if thread was reconstructed by subject match
@@ -72,8 +63,6 @@ export function buildThreadJson(acctName, threadSize, fallback, messages) {
 }
 
 /**
- * Format the output for all thread results, selecting JSON or text mode per account.
- *
  * @param {boolean} json
  * @param {Array<{ account: string, threadSize: number, fallback: boolean, messages: object[] }>} results
  * @param {{ full?: boolean }} opts

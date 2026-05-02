@@ -3,8 +3,6 @@
  */
 
 /**
- * Apply vendor and subject-exclusion filters to receipt search results.
- *
  * @param {Array} results - array of receipt search result objects
  * @param {object} opts
  * @param {string | null} [opts.vendor] - vendor substring filter, or omitted for none

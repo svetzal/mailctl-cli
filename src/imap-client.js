@@ -5,7 +5,6 @@ import { RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 import { buildScanResult } from "./scan-helpers.js";
 
 /**
- * Connect to an IMAP server and return the client.
  * Supports both password-based and OAuth2 (XOAUTH2) authentication.
  *
  * @param {{ host: string, port: number, user: string, pass?: string, oauth2?: { clientId: string, tenantId: string, clientSecret: string }, name?: string }} account
@@ -35,9 +34,6 @@ export async function connect(account, onProgress = () => {}) {
 }
 
 /**
- * Search for receipt-like messages in specified mailboxes.
- * Returns an array of { account, from, subject, date, mailbox, uid }.
- *
  * @param {ImapFlow} client
  * @param {string} accountName
  * @param {string[]} mailboxes - mailbox paths to search (e.g. ["INBOX", "Archive"])
@@ -108,7 +104,8 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
 }
 
 /**
- * List all available mailboxes for an account.
+ * @param {import("imapflow").ImapFlow} client
+ * @returns {Promise<Array<{path: string, name: string, flags: any, specialUse: any}>>}
  */
 export async function listMailboxes(client) {
   const list = await client.list();

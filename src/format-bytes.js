@@ -1,5 +1,4 @@
 /**
- * Format a byte count as a human-readable KB string.
  * @param {number} bytes
  * @returns {string}
  */

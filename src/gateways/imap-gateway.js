@@ -1,13 +1,10 @@
 /**
- * IMAP Gateway — thin wrapper around ImapFlow.
  * All IMAP I/O is isolated here so tests can inject a mock instead.
- * Contains no logic to test.
  */
 import { listMailboxes as _listMailboxes, connect } from "../imap-client.js";
 
 export class ImapGateway {
   /**
-   * Connect to an IMAP server.
    * @param {object} account
    * @returns {Promise<import("imapflow").ImapFlow>}
    */
@@ -16,7 +13,6 @@ export class ImapGateway {
   }
 
   /**
-   * List all available mailboxes for a connected account.
    * @param {import("imapflow").ImapFlow} client
    * @returns {Promise<Array<{ path: string, name: string, flags: Set<string>, specialUse: string|undefined }>>}
    */
@@ -25,7 +21,6 @@ export class ImapGateway {
   }
 
   /**
-   * Obtain an exclusive lock on a mailbox.
    * @param {import("imapflow").ImapFlow} client
    * @param {string} mailbox
    * @returns {Promise<{ release: () => void }>}
@@ -35,7 +30,6 @@ export class ImapGateway {
   }
 
   /**
-   * Search messages in the currently-locked mailbox.
    * @param {import("imapflow").ImapFlow} client
    * @param {object} criteria
    * @param {object} [opts]
@@ -46,7 +40,6 @@ export class ImapGateway {
   }
 
   /**
-   * Fetch messages from the currently-locked mailbox.
    * @param {import("imapflow").ImapFlow} client
    * @param {string} range - UID range string
    * @param {object} opts
@@ -58,7 +51,6 @@ export class ImapGateway {
   }
 
   /**
-   * Move messages to a destination mailbox.
    * @param {import("imapflow").ImapFlow} client
    * @param {string} uids - comma-separated UID range
    * @param {string} destination
@@ -70,7 +62,6 @@ export class ImapGateway {
   }
 
   /**
-   * Download a message or message part.
    * @param {import("imapflow").ImapFlow} client
    * @param {string} uid
    * @param {string|undefined} part
@@ -82,7 +73,6 @@ export class ImapGateway {
   }
 
   /**
-   * Log out and close the connection.
    * @param {import("imapflow").ImapFlow} client
    * @returns {Promise<void>}
    */

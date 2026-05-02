@@ -1,11 +1,4 @@
 /**
- * Pure formatting functions for the download command final results.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
- * Format download command final results as human-readable text.
- *
  * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
  * @returns {string}
  */
@@ -20,8 +13,6 @@ export function formatDownloadResultText(stats) {
 }
 
 /**
- * Build a JSON-ready object for a download result.
- *
  * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
  * @returns {object}
  */

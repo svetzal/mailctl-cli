@@ -1,9 +1,4 @@
 /**
- * Pure formatting functions for the download-receipts command final results.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
  * @typedef {{ vendor: string, count: number }} VendorEntry
  */
 
@@ -15,8 +10,6 @@
  */
 
 /**
- * Format download-receipts command final results as human-readable text.
- *
  * @param {DownloadReceiptsResult} result - result object from downloadReceiptsCommand
  * @param {{ since?: string, months?: string }} opts - CLI options (since, months)
  * @returns {string}
@@ -61,7 +54,6 @@ export function formatDownloadReceiptsResultText(result, opts) {
 }
 
 /**
- * Build a JSON-ready object for a download-receipts result.
  * Handles the three operating modes: listVendors, reprocess, and download.
  *
  * @param {DownloadReceiptsResult} result

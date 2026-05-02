@@ -69,8 +69,6 @@ export const FORWARDED_MARKERS = [
 ];
 
 /**
- * Titlecase a domain-derived name.
- * "best-buy" -> "Best-Buy", "vevor" -> "Vevor"
  * @param {string} s
  * @returns {string}
  */
@@ -79,7 +77,6 @@ export function titleCase(s) {
 }
 
 /**
- * Sanitize a string for use as a filename component.
  * @param {string} str
  * @returns {string}
  */
@@ -93,8 +90,7 @@ export function sanitizeFilename(str) {
 }
 
 /**
- * Derive a vendor name from the email domain when the local part is generic.
- * Strips common subdomains and titlecases the result.
+ * Used when the local part is a generic sender prefix; strips common subdomains and titlecases.
  * @param {string} domain - full domain from email address
  * @param {Record<string, string>} [vendorDomainMap] - optional override for testing
  * @returns {string}
@@ -126,7 +122,6 @@ export function vendorFromDomain(domain, vendorDomainMap) {
 }
 
 /**
- * Try to extract a vendor name from subject or body for self-sent emails.
  * @param {string} subject
  * @param {string} _bodyText
  * @returns {string|null}
@@ -149,8 +144,6 @@ export function extractVendorFromContent(subject, _bodyText) {
 }
 
 /**
- * Detect if an email body is a forwarded message and extract the original sender.
- * Returns { address, name } of the original sender, or null if not forwarded.
  * @param {string} bodyText
  * @returns {{ address: string, name: string }|null}
  */
@@ -258,7 +251,6 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
 }
 
 /**
- * Format a Date as YYYY-MM-DD string.
  * @param {Date|string} d
  * @returns {string}
  */
@@ -271,7 +263,6 @@ export function formatDate(d) {
 }
 
 /**
- * Infer currency from surrounding text context.
  * @param {string} text
  * @returns {string}
  */
@@ -285,7 +276,6 @@ export function inferCurrency(text) {
 }
 
 /**
- * Check if the sender is a known Canadian merchant.
  * @param {string} fromAddress
  * @param {string} bodyText
  * @param {object} [overrides] - optional overrides for testing
@@ -398,7 +388,6 @@ export function extractAmount(text) {
 }
 
 /**
- * Extract tax information from text.
  * @param {string} text
  * @returns {{ amount: number, type: string }|null}
  */
@@ -467,7 +456,6 @@ export function extractService(text) {
 }
 
 /**
- * Extract structured receipt metadata from email content.
  * @param {string} bodyText
  * @param {string} subject
  * @param {string} fromAddress

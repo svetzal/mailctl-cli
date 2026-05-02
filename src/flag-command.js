@@ -40,8 +40,6 @@ import { parseAndGroupUids } from "./move-logic.js";
  */
 
 /**
- * Orchestrate setting or clearing flags on messages by UID.
- *
  * @param {string[]} uids - raw UID arguments from the CLI
  * @param {object} opts - CLI options (read, unread, star, unstar, mailbox, dryRun)
  * @param {FlagCommandDeps} deps - injected dependencies

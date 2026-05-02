@@ -11,7 +11,6 @@ import { join } from "node:path";
 
 export class EditorGateway {
   /**
-   * Write content to a temp file, open it in $EDITOR, read the result back, then delete the file.
    * @param {string} initialContent - content to pre-populate the editor with
    * @returns {string} the file content after editing
    */

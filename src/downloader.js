@@ -21,7 +21,6 @@ const DATA_DIR = join(__dirname, "..", "data");
 import { getConfigDownloadDir } from "./config.js";
 
 /**
- * Vendor name mappings for clean filenames.
  * Loaded from config via vendor-map.js.
  * @returns {Record<string, string>}
  */
@@ -30,7 +29,6 @@ export function getVendorNames() {
 }
 
 /**
- * Derive a clean vendor name from sender info.
  * @param {string} address - sender email address
  * @param {string} [senderName] - sender display name
  * @returns {string}
@@ -90,9 +88,7 @@ export function buildFilename(vendor, date, _attachmentName, existingFiles) {
 
 const _defaultFs = new FileSystemGateway();
 
-/**
- * Load the download manifest (tracks what we've already downloaded).
- */
+/** @returns {Record<string, object>} */
 function loadManifest() {
   const path = join(DATA_DIR, "download-manifest.json");
   return _defaultFs.exists(path) ? /** @type {Record<string, object>} */ (_defaultFs.readJson(path)) : {};
@@ -119,7 +115,6 @@ const defaultGateways = {
 };
 
 /**
- * Download PDF attachments from business receipt emails.
  * @param {object} [opts]
  * @param {boolean} [opts.dryRun=false]
  * @param {number}  [opts.months=24]

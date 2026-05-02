@@ -1,8 +1,3 @@
-/**
- * Pure formatting functions for the reply command.
- * No I/O — same inputs always produce the same outputs.
- */
-
 import { formatOutput } from "./cli-helpers.js";
 
 /**
@@ -25,8 +20,6 @@ import { formatOutput } from "./cli-helpers.js";
  */
 
 /**
- * Format a human-readable dry-run preview of a composed reply.
- *
  * @param {ReplyMessage} message - the composed reply message
  * @returns {string}
  */
@@ -44,8 +37,6 @@ export function formatReplyDryRunText(message) {
 }
 
 /**
- * Format a human-readable confirmation that a reply was sent.
- *
  * @param {ReplySentResult} result - the sent reply result
  * @returns {string}
  */
@@ -54,8 +45,6 @@ export function formatReplySentText(result) {
 }
 
 /**
- * Build a JSON-ready object for a reply dry-run result.
- *
  * @param {ReplyMessage} message
  * @returns {{ dryRun: true, message: ReplyMessage }}
  */
@@ -64,8 +53,6 @@ export function buildReplyDryRunJson(message) {
 }
 
 /**
- * Build a JSON-ready object for a sent reply result.
- *
  * @param {ReplySentResult} result
  * @returns {{ sent: boolean, messageId: string, accepted: string[] }}
  */
@@ -74,8 +61,6 @@ export function buildReplySentJson(result) {
 }
 
 /**
- * Format the output for the reply command, selecting JSON or text mode.
- *
  * @param {boolean} json
  * @param {{ dryRun?: boolean, message?: ReplyMessage } | ReplySentResult} result
  * @returns {string}

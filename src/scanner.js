@@ -29,7 +29,6 @@ const defaultGateways = {
  */
 
 /**
- * Scan all configured accounts for receipt emails.
  * @param {object}          [opts]
  * @param {number}          [opts.months=12]      - how many months back to search
  * @param {string[]}        [opts.mailboxes]      - override which mailboxes to scan
@@ -77,8 +76,8 @@ export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () 
 }
 
 /**
- * Deduplicate and aggregate results by sender address.
- * Returns sorted array of { address, name, count, accounts, sampleSubjects, latestDate }.
+ * @param {Array} results
+ * @returns {Array<{address: string, name: string, count: number, accounts: string[], sampleSubjects: string[], latestDate: Date}>}
  */
 export function aggregateBySender(results) {
   const map = new Map();

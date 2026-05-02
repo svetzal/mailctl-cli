@@ -81,9 +81,6 @@ function listUnsubscribeToString(headerValue) {
 }
 
 /**
- * Extract unsubscribe links from a parsed email.
- * Checks List-Unsubscribe header, HTML body links (by href, class, and text),
- * and plain text URLs.
  * @param {object} parsed - mailparser result
  * @returns {string[]} deduplicated unsubscribe URLs
  */

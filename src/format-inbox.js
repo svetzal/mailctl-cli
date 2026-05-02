@@ -1,11 +1,6 @@
-/**
- * Pure formatting functions for the inbox command.
- * No I/O — same inputs always produce the same outputs.
- */
 import { formatShortDate, isValidDate } from "./format-date.js";
 
 /**
- * Format inbox results as human-readable text.
  * @param {Map<string, Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>>} resultsByAccount
  * @returns {string}
  */
@@ -36,8 +31,6 @@ export function formatInboxText(resultsByAccount) {
 }
 
 /**
- * Build a JSON-ready array for inbox results.
- *
  * @param {Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>} allResults
  * @returns {object[]}
  */
@@ -55,7 +48,6 @@ export function buildInboxJson(allResults) {
 }
 
 /**
- * Format a message date for display.
  * @param {Date} date
  * @returns {string}
  */

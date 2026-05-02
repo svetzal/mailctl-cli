@@ -13,8 +13,6 @@
  */
 
 /**
- * Orchestrate listing IMAP folders for each configured account.
- *
  * @param {object} _opts - CLI options (unused, reserved for future flags)
  * @param {ListFoldersCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events

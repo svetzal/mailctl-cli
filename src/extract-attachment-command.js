@@ -18,12 +18,10 @@ import { uidNotFoundError, withMessage } from "./find-message.js";
  */
 
 /**
- * Orchestrate listing or saving an attachment from a message by UID.
- *
  * In list mode (opts.list): returns attachment metadata without downloading.
  * In save mode: downloads the specified attachment and writes it to disk.
  *
- * @param {string} uid - message UID
+ * @param {string} uid
  * @param {number} attachmentIndex - 0-based attachment index to save (ignored in list mode)
  * @param {object} opts - CLI options (list, mailbox, output)
  * @param {ExtractAttachmentCommandDeps} deps - injected dependencies

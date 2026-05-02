@@ -31,8 +31,6 @@ export { searchMailboxForReceipts } from "./receipt-search-pipeline.js";
 export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 
 /**
- * Process a single receipt email: download, parse, extract metadata,
- * check dedup, and write output files.
  * @param {object} client - connected IMAP client
  * @param {object} msg - envelope result with uid, from, subject, date, mailbox, accountName
  * @param {object} context
@@ -165,7 +163,6 @@ const defaultGateways = {
 };
 
 /**
- * Download receipt PDFs and create JSON sidecar metadata files.
  * @param {object} [opts]
  * @param {string}  [opts.outputDir="."] - root output directory
  * @param {number}  [opts.months=12] - how far back to search
@@ -291,7 +288,6 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
 }
 
 /**
- * List vendors found in receipt emails across accounts.
  * Returns an array of { vendor, count } sorted by count descending.
  * @param {object} [opts]
  * @param {number}  [opts.months=3] - how far back to search
@@ -348,7 +344,6 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
 }
 
 /**
- * Reprocess existing receipt files — re-run LLM extraction on downloaded PDFs.
  * @param {object} opts
  * @param {string} opts.outputDir - directory containing receipts
  * @param {string} [opts.vendor] - filter to specific vendor

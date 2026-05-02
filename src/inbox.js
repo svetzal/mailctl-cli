@@ -1,12 +1,11 @@
 /**
- * Inbox overview — fetch recent messages from INBOX with read/unread status.
+ * Inbox overview — INBOX fetch with read/unread status flags.
  */
 
 import { sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
- * Fetch recent inbox messages for a connected IMAP client.
  * @param {any} client - connected IMAP client
  * @param {string} accountName
  * @param {object} opts

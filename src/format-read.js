@@ -1,9 +1,3 @@
-/**
- * Pure formatting functions for the `read` command.
- * Accepts a parsed mailparser result and options; returns structured data or text.
- * No I/O — same inputs always produce the same outputs.
- */
-
 import { formatOutput, headerValueToString } from "./cli-helpers.js";
 import { assessContent, sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { htmlToText } from "./html-to-text.js";
@@ -16,8 +10,6 @@ import { extractUnsubscribeLinks } from "./unsubscribe.js";
  */
 
 /**
- * Build a structured JSON-friendly result object from a parsed email.
- *
  * @param {object} parsed - mailparser ParsedMail result
  * @param {string} acctName - account name (e.g. "icloud")
  * @param {string|number} uid - message UID
@@ -63,8 +55,6 @@ export function buildReadResult(parsed, acctName, uid, opts) {
  */
 
 /**
- * Format a parsed email as a human-readable terminal string.
- *
  * @param {object} parsed - mailparser ParsedMail result
  * @param {FormatTextOptions} opts
  * @returns {string}
@@ -101,7 +91,6 @@ export function formatReadResultText(parsed, opts) {
 }
 
 /**
- * Build a JSON-ready object for a read email result.
  * In JSON mode, includes the full body unless --max-body was explicitly set.
  *
  * @param {object} parsed - mailparser ParsedMail result
@@ -119,8 +108,6 @@ export function buildReadJson(parsed, acctName, uid, opts) {
 }
 
 /**
- * Format the output for the read command, selecting JSON or text mode.
- *
  * @param {boolean} json
  * @param {object} parsed - mailparser ParsedMail result
  * @param {string} acctName - account name

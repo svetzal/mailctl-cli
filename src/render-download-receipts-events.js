@@ -1,7 +1,3 @@
-/**
- * Pure renderer for download-receipts progress events.
- * No I/O — returns a string (or null for unknown event types).
- */
 import { formatKB } from "./format-bytes.js";
 import { createEventRenderer } from "./render-shared-events.js";
 

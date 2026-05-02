@@ -1,11 +1,4 @@
 /**
- * Shared pure renderer for event types that appear across multiple command renderers.
- * No I/O — returns a string (or null if the event type isn't shared).
- */
-
-/**
- * Render a shared progress event as a human-readable string.
- *
  * Handles event types that are emitted by multiple commands:
  * - mailbox-lock-failed
  * - search-failed
@@ -25,7 +18,6 @@ export function renderSharedEvent(event) {
 }
 
 /**
- * Create a table-driven event renderer from a map of event type → formatter function.
  * Unknown events fall back to renderSharedEvent; pass `false` to disable the fallback
  * (for renderers that don't share common events, e.g. auth).
  *

@@ -4,8 +4,6 @@
  */
 
 /**
- * Compute which IMAP flag operations to perform based on CLI options.
- * Pure function — no I/O.
  * @param {object} opts
  * @param {boolean} [opts.read]
  * @param {boolean} [opts.unread]
@@ -36,7 +34,6 @@ export function computeFlagChanges(opts) {
 }
 
 /**
- * Apply flag changes to messages via IMAP.
  * @param {any} client - connected IMAP client with mailbox locked
  * @param {string} uidRange - comma-separated UIDs
  * @param {{ add: string[], remove: string[] }} changes

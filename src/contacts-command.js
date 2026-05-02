@@ -16,8 +16,6 @@ import { parseIntOption, parseSinceOption } from "./parse-options.js";
  */
 
 /**
- * Orchestrate extracting and aggregating frequent email contacts.
- *
  * @param {object} opts - CLI options (limit, since, sent, received, search)
  * @param {ContactsCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events

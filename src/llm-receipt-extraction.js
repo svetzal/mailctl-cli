@@ -109,7 +109,6 @@ export function createLlmBroker(openAiKey = null, onProgress = () => {}) {
 }
 
 /**
- * Extract receipt metadata using LLM structured output.
  * @param {LlmBroker} broker
  * @param {string} bodyText - email body text
  * @param {string} subject - email subject

@@ -1,13 +1,10 @@
 /**
- * SMTP Gateway — thin wrapper around nodemailer.
  * All SMTP I/O is isolated here so tests can inject a mock instead.
- * Contains no logic to test.
  */
 import { createTransport } from "nodemailer";
 
 export class SmtpGateway {
   /**
-   * Send an email via SMTP.
    * @param {object} account - { user, pass, smtp: { host, port, secure } }
    * @param {object} message - { from, to, cc, subject, text, inReplyTo, references }
    * @returns {Promise<{ messageId: string, accepted: string[] }>}

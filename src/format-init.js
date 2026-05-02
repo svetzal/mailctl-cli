@@ -1,9 +1,4 @@
 /**
- * Pure formatting functions for the init command.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
  * @typedef {import("./init.js").FileAction} FileAction
  * @typedef {import("./init.js").FileResult} FileResult
  */
@@ -30,8 +25,6 @@ const ACTION_LABELS = {
 };
 
 /**
- * Format a human-readable init result summary.
- *
  * @param {InitFormatInput} result - init command result
  * @returns {string}
  */
@@ -57,8 +50,6 @@ export function formatInitResultText(result) {
 }
 
 /**
- * Build a plain object suitable for JSON serialisation of an init result.
- *
  * @param {InitFormatInput} result - init command result
  * @returns {{ success: boolean, message: string, version: string, files: FileResult[] }}
  */

@@ -10,8 +10,7 @@ import { withMailboxLock } from "./imap-orchestration.js";
 import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 
 /**
- * Search a single mailbox for receipt/invoice emails.
- * Returns envelope-level results.
+ * Returns envelope-level results only — no message bodies fetched.
  * @param {any} client - connected IMAP client (accepts duck-typed mocks in tests)
  * @param {string} accountName
  * @param {string} mailboxPath

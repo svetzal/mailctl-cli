@@ -17,8 +17,6 @@ import { aggregateBySender, scanAllAccounts } from "./scanner.js";
  */
 
 /**
- * Orchestrate scanning for receipt-like emails across accounts.
- *
  * @param {object} opts - CLI options (months, allMailboxes, output)
  * @param {ScanCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events

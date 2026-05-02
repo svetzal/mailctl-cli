@@ -1,9 +1,4 @@
 /**
- * Pure formatting functions for scan and classify commands.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
  * @typedef {object} SenderSummary
  * @property {string} address - sender email address
  * @property {string} [name] - display name (optional)
@@ -13,8 +8,6 @@
  */
 
 /**
- * Format a human-readable scan summary from an aggregated sender list.
- *
  * @param {SenderSummary[]} senders - aggregated sender list from aggregateBySender()
  * @param {number} totalCount - total number of receipt emails found
  * @returns {string}
@@ -47,8 +40,6 @@ export function formatScanSummaryText(senders, totalCount) {
  */
 
 /**
- * Format a human-readable list of unclassified senders.
- *
  * @param {UnclassifiedSender[]} unclassifiedSenders
  * @returns {string}
  */
@@ -67,8 +58,6 @@ export function formatUnclassifiedText(unclassifiedSenders) {
 }
 
 /**
- * Build a JSON-ready object for a scan result.
- *
  * @param {number} total - total receipt emails found
  * @param {SenderSummary[]} senders - aggregated sender list
  * @returns {{ total: number, senders: SenderSummary[] }}
@@ -78,8 +67,6 @@ export function buildScanJson(total, senders) {
 }
 
 /**
- * Build a JSON-ready object for a classify result.
- *
  * @param {UnclassifiedSender[]} unclassifiedList
  * @returns {{ unclassified: UnclassifiedSender[] }}
  */

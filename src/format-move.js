@@ -1,9 +1,4 @@
 /**
- * Pure formatting functions for the move command.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
  * @typedef {object} MoveStats
  * @property {number} moved - number of messages successfully moved
  * @property {number} failed - number of messages that failed to move
@@ -11,8 +6,6 @@
  */
 
 /**
- * Format the move command result summary as a human-readable string.
- *
  * @param {MoveStats} stats
  * @returns {string}
  */
@@ -21,8 +14,6 @@ export function formatMoveResultText(stats) {
 }
 
 /**
- * Build a JSON-ready object for a move result.
- *
  * @param {MoveStats} stats
  * @param {object[]} results
  * @returns {object}

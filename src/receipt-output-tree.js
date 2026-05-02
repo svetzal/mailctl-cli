@@ -49,8 +49,6 @@ export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
 }
 
 /**
- * Scan the output directory tree for existing receipt JSON files.
- * Returns a Set of invoice numbers that already have sidecars.
  * @param {string} outputDir
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
@@ -72,7 +70,6 @@ export function loadExistingInvoiceNumbers(outputDir, fs, onError = () => {}) {
 }
 
 /**
- * Scan existing PDF files in the output tree for SHA-256 content hashes.
  * @param {string} outputDir
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
@@ -117,8 +114,6 @@ export function uniqueBaseName(dir, base, usedPaths, fs) {
 }
 
 /**
- * Scan the output directory tree for existing .json sidecar files.
- * Returns an array of { jsonPath, sidecar } for each valid sidecar found.
  * @param {string} outputDir
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(err: Error, context: object) => void} [onError] - called when a file or directory cannot be read
@@ -140,7 +135,6 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
 }
 
 /**
- * Write receipt output files (PDF + JSON sidecar) to the output directory.
  * @param {object} params
  * @param {object} params.metadata
  * @param {Array} params.pdfAttachments

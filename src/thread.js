@@ -9,7 +9,6 @@ import { htmlToText } from "./html-to-text.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
- * Strip common reply/forward prefixes from a subject line.
  * @param {string} subject
  * @returns {string}
  */
@@ -24,7 +23,6 @@ export function stripSubjectPrefixes(subject) {
 }
 
 /**
- * Extract all Message-IDs from a References header value.
  * References is a space-separated list of Message-IDs in angle brackets.
  * @param {string | null} references
  * @returns {string[]}
@@ -171,8 +169,6 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
 }
 
 /**
- * Find all messages in the same thread as the given UID.
- *
  * @param {any} client - connected IMAP client
  * @param {string} accountName
  * @param {string} mailboxPath - mailbox of the anchor message

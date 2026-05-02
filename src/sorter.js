@@ -18,7 +18,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
 /**
- * Ensure IMAP folders exist, creating them if needed.
  * @param {import("imapflow").ImapFlow} client
  * @param {function(object): void} onProgress
  */
@@ -54,7 +53,6 @@ const defaultGateways = {
 };
 
 /**
- * Sort receipt messages into Business/Personal folders.
  * @param {object} [opts]
  * @param {boolean} [opts.dryRun=false]  - just report what would be moved
  * @param {number}  [opts.months=24]     - how far back to scan

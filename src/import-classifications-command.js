@@ -11,8 +11,6 @@
  */
 
 /**
- * Orchestrate importing a classification JSON file into the classification store.
- *
  * @param {string} file - path to the input JSON file (array of {address, classification})
  * @param {string} outputFile - path to the classification store
  * @param {ImportClassificationsCommandDeps} deps - injected dependencies

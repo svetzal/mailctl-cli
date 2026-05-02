@@ -15,8 +15,7 @@ import { parseIntOption, parseSinceOption } from "./parse-options.js";
  */
 
 /**
- * Orchestrate the download-receipts command across three operation modes:
- * list vendors, reprocess existing, or download new receipts.
+ * Routes to one of three operation modes: list vendors, reprocess existing, or download new receipts.
  *
  * @param {object} opts - CLI options (listVendors, reprocess, output, months, since, dryRun, vendor)
  * @param {DownloadReceiptsCommandDeps} deps - injected dependencies

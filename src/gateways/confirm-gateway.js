@@ -7,7 +7,6 @@ import { createInterface } from "node:readline";
 
 export class ConfirmGateway {
   /**
-   * Display a prompt and return the user's raw answer string.
    * @param {string} prompt - question to display (e.g. "Send this reply? [y/N] ")
    * @returns {Promise<string>} the raw answer string
    */

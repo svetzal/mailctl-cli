@@ -19,8 +19,6 @@ import { searchMailbox } from "./search.js";
  */
 
 /**
- * Orchestrate searching for emails across configured accounts.
- *
  * @param {string|undefined} query - general search query (optional with field opts)
  * @param {object} opts - CLI options (from, to, subject, body, since, before, months, mailbox, excludeMailbox, limit)
  * @param {SearchCommandDeps} deps - injected dependencies

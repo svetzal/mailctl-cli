@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { debug } from "./debug.js";
 
 /**
- * Use docling to convert a PDF to markdown for metadata extraction.
  * @param {string} pdfPath
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} subprocess
@@ -47,9 +46,7 @@ export function pdfToText(pdfPath, fs, subprocess, onError = () => {}) {
 }
 
 /**
- * Determine the text to use for metadata extraction.
- * If the email has PDF attachments, converts the first PDF to markdown via docling.
- * Otherwise returns the email body text.
+ * Prefers the first PDF attachment (converted via docling); falls back to email body text.
  * @param {Array} pdfAttachments
  * @param {string} bodyText
  * @param {number} uid

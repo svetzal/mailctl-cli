@@ -97,7 +97,7 @@ export function getConfigVendorDomainMap(config = loadConfig()) {
 
 /**
  * Get SMTP config for an account by name (case-insensitive match).
- * @param {string} accountName - account name to look up
+ * @param {string} accountName
  * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {{ host: string, port: number, secure: boolean } | null}
  */

@@ -1,9 +1,4 @@
 /**
- * Pure formatting functions for the list-folders command.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
  * @typedef {object} FolderInfo
  * @property {string} path - IMAP folder path
  * @property {string|null} specialUse - special-use attribute (e.g. "\\Trash") or null
@@ -16,8 +11,6 @@
  */
 
 /**
- * Format a human-readable listing of folders grouped by account.
- *
  * @param {AccountFolders[]} foldersByAccount - folder data grouped by account
  * @returns {string}
  */
@@ -40,7 +33,7 @@ export function formatFoldersText(foldersByAccount) {
 }
 
 /**
- * Build a JSON-ready flat array of folders, each tagged with its account name.
+ * Flattens per-account folder groups into a single array, tagging each entry with its account name.
  *
  * @param {AccountFolders[]} foldersByAccount
  * @returns {{ account: string, path: string, specialUse: string|null }[]}

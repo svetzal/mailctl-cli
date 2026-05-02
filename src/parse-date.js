@@ -1,6 +1,5 @@
 /**
- * Parse a human-friendly date string into a Date object at midnight local time.
- * For IMAP SINCE/BEFORE, only the date portion matters.
+ * For IMAP SINCE/BEFORE, only the date portion matters — result is normalized to midnight local time.
  *
  * @param {string} input
  * @returns {Date}

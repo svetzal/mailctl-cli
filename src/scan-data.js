@@ -12,8 +12,6 @@ const SENDERS_FILE = "senders.json";
 const CLASSIFICATIONS_FILE = "classifications.json";
 
 /**
- * Ensure the data directory exists.
- *
  * @param {string} dataDir
  * @param {FileSystemGateway} [fs]
  */
@@ -22,8 +20,6 @@ export function ensureDataDir(dataDir, fs = new FileSystemGateway()) {
 }
 
 /**
- * Save raw scan results and sender summary to the data directory.
- *
  * @param {string} dataDir
  * @param {{ scanResults: unknown[], senders: unknown[], rawPath?: string }} data
  * @param {FileSystemGateway} [fs]
@@ -39,8 +35,6 @@ export function saveScanResults(dataDir, { scanResults, senders, rawPath }, fs =
 }
 
 /**
- * Load the sender summary from the data directory.
- *
  * @param {string} dataDir
  * @param {FileSystemGateway} [fs]
  * @returns {unknown[]}
@@ -50,7 +44,6 @@ export function loadSenders(dataDir, fs = new FileSystemGateway()) {
 }
 
 /**
- * Load existing classifications from the data directory.
  * Returns an empty object when the file does not exist.
  *
  * @param {string} dataDir
@@ -64,8 +57,6 @@ export function loadClassificationsData(dataDir, fs = new FileSystemGateway()) {
 }
 
 /**
- * Save classifications to the data directory.
- *
  * @param {string} dataDir
  * @param {Record<string, string>} classifications
  * @param {FileSystemGateway} [fs]
@@ -75,8 +66,6 @@ export function saveClassifications(dataDir, classifications, fs = new FileSyste
 }
 
 /**
- * Load existing classifications or throw if the file does not exist.
- *
  * @param {string} dataDir
  * @param {FileSystemGateway} [fs]
  * @returns {Record<string, string>}

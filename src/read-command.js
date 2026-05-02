@@ -15,12 +15,10 @@ import { withMessage } from "./find-message.js";
  */
 
 /**
- * Orchestrate fetching and parsing an email by UID.
- *
  * Searches across accounts to find the UID, downloads the raw message,
  * and parses it. Returns the parsed email with account/mailbox context.
  *
- * @param {string} uid - message UID to read
+ * @param {string} uid
  * @param {object} opts - CLI options (mailbox, maxBody, raw, headers)
  * @param {ReadCommandDeps} deps - injected dependencies
  * @returns {Promise<{ account: object, uid: string, mailbox: string, parsed: object }>}

@@ -1,13 +1,10 @@
 /**
- * FileSystem Gateway — thin wrapper around Node `fs` module.
  * All filesystem I/O is isolated here so tests can inject a mock instead.
- * Contains no logic to test.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 export class FileSystemGateway {
   /**
-   * Read a file and parse it as JSON.
    * @param {string} path
    * @returns {unknown}
    */
@@ -16,7 +13,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * Serialise data as JSON and write it to a file.
    * @param {string} path
    * @param {unknown} data
    */
@@ -25,7 +21,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * Read a file as a UTF-8 string.
    * @param {string} path
    * @returns {string}
    */
@@ -34,7 +29,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * Read a file as a Buffer.
    * @param {string} path
    * @returns {Buffer}
    */
@@ -43,7 +37,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * Write raw bytes to a file.
    * @param {string} path
    * @param {Buffer|string} data
    */
@@ -52,7 +45,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * Check whether a file or directory exists.
    * @param {string} path
    * @returns {boolean}
    */
@@ -61,7 +53,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * Create a directory (and any missing parents).
    * @param {string} path
    */
   mkdir(path) {
@@ -69,7 +60,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * List the entries in a directory.
    * @param {string} path
    * @returns {string[]}
    */
@@ -78,7 +68,6 @@ export class FileSystemGateway {
   }
 
   /**
-   * Remove a file or directory.
    * @param {string} path
    * @param {{ recursive?: boolean, force?: boolean }} [opts]
    */

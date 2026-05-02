@@ -26,9 +26,7 @@ import { findThread } from "./thread.js";
  */
 
 /**
- * Orchestrate finding the thread for a message UID.
- *
- * @param {string} uid - message UID to find the thread for
+ * @param {string} uid
  * @param {object} opts - CLI options (mailbox, limit, full)
  * @param {ThreadCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events

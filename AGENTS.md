@@ -156,7 +156,8 @@ data/                          — Runtime data (gitignored): scan results, clas
 
 - ES module imports, no CommonJS
 - Descriptive function and variable names — code is communication
-- JSDoc comments on public functions
+- JSDoc `@param`/`@returns` type annotations on public functions for typecheck support
+- JSDoc prose descriptions only when explaining WHY — constraints, invariants, non-obvious behavior. Do not restate what the function name already communicates.
 - Console output: `console.error` for progress/status, `console.log` for data output
 - No magic numbers — use named constants
 - **Formatting enforced by Biome** — run `bun run lint:fix` to auto-fix

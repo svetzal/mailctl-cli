@@ -21,10 +21,9 @@ import { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorCont
  */
 
 /**
- * Find and fetch the original message for a UID across accounts.
  * Returns { parsed, account } or throws if the UID is not found anywhere.
  *
- * @param {string} uid - message UID to look up
+ * @param {string} uid
  * @param {object} opts - CLI options (may include opts.mailbox)
  * @param {ReplyCommandDeps} deps
  * @returns {Promise<{ parsed: object, account: object }>}
@@ -88,12 +87,7 @@ async function resolveUserMessage(opts, originalParsed, headers, deps) {
 }
 
 /**
- * Orchestrate the reply command.
- *
- * Finds the original message, composes the reply, and either sends it or
- * returns a dry-run preview. Returns a result object describing the outcome.
- *
- * @param {string} uid - message UID to reply to
+ * @param {string} uid
  * @param {object} opts - CLI options (message, messageFile, edit, cc, dryRun, yes, mailbox)
  * @param {ReplyCommandDeps} deps - injected dependencies
  * @returns {Promise<

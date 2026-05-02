@@ -1,9 +1,4 @@
 /**
- * Pure formatting functions for the search command.
- * No I/O — same inputs always produce the same outputs.
- */
-
-/**
  * @typedef {object} SearchResult
  * @property {string} mailbox - mailbox path where the result was found
  * @property {string|number} uid - message UID
@@ -17,7 +12,6 @@
  */
 
 /**
- * Format an array of search results as a human-readable string.
  * Each result appears on one line: [mailbox] UID:N date | fromName <from> | subject
  *
  * @param {SearchResult[]} results
@@ -38,7 +32,7 @@ export function formatSearchResultsText(results) {
 }
 
 /**
- * Build a JSON-ready array of search results, stripping the internal messageId field.
+ * Strips the internal messageId field (used for dedup) before output.
  *
  * @param {SearchResult[]} results
  * @returns {object[]}

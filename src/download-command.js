@@ -15,8 +15,6 @@ import { parseIntOption } from "./parse-options.js";
  */
 
 /**
- * Orchestrate downloading business receipt PDF attachments.
- *
  * @param {object} opts - CLI options (months, dryRun, output)
  * @param {DownloadCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
