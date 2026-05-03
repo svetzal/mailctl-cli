@@ -125,6 +125,7 @@ export { filterScanMailboxes, filterSearchMailboxes } from "./mailbox-filters.js
  * @param {Array} accounts - from loadAccounts()
  * @param {function(import("imapflow").ImapFlow, object): Promise<void>} fn - callback receiving (client, account)
  * @param {function(object): void} [onProgress] - receives structured progress events
+ * @returns {Promise<void>}
  */
 export async function forEachAccount(accounts, fn, onProgress = () => {}) {
   for (const account of accounts) {

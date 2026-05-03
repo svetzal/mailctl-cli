@@ -1,5 +1,6 @@
 import { createEventRenderer } from "./render-shared-events.js";
 
+/** @type {(event: object) => string | null} */
 export const renderAuthEvent = createEventRenderer(
   {
     "token-refresh-failed": (e) => `   Token refresh failed: ${e.error?.message ?? "unknown error"}`,

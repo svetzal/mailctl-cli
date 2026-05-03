@@ -1,6 +1,7 @@
 import { formatKB } from "./format-bytes.js";
 import { createEventRenderer } from "./render-shared-events.js";
 
+/** @type {(event: object) => string | null} */
 export const renderDownloadReceiptsEvent = createEventRenderer({
   "llm-enabled": () => "Using LLM (gpt-5-mini) for receipt data extraction",
   "llm-disabled": () => "OPENAI_API_KEY not set — using pattern-based extraction",

@@ -13,6 +13,7 @@ export class KeychainGateway {
    * Unlock the newt keychain using the password stored in the login keychain.
    * Must be called once before any readSecret() calls that target the newt keychain.
    * @throws {Error} if the keychain password cannot be read or unlock fails
+   * @returns {void}
    */
   unlockNewtKeychain() {
     const password = execFileSync(

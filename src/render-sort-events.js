@@ -1,5 +1,6 @@
 import { createEventRenderer } from "./render-shared-events.js";
 
+/** @type {(event: object) => string | null} */
 export const renderSortEvent = createEventRenderer({
   "account-start": (e) => `\n📬 Sorting ${e.name} (${e.user})...`,
   "folder-exists": (e) => `   ✅ Folder exists: ${e.folder}`,

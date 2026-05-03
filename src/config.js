@@ -45,6 +45,7 @@ export function loadConfig(fs = realFs, configPath = DEFAULT_CONFIG_PATH) {
 
 /**
  * Reset the cached config (useful for testing).
+ * @returns {void}
  */
 export function resetConfigCache() {
   cachedConfig = undefined;

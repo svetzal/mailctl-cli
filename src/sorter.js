@@ -59,6 +59,7 @@ const defaultGateways = {
  * @param {string}  [opts.account]       - only sort this account (case-insensitive)
  * @param {object} [gateways] - injectable implementations for testing
  * @param {function(object): void} [onProgress] - receives structured progress events
+ * @returns {Promise<{moved: number, skipped: number, alreadySorted: number, unclassified: number}>}
  */
 export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => {}) {
   const { loadClassifications, loadAccounts, forEachAccount, listMailboxes, filterScanMailboxes, scanForReceipts } = {

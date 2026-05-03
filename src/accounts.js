@@ -39,6 +39,7 @@ export function loadAccounts(keychain = new KeychainGateway()) {
 /**
  * Legacy fallback: discover accounts from environment variables.
  * Used when no config.json exists, or in CI environments.
+ * @returns {Array<{name: string, user: string, host: string, port: number, pass?: string, oauth2?: {clientId: string, tenantId: string, clientSecret: string}}>}
  */
 export function discoverAccountsFromEnv() {
   const accounts = [];

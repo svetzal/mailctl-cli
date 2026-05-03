@@ -1,6 +1,7 @@
 import { formatKB } from "./format-bytes.js";
 import { createEventRenderer } from "./render-shared-events.js";
 
+/** @type {(event: object) => string | null} */
 export const renderDownloadEvent = createEventRenderer({
   "download-account-start": (e) => `\n📎 Downloading from ${e.name} (${e.user})...`,
   "download-biz-count": (e) => `   🏢 ${e.count} business receipt emails to check for PDFs`,

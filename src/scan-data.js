@@ -14,6 +14,7 @@ const CLASSIFICATIONS_FILE = "classifications.json";
 /**
  * @param {string} dataDir
  * @param {FileSystemGateway} [fs]
+ * @returns {void}
  */
 export function ensureDataDir(dataDir, fs = new FileSystemGateway()) {
   fs.mkdir(dataDir);
@@ -23,6 +24,7 @@ export function ensureDataDir(dataDir, fs = new FileSystemGateway()) {
  * @param {string} dataDir
  * @param {{ scanResults: unknown[], senders: unknown[], rawPath?: string }} data
  * @param {FileSystemGateway} [fs]
+ * @returns {{ rawPath: string, summaryPath: string }}
  */
 export function saveScanResults(dataDir, { scanResults, senders, rawPath }, fs = new FileSystemGateway()) {
   const resolvedRawPath = rawPath || join(dataDir, SCAN_RESULTS_FILE);

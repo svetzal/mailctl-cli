@@ -122,6 +122,7 @@ const defaultGateways = {
  * @param {string}  [opts.account]   - only download from this account (case-insensitive)
  * @param {object} [gateways] - injectable implementations for testing
  * @param {function(object): void} [onProgress] - receives structured progress events
+ * @returns {Promise<{downloaded: number, skipped: number, noPdf: number, alreadyHave: number}>}
  */
 export async function downloadReceipts(opts = {}, gateways = {}, onProgress = () => {}) {
   const {

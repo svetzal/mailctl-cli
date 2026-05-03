@@ -3,6 +3,7 @@
  * @param {string} context - Module or operation name
  * @param {string} message - Description of what happened
  * @param {unknown} [err] - Optional error object
+ * @returns {void}
  */
 export function debug(context, message, err) {
   if (process.env.DEBUG === "mailctl") {

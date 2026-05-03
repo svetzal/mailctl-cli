@@ -16,6 +16,7 @@ import { cleanVendorForFilename } from "./receipt-extraction.js";
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(filePath: string, fileName: string) => void} visitor
  * @param {(err: Error, context: object) => void} [onError] - called when any directory read or visitor invocation fails
+ * @returns {void}
  */
 export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
   if (!fs.exists(outputDir)) return;
