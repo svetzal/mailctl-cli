@@ -7,6 +7,7 @@
 
 import { getConfigSelfAddresses } from "./config.js";
 import { aggregateContacts, extractContacts } from "./contacts.js";
+import { formatShortDateWithYear } from "./format-date.js";
 import { parseIntOption, parseSinceOption } from "./parse-options.js";
 
 /**
@@ -27,9 +28,7 @@ export async function contactsCommand(opts, deps, onProgress = () => {}) {
   const limit = parseIntOption(opts.limit, 25);
   const since = parseSinceOption(opts.since, "6m");
 
-  const sinceLabel = opts.since
-    ? `since ${since.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}`
-    : "last 6 months";
+  const sinceLabel = opts.since ? `since ${formatShortDateWithYear(since)}` : "last 6 months";
 
   const allEntries = [];
 

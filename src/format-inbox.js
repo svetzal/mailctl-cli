@@ -1,4 +1,4 @@
-import { formatShortDate, isValidDate } from "./format-date.js";
+import { formatMessageDate } from "./format-date.js";
 
 /**
  * @param {Map<string, Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>>} resultsByAccount
@@ -45,20 +45,4 @@ export function buildInboxJson(allResults) {
     unread: msg.unread,
     mailbox: msg.mailbox,
   }));
-}
-
-/**
- * @param {Date} date
- * @returns {string}
- */
-function formatMessageDate(date) {
-  if (!isValidDate(date)) return "";
-  const now = new Date();
-  const isToday =
-    date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
-
-  if (isToday) {
-    return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-  }
-  return formatShortDate(date);
 }

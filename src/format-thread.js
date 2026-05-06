@@ -1,4 +1,5 @@
 import { formatOutput } from "./cli-helpers.js";
+import { formatDatetime } from "./format-date.js";
 
 /**
  * @param {Array} messages
@@ -18,15 +19,7 @@ export function formatThreadText(messages, opts = {}) {
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    const dateStr = msg.date
-      ? new Date(msg.date).toLocaleString("en-US", {
-          month: "short",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-      : "unknown";
+    const dateStr = msg.date ? formatDatetime(new Date(msg.date)) || "unknown" : "unknown";
     const sender = msg.fromName ? `${msg.fromName} <${msg.from}>` : msg.from;
 
     lines.push(`  ${i + 1}. ${dateStr}  ${sender}`);
