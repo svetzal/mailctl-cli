@@ -5,6 +5,9 @@ import { debug } from "./debug.js";
 
 const TOKEN_PATH = join(homedir(), ".newt", "m365-tokens.json");
 const SCOPE = "https://outlook.office365.com/IMAP.AccessAsUser.All offline_access";
+const SLOW_DOWN_RETRY_MS = 5000;
+const DEFAULT_TOKEN_LIFETIME_SECS = 3600;
+const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
 /**
  * @typedef {{ access_token: string, refresh_token: string, expires_at: number }} TokenSet
@@ -123,7 +126,7 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
     }
 
     if (tokenData.error === "slow_down") {
-      await deps.sleep(5000);
+      await deps.sleep(SLOW_DOWN_RETRY_MS);
       continue;
     }
 
@@ -135,7 +138,7 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
     const tokens = {
       access_token: tokenData.access_token ?? "",
       refresh_token: tokenData.refresh_token ?? "",
-      expires_at: deps.now() + (tokenData.expires_in ?? 3600) * 1000,
+      expires_at: deps.now() + (tokenData.expires_in ?? DEFAULT_TOKEN_LIFETIME_SECS) * 1000,
     };
     deps.saveTokens(tokens);
     onProgress({ type: "auth-success" });
@@ -163,7 +166,7 @@ export async function getM365AccessToken(
 
   if (cached) {
     // Token still valid (with 5-minute buffer)
-    if (cached.access_token && cached.expires_at > deps.now() + 5 * 60 * 1000) {
+    if (cached.access_token && cached.expires_at > deps.now() + TOKEN_EXPIRY_BUFFER_MS) {
       return cached.access_token;
     }
 

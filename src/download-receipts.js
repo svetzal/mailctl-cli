@@ -26,6 +26,9 @@ import { searchAccountForReceipts, searchMailboxForReceipts } from "./receipt-se
 import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 import { matchesVendor } from "./vendor-map.js";
 
+const BODY_SNIPPET_MAX_CHARS = 2000;
+const MIN_INVOICE_CONFIDENCE = 0.4;
+
 export { RECEIPT_EXTRACTION_SCHEMA } from "./llm-receipt-extraction.js";
 export { searchMailboxForReceipts } from "./receipt-search-pipeline.js";
 export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
@@ -97,14 +100,16 @@ async function processReceiptMessage(client, msg, context) {
 
     metadata.source_account = accountName.toLowerCase();
     metadata.email_uid = msg.uid;
-    metadata.source_body_snippet = sanitizeForAgentOutput(bodyText.length > 2000 ? bodyText.slice(0, 2000) : bodyText);
+    metadata.source_body_snippet = sanitizeForAgentOutput(
+      bodyText.length > BODY_SNIPPET_MAX_CHARS ? bodyText.slice(0, BODY_SNIPPET_MAX_CHARS) : bodyText,
+    );
 
     // Check LLM classification — skip non-invoices
     if (metadata.is_invoice === false) {
       onProgress({ type: "skip-non-invoice", vendor: metadata.vendor, confidence: metadata.confidence || 0 });
       return { action: "skipped" };
     }
-    if (metadata.confidence !== null && metadata.confidence < 0.4) {
+    if (metadata.confidence !== null && metadata.confidence < MIN_INVOICE_CONFIDENCE) {
       onProgress({ type: "skip-low-confidence", vendor: metadata.vendor, confidence: metadata.confidence });
       return { action: "skipped" };
     }

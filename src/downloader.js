@@ -15,6 +15,8 @@ import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
 import { requireClassificationsData } from "./scan-data.js";
 import { getVendorDisplayNames } from "./vendor-map.js";
 
+const MAX_VENDOR_NAME_LENGTH = 30;
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
@@ -48,9 +50,9 @@ export function vendorName(address, senderName) {
     .trim();
 
   // Truncate at word boundary if too long
-  if (name.length > 30) {
+  if (name.length > MAX_VENDOR_NAME_LENGTH) {
     name = name
-      .slice(0, 30)
+      .slice(0, MAX_VENDOR_NAME_LENGTH)
       .replace(/\s+\S*$/, "")
       .trim();
   }

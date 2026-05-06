@@ -3,6 +3,8 @@ import { assessContent, sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { htmlToText } from "./html-to-text.js";
 import { extractUnsubscribeLinks } from "./unsubscribe.js";
 
+const DEFAULT_MAX_BODY_CHARS = 3000;
+
 /**
  * @typedef {object} ReadResultOptions
  * @property {number} maxBody - max characters to include in body/bodyHtml
@@ -116,7 +118,7 @@ export function buildReadJson(parsed, acctName, uid, opts) {
  * @returns {string}
  */
 export function formatReadOutput(json, parsed, acctName, uid, opts) {
-  const maxBody = opts.maxBody !== undefined ? parseInt(String(opts.maxBody), 10) : 3000;
+  const maxBody = opts.maxBody !== undefined ? parseInt(String(opts.maxBody), 10) : DEFAULT_MAX_BODY_CHARS;
   const maxBodyExplicit = opts.maxBody !== undefined;
   return formatOutput(
     json,
