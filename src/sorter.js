@@ -34,7 +34,7 @@ async function ensureFolders(client, onProgress) {
         await client.mailboxCreate(folder);
         onProgress({ type: "folder-created", folder });
       } catch (err) {
-        onProgress({ type: "folder-error", folder, error: err });
+        onProgress({ type: "folder-error", severity: "error", folder, error: err });
       }
     }
   }
@@ -109,7 +109,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
             onProgress({ type: "moved", icon: "🏢", count: bizUids.length, label });
             stats.moved += bizUids.length;
           } catch (err) {
-            onProgress({ type: "move-error", label, error: err });
+            onProgress({ type: "move-error", severity: "error", label, error: err });
             stats.skipped += bizUids.length;
           }
         }
@@ -125,7 +125,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
             onProgress({ type: "moved", icon: "🏠", count: personalUids.length, label });
             stats.moved += personalUids.length;
           } catch (err) {
-            onProgress({ type: "move-error", label, error: err });
+            onProgress({ type: "move-error", severity: "error", label, error: err });
             stats.skipped += personalUids.length;
           }
         }
