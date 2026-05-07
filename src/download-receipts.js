@@ -86,7 +86,14 @@ async function processReceiptMessage(client, msg, context) {
       fs,
       subprocess,
       onProgress,
-      (err, ctx) => onProgress({ type: "docling-conversion-failed", uid: msg.uid, pdfPath: ctx.pdfPath, error: err }),
+      (err, ctx) =>
+        onProgress({
+          type: "docling-conversion-failed",
+          severity: "warning",
+          uid: msg.uid,
+          pdfPath: ctx.pdfPath,
+          error: err,
+        }),
     );
     const metadata = await extractReceiptMetadata(
       llm,
@@ -145,7 +152,7 @@ async function processReceiptMessage(client, msg, context) {
 
     return result;
   } catch (err) {
-    onProgress({ type: "process-error", uid: msg.uid, error: err });
+    onProgress({ type: "process-error", severity: "error", uid: msg.uid, error: err });
     return { action: "error" };
   }
 }
@@ -206,10 +213,10 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
   const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs, (err, ctx) =>
-    onProgress({ type: "output-tree-error", path: ctx.path, level: ctx.level, error: err }),
+    onProgress({ type: "output-tree-error", severity: "warning", path: ctx.path, level: ctx.level, error: err }),
   );
   const existingHashes = loadExistingHashes(outputDir, fs, (err, ctx) =>
-    onProgress({ type: "output-tree-error", path: ctx.path, level: ctx.level, error: err }),
+    onProgress({ type: "output-tree-error", severity: "warning", path: ctx.path, level: ctx.level, error: err }),
   );
   const usedPaths = new Set();
 
@@ -374,7 +381,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
   onProgress({ type: "reprocess-start", outputDir });
 
   const sidecars = collectSidecarFiles(outputDir, fs, (err, ctx) =>
-    onProgress({ type: "process-error", uid: ctx.path, error: err }),
+    onProgress({ type: "process-error", severity: "error", uid: ctx.path, error: err }),
   );
   const stats = { reprocessed: 0, skipped: 0, errors: 0, reclassified: 0 };
   const results = [];
@@ -415,7 +422,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
       if (pdfMarkdown) {
         extractionText = pdfMarkdown;
       } else {
-        onProgress({ type: "reprocess-docling-failed", filename: jsonFilename });
+        onProgress({ type: "reprocess-docling-failed", severity: "warning", filename: jsonFilename });
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "docling conversion failed" });
         continue;
@@ -478,7 +485,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
       stats.reprocessed++;
       results.push({ file: jsonFilename, status: "reprocessed" });
     } catch (err) {
-      onProgress({ type: "reprocess-error", filename: jsonFilename, error: err });
+      onProgress({ type: "reprocess-error", severity: "error", filename: jsonFilename, error: err });
       stats.errors++;
       results.push({ file: jsonFilename, status: "error", reason: err.message });
     }
