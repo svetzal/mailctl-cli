@@ -153,7 +153,12 @@ describe("withMessage", () => {
 
     await withMessage("42", { mailbox: "INBOX" }, deps, async () => "ok", onProgress);
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({
+      type: "mailbox-lock-failed",
+      severity: "error",
+      mailbox: "INBOX",
+      error,
+    });
   });
 
   it("rejects with fn error when fn throws", async () => {

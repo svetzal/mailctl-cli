@@ -393,6 +393,11 @@ describe("extractContacts", () => {
       onProgress,
     });
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({
+      type: "mailbox-lock-failed",
+      severity: "error",
+      mailbox: "INBOX",
+      error,
+    });
   });
 });

@@ -42,7 +42,12 @@ describe("withMailboxLock", () => {
     const result = await withMailboxLock(client, "INBOX", async () => "unreachable", { onProgress });
 
     expect(result).toBeUndefined();
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({
+      type: "mailbox-lock-failed",
+      severity: "error",
+      mailbox: "INBOX",
+      error,
+    });
   });
 
   it("calls onLockFailed and returns its result when lock acquisition fails and onLockFailed is provided", async () => {
@@ -181,7 +186,12 @@ describe("forEachMailboxGroup", () => {
 
     await forEachMailboxGroup(client, new Map([["INBOX", []]]), fn, onProgress);
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({
+      type: "mailbox-lock-failed",
+      severity: "error",
+      mailbox: "INBOX",
+      error,
+    });
   });
 
   describe("processes all mailboxes when there are multiple", () => {

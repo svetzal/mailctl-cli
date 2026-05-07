@@ -140,7 +140,12 @@ describe("fetchInbox", () => {
 
     await fetchInbox(client, "TestAccount", { limit: 10, onProgress });
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({
+      type: "mailbox-lock-failed",
+      severity: "error",
+      mailbox: "INBOX",
+      error,
+    });
   });
 
   it("emits search-failed when search throws", async () => {
