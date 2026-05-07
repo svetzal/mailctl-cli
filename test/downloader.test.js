@@ -290,5 +290,119 @@ describe("downloadReceipts", () => {
       const event = events.find((e) => e.type === "hash-read-error");
       expect(event.error).toBeInstanceOf(Error);
     });
+
+    it("hash-read-error event has severity: warning", async () => {
+      const client = makeMockClient();
+      const deps = makeBaseDeps(client);
+      deps.fs.exists = mock(() => true);
+      deps.fs.readdir = /** @type {any} */ (mock(() => ["existing.pdf"]));
+      deps.fs.readBuffer = mock(() => {
+        throw new Error("read failure");
+      });
+
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "hash-read-error");
+      expect(event.severity).toBe("warning");
+    });
+  });
+
+  describe("emits fetch-structure-error with severity: error when fetch throws", () => {
+    function makeFetchThrowClient() {
+      return {
+        getMailboxLock: mock(() => Promise.resolve(makeLock())),
+        fetch: mock(() => {
+          throw new Error("fetch failed");
+        }),
+        download: mock(() => Promise.resolve({ content: (async function* () {})() })),
+      };
+    }
+
+    it("emits a fetch-structure-error event", async () => {
+      const deps = makeBaseDeps(makeFetchThrowClient());
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "fetch-structure-error");
+      expect(event).toBeDefined();
+    });
+
+    it("fetch-structure-error event has severity: error", async () => {
+      const deps = makeBaseDeps(makeFetchThrowClient());
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "fetch-structure-error");
+      expect(event.severity).toBe("error");
+    });
+  });
+
+  describe("emits invalid-pdf with severity: warning when content is not a real PDF", () => {
+    it("emits an invalid-pdf event", async () => {
+      const client = makeMockClient(OTHER_BYTES);
+      const deps = makeBaseDeps(client);
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "invalid-pdf");
+      expect(event).toBeDefined();
+    });
+
+    it("invalid-pdf event has severity: warning", async () => {
+      const client = makeMockClient(OTHER_BYTES);
+      const deps = makeBaseDeps(client);
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "invalid-pdf");
+      expect(event.severity).toBe("warning");
+    });
+  });
+
+  describe("emits download-failed with severity: error when download throws", () => {
+    function makeDownloadThrowClient() {
+      return {
+        getMailboxLock: mock(() => Promise.resolve(makeLock())),
+        fetch: mock((_uid, _opts) => {
+          async function* gen() {
+            yield {
+              bodyStructure: {
+                type: "multipart/mixed",
+                childNodes: [
+                  {
+                    type: "application/pdf",
+                    part: "2",
+                    size: 100,
+                    disposition: "attachment",
+                    dispositionParameters: { filename: "invoice.pdf" },
+                  },
+                ],
+              },
+            };
+          }
+          return gen();
+        }),
+        download: mock(() => Promise.reject(new Error("network error"))),
+      };
+    }
+
+    it("emits a download-failed event", async () => {
+      const deps = makeBaseDeps(makeDownloadThrowClient());
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "download-failed");
+      expect(event).toBeDefined();
+    });
+
+    it("download-failed event has severity: error", async () => {
+      const deps = makeBaseDeps(makeDownloadThrowClient());
+      const events = [];
+      await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps, (e) => events.push(e));
+
+      const event = events.find((e) => e.type === "download-failed");
+      expect(event.severity).toBe("error");
+    });
   });
 });

@@ -151,4 +151,99 @@ describe("sortReceipts", () => {
     // Two separate mailbox locks → two messageMove calls (one per mailbox)
     expect(client.messageMove).toHaveBeenCalledTimes(2);
   });
+
+  describe("emits move-error with severity: error when messageMove throws", () => {
+    it("emits a move-error event", async () => {
+      const client = makeMockClient();
+      client.messageMove = mock(() => Promise.reject(new Error("IMAP error")));
+
+      const events = [];
+      await sortReceipts(
+        {},
+        {
+          loadClassifications: () => ({ "billing@vendor.com": "business" }),
+          loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+          forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
+          listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
+          filterScanMailboxes: () => ["INBOX"],
+          scanForReceipts: () => Promise.resolve([makeMsg(5, "billing@vendor.com")]),
+        },
+        (e) => events.push(e),
+      );
+
+      const event = events.find((e) => e.type === "move-error");
+      expect(event).toBeDefined();
+    });
+
+    it("move-error event has severity: error", async () => {
+      const client = makeMockClient();
+      client.messageMove = mock(() => Promise.reject(new Error("IMAP error")));
+
+      const events = [];
+      await sortReceipts(
+        {},
+        {
+          loadClassifications: () => ({ "billing@vendor.com": "business" }),
+          loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+          forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
+          listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
+          filterScanMailboxes: () => ["INBOX"],
+          scanForReceipts: () => Promise.resolve([makeMsg(5, "billing@vendor.com")]),
+        },
+        (e) => events.push(e),
+      );
+
+      const event = events.find((e) => e.type === "move-error");
+      expect(event.severity).toBe("error");
+    });
+  });
+
+  describe("emits folder-error with severity: error when mailboxCreate throws after mailboxOpen fails", () => {
+    it("emits a folder-error event", async () => {
+      const client = makeMockClient();
+      // mailboxOpen throws (folder not found) and mailboxCreate also throws
+      client.mailboxOpen = mock(() => Promise.reject(new Error("no such folder")));
+      client.mailboxCreate = mock(() => Promise.reject(new Error("create failed")));
+
+      const events = [];
+      await sortReceipts(
+        {},
+        {
+          loadClassifications: () => ({ "billing@vendor.com": "business" }),
+          loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+          forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
+          listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
+          filterScanMailboxes: () => ["INBOX"],
+          scanForReceipts: () => Promise.resolve([makeMsg(6, "billing@vendor.com")]),
+        },
+        (e) => events.push(e),
+      );
+
+      const event = events.find((e) => e.type === "folder-error");
+      expect(event).toBeDefined();
+    });
+
+    it("folder-error event has severity: error", async () => {
+      const client = makeMockClient();
+      client.mailboxOpen = mock(() => Promise.reject(new Error("no such folder")));
+      client.mailboxCreate = mock(() => Promise.reject(new Error("create failed")));
+
+      const events = [];
+      await sortReceipts(
+        {},
+        {
+          loadClassifications: () => ({ "billing@vendor.com": "business" }),
+          loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+          forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
+          listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
+          filterScanMailboxes: () => ["INBOX"],
+          scanForReceipts: () => Promise.resolve([makeMsg(6, "billing@vendor.com")]),
+        },
+        (e) => events.push(e),
+      );
+
+      const event = events.find((e) => e.type === "folder-error");
+      expect(event.severity).toBe("error");
+    });
+  });
 });
