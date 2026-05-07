@@ -66,7 +66,7 @@ async function searchMailboxForThread(client, mailboxPath, messageIds, onProgres
               }
             } catch (err) {
               // Header search not supported, caller will handle fallback
-              onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+              onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
             }
           }
         }
@@ -98,7 +98,7 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgre
           return uids && uids.length > 0 ? [...uids] : [];
         } catch (err) {
           // Search failed — return empty results
-          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+          onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
           return [];
         }
       },
@@ -227,7 +227,7 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
     },
     {
       onLockFailed: (err) => {
-        onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
+        onProgress({ type: "mailbox-lock-failed", severity: "error", mailbox: mailboxPath, error: err });
         return { messages: [], fallback: false };
       },
     },

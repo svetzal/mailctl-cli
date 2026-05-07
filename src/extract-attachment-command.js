@@ -47,7 +47,7 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
           bodyStructure = fetched.bodyStructure;
         }
       } catch (err) {
-        onProgress({ type: "search-failed", mailbox, error: err });
+        onProgress({ type: "search-failed", severity: "warning", mailbox, error: err });
         throw uidNotFoundError(uid);
       }
 

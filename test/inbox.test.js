@@ -159,7 +159,7 @@ describe("fetchInbox", () => {
 
     await fetchInbox(client, "TestAccount", { limit: 10, onProgress });
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "search-failed", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({ type: "search-failed", severity: "warning", mailbox: "INBOX", error });
   });
 
   it("returns an empty array when search returns no UIDs", async () => {

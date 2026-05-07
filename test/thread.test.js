@@ -329,7 +329,12 @@ describe("findThread", () => {
     const { messages } = await findThread(client, "TestAccount", "INBOX", 1, ["INBOX"], { onProgress });
 
     expect(messages).toHaveLength(0);
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({
+      type: "mailbox-lock-failed",
+      severity: "error",
+      mailbox: "INBOX",
+      error,
+    });
   });
 
   it("respects the limit option", async () => {

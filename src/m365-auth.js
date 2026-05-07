@@ -50,7 +50,11 @@ async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToke
 
   if (!res.ok) {
     const errData = /** @type {{ error_description?: string }} */ (await res.json().catch(() => ({})));
-    onProgress({ type: "token-refresh-failed", error: new Error(errData.error_description || res.statusText) });
+    onProgress({
+      type: "token-refresh-failed",
+      severity: "error",
+      error: new Error(errData.error_description || res.statusText),
+    });
     return null;
   }
 

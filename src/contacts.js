@@ -65,7 +65,7 @@ async function scanMailboxContacts(client, mailboxPath, since, direction, onProg
           uids = await client.search({ since }, { uid: true });
         } catch (err) {
           // Search failed — return empty results
-          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+          onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
           return entries;
         }
 

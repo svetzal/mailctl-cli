@@ -76,7 +76,7 @@ export function resolveExtractionText(
       return pdfMarkdown;
     }
   } catch (err) {
-    onProgress({ type: "docling-failed", uid, error: err });
+    onProgress({ type: "docling-failed", severity: "warning", uid, error: err });
   } finally {
     try {
       fs.rm(tmpPdfPath, { force: true });

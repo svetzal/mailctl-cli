@@ -103,7 +103,7 @@ export function createLlmBroker(openAiKey = null, onProgress = () => {}) {
     const broker = new LlmBroker("gpt-5-mini", gateway);
     return { broker, gateway };
   } catch (err) {
-    onProgress({ type: "llm-not-configured", error: err });
+    onProgress({ type: "llm-not-configured", severity: "warning", error: err });
     return null;
   }
 }
@@ -197,7 +197,7 @@ export async function extractReceiptMetadata(
     try {
       metadata = await extractMetadataWithLLM(llm.broker, extractionText, subject, fromAddress, fromName, emailDate);
     } catch (err) {
-      onProgress({ type: "llm-extraction-failed", error: err });
+      onProgress({ type: "llm-extraction-failed", severity: "warning", error: err });
       metadata = null;
     }
   }

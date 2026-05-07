@@ -39,7 +39,7 @@ export async function fetchInbox(client, accountName, opts) {
             : await client.search({ all: true }, { uid: true });
         } catch (err) {
           // Search failed — return empty results
-          onProgress({ type: "search-failed", mailbox, error: err });
+          onProgress({ type: "search-failed", severity: "warning", mailbox, error: err });
           return [];
         }
 
