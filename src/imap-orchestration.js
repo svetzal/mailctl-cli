@@ -34,7 +34,7 @@ export async function withMailboxLock(client, mailboxPath, fn, { onProgress = ()
     if (onLockFailed) {
       return onLockFailed(err);
     }
-    onProgress({ type: "mailbox-lock-failed", mailbox: mailboxPath, error: err });
+    onProgress({ type: "mailbox-lock-failed", severity: "error", mailbox: mailboxPath, error: err });
     return undefined;
   }
   try {
@@ -77,7 +77,7 @@ export async function forEachMailboxGroup(client, byMailbox, fn, onProgress = ()
     try {
       lock = await client.getMailboxLock(mailbox);
     } catch (err) {
-      onProgress({ type: "mailbox-lock-failed", mailbox, error: err });
+      onProgress({ type: "mailbox-lock-failed", severity: "error", mailbox, error: err });
       continue;
     }
     try {

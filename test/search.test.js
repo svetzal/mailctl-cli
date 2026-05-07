@@ -41,7 +41,7 @@ describe("searchMailbox", () => {
 
     await searchMailbox(client, "Account", "INBOX", "receipt", { onProgress });
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
   });
 
   it("returns an empty array when search returns no UIDs", async () => {

@@ -68,7 +68,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
           try {
             uids = await client.search(searchCriteria, { uid: true });
           } catch (err) {
-            onProgress({ type: "search-error", term, error: err });
+            onProgress({ type: "search-error", severity: "warning", term, error: err });
             continue;
           }
 
@@ -90,7 +90,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
             mailboxResults.push(buildScanResult(accountName, mailbox, msg));
           }
         } catch (err) {
-          onProgress({ type: "fetch-error", error: err });
+          onProgress({ type: "fetch-error", severity: "warning", error: err });
         }
 
         return mailboxResults;
@@ -133,7 +133,7 @@ export async function forEachAccount(accounts, fn, onProgress = () => {}) {
     try {
       client = await connect(account, onProgress);
     } catch (err) {
-      onProgress({ type: "connect-error", account: account.name, error: err });
+      onProgress({ type: "connect-error", severity: "error", account: account.name, error: err });
       continue;
     }
     try {

@@ -47,7 +47,7 @@ async function searchMailboxForUid(client, mailboxPath, uid, onProgress) {
           return found && found.length > 0;
         } catch (err) {
           // Search failed — return false
-          onProgress({ type: "search-failed", mailbox: mailboxPath, error: err });
+          onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
           return false;
         }
       },

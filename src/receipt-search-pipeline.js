@@ -36,7 +36,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             const uids = await client.search(criteria, { uid: true });
             if (uids) for (const uid of uids) allUids.add(uid);
           } catch (err) {
-            onProgress({ type: "search-term-error", mailbox: mailboxPath, term, error: err });
+            onProgress({ type: "search-term-error", severity: "warning", mailbox: mailboxPath, term, error: err });
           }
         }
 
@@ -48,7 +48,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             const uids = await client.search(criteria, { uid: true });
             if (uids) for (const uid of uids) allUids.add(uid);
           } catch (err) {
-            onProgress({ type: "search-term-error", mailbox: mailboxPath, pattern, error: err });
+            onProgress({ type: "search-term-error", severity: "warning", mailbox: mailboxPath, pattern, error: err });
           }
         }
 
@@ -82,7 +82,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             });
           }
         } catch (err) {
-          onProgress({ type: "mailbox-fetch-error", error: err });
+          onProgress({ type: "mailbox-fetch-error", severity: "warning", error: err });
         }
 
         return results;

@@ -265,7 +265,7 @@ describe("extractAttachmentCommand", () => {
         extractAttachmentCommand("42", 0, { list: true, mailbox: "INBOX" }, deps, onProgress),
       ).rejects.toThrow("Could not find UID 42 in any account.");
 
-      expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+      expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
     });
   });
 });

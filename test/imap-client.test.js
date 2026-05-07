@@ -215,7 +215,7 @@ describe("scanForReceipts", () => {
 
     await scanForReceipts(client, "TestAccount", ["INBOX"], {}, onProgress);
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", mailbox: "INBOX", error });
+    expect(onProgress).toHaveBeenCalledWith({ type: "mailbox-lock-failed", severity: "error", mailbox: "INBOX", error });
   });
 
   it("emits mailbox-start with exists count before searching", async () => {
