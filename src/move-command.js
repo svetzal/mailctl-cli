@@ -60,42 +60,37 @@ export async function moveCommand(uids, opts, deps) {
       }
 
       // Lock source mailbox
-      await withMailboxLock(
-        client,
-        sourceMailbox,
-        async () => {
-          const uidRange = acctUids.join(",");
+      const lockResult = await withMailboxLock(client, sourceMailbox, async () => {
+        const uidRange = acctUids.join(",");
 
-          if (dryRun) {
-            stats.skipped += acctUids.length;
+        if (dryRun) {
+          stats.skipped += acctUids.length;
+          for (const uid of acctUids) {
+            results.push({ account: acct.name, uid, status: "skipped", reason: "dry-run" });
+          }
+        } else {
+          try {
+            await client.messageMove(uidRange, destination, { uid: true });
+            stats.moved += acctUids.length;
             for (const uid of acctUids) {
-              results.push({ account: acct.name, uid, status: "skipped", reason: "dry-run" });
+              results.push({ account: acct.name, uid, status: "moved" });
             }
-          } else {
-            try {
-              await client.messageMove(uidRange, destination, { uid: true });
-              stats.moved += acctUids.length;
-              for (const uid of acctUids) {
-                results.push({ account: acct.name, uid, status: "moved" });
-              }
-            } catch (err) {
-              stats.failed += acctUids.length;
-              for (const uid of acctUids) {
-                results.push({ account: acct.name, uid, status: "failed", error: err.message });
-              }
+          } catch (err) {
+            stats.failed += acctUids.length;
+            for (const uid of acctUids) {
+              results.push({ account: acct.name, uid, status: "failed", error: err.message });
             }
           }
-        },
-        {
-          onLockFailed: (err) => {
-            const msg = `Could not open source mailbox "${sourceMailbox}" on ${acct.name}: ${err.message}`;
-            for (const uid of acctUids) {
-              stats.failed++;
-              results.push({ account: acct.name, uid, status: "failed", error: msg });
-            }
-          },
-        },
-      );
+        }
+      });
+
+      if (lockResult === null) {
+        const msg = `Could not open source mailbox "${sourceMailbox}" on ${acct.name}`;
+        for (const uid of acctUids) {
+          stats.failed++;
+          results.push({ account: acct.name, uid, status: "failed", error: msg });
+        }
+      }
     });
   }
 

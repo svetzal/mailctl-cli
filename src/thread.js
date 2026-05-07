@@ -225,17 +225,12 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
       }
       return headers;
     },
-    {
-      onLockFailed: (err) => {
-        onProgress({ type: "mailbox-lock-failed", severity: "error", mailbox: mailboxPath, error: err });
-        return { messages: [], fallback: false };
-      },
-    },
+    { onProgress },
   );
 
-  // onLockFailed returns { messages, fallback } shape — detect and propagate
-  if (anchorResult && "messages" in anchorResult) {
-    return anchorResult;
+  // null return means lock failed — onProgress already received the event
+  if (anchorResult === null) {
+    return { messages: [], fallback: false };
   }
 
   if (anchorResult) {

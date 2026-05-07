@@ -4,38 +4,34 @@
  *
  * Standard error event types emitted via onProgress:
  *
- * - `{ type: "mailbox-lock-failed", mailbox: string, error: Error }` — lock acquisition failed
- * - `{ type: "search-failed", mailbox: string, error: Error }` — search within a locked mailbox failed
+ * - `{ type: "mailbox-lock-failed", severity: "error", mailbox: string, error: Error }` — lock acquisition failed
+ * - `{ type: "search-failed", severity: "warning", mailbox: string, error: Error }` — search within a locked mailbox failed
  *
  * Helpers:
  *
- * - `withMailboxLock(client, mailboxPath, fn, options)` — acquire a lock, run fn, release in finally
+ * - `withMailboxLock(client, mailboxPath, fn, options)` — acquire a lock, run fn, release in finally; returns null on lock failure
  * - `groupByMailbox(results)` — group scan results by mailbox path
  * - `forEachMailboxGroup(client, byMailbox, fn, onProgress)` — iterate over a mailbox→messages map with locking
  */
 
 /**
  * Acquires a mailbox lock, runs fn(), and releases it in a finally block.
- * On lock failure, calls onLockFailed(err) if provided and returns its result.
- * Otherwise emits { type: "mailbox-lock-failed", mailbox, error } via onProgress
- * and returns undefined.
+ * On lock failure, emits { type: "mailbox-lock-failed", mailbox, error } via onProgress
+ * and returns null. Callers should check for a null return value to detect lock failure.
  *
  * @param {object} client - imapflow client
  * @param {string} mailboxPath - mailbox path to lock
  * @param {() => Promise<any>} fn - async function to run inside the lock
- * @param {{ onProgress?: (event: object) => void, onLockFailed?: (err: Error) => any }} [options]
+ * @param {{ onProgress?: (event: object) => void }} [options]
  * @returns {Promise<any>}
  */
-export async function withMailboxLock(client, mailboxPath, fn, { onProgress = () => {}, onLockFailed } = {}) {
+export async function withMailboxLock(client, mailboxPath, fn, { onProgress = () => {} } = {}) {
   let lock;
   try {
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
-    if (onLockFailed) {
-      return onLockFailed(err);
-    }
     onProgress({ type: "mailbox-lock-failed", severity: "error", mailbox: mailboxPath, error: err });
-    return undefined;
+    return null;
   }
   try {
     return await fn();

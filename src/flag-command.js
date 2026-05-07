@@ -100,41 +100,36 @@ export async function flagCommand(uids, opts, deps) {
         return;
       }
 
-      await withMailboxLock(
-        client,
-        mailbox,
-        async () => {
-          try {
-            const flagResult = await applyFlagChanges(client, uidRange, changes);
-            stats.flagged++;
-            results.push({
-              status: "flagged",
-              dryRun: false,
-              uids: acctUids.map(Number),
-              added: flagResult.added,
-              removed: flagResult.removed,
-              account: acct.name,
-              mailbox,
-            });
-          } catch (err) {
-            stats.failed++;
-            results.push({
-              status: "failed",
-              account: acct.name,
-              uids: acctUids.map(Number),
-              mailbox,
-              error: err.message,
-            });
-          }
-        },
-        {
-          onLockFailed: (err) => {
-            const msg = `Could not open mailbox "${mailbox}" on ${acct.name}: ${err.message}`;
-            stats.failed++;
-            results.push({ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg });
-          },
-        },
-      );
+      const lockResult = await withMailboxLock(client, mailbox, async () => {
+        try {
+          const flagResult = await applyFlagChanges(client, uidRange, changes);
+          stats.flagged++;
+          results.push({
+            status: "flagged",
+            dryRun: false,
+            uids: acctUids.map(Number),
+            added: flagResult.added,
+            removed: flagResult.removed,
+            account: acct.name,
+            mailbox,
+          });
+        } catch (err) {
+          stats.failed++;
+          results.push({
+            status: "failed",
+            account: acct.name,
+            uids: acctUids.map(Number),
+            mailbox,
+            error: err.message,
+          });
+        }
+      });
+
+      if (lockResult === null) {
+        const msg = `Could not open mailbox "${mailbox}" on ${acct.name}`;
+        stats.failed++;
+        results.push({ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg });
+      }
     });
   }
 
