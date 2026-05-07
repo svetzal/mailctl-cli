@@ -42,6 +42,26 @@ describe("renderSortEvent", () => {
     expect(renderSortEvent(event)).toBe("   ⚠️  Move failed (Business): timeout");
   });
 
+  it("wraps move-error in red when severity is error", () => {
+    const event = { type: "move-error", severity: "error", label: "Business", error: { message: "timeout" } };
+    expect(renderSortEvent(event)).toBe("\x1b[31m   ⚠️  Move failed (Business): timeout\x1b[0m");
+  });
+
+  it("wraps folder-error in red when severity is error", () => {
+    const event = {
+      type: "folder-error",
+      severity: "error",
+      folder: "Receipts/Business",
+      error: { message: "permission denied" },
+    };
+    expect(renderSortEvent(event)).toBe("\x1b[31m   ❌ Failed to create Receipts/Business: permission denied\x1b[0m");
+  });
+
+  it("does not color events without a severity field", () => {
+    const event = { type: "account-start", name: "iCloud", user: "me@icloud.com" };
+    expect(renderSortEvent(event)).toBe("\n📬 Sorting iCloud (me@icloud.com)...");
+  });
+
   it("renders mailbox-lock-failed with mailbox and error message", () => {
     const event = { type: "mailbox-lock-failed", mailbox: "INBOX", error: { message: "no such mailbox" } };
     expect(renderSortEvent(event)).toBe("   Could not lock mailbox INBOX: no such mailbox");

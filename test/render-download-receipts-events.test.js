@@ -150,6 +150,38 @@ describe("renderDownloadReceiptsEvent", () => {
     expect(renderDownloadReceiptsEvent(event)).toBe("   Error processing UID 77: parse error");
   });
 
+  it("wraps process-error in red when severity is error", () => {
+    const event = { type: "process-error", severity: "error", uid: 77, error: { message: "parse error" } };
+    expect(renderDownloadReceiptsEvent(event)).toBe("\x1b[31m   Error processing UID 77: parse error\x1b[0m");
+  });
+
+  it("wraps llm-not-configured in yellow when severity is warning", () => {
+    const event = { type: "llm-not-configured", severity: "warning", error: { message: "bad key" } };
+    expect(renderDownloadReceiptsEvent(event)).toBe(
+      "\x1b[33m   Warning: Could not initialize LLM broker: bad key\x1b[0m",
+    );
+  });
+
+  it("wraps docling-failed in yellow when severity is warning", () => {
+    const event = { type: "docling-failed", severity: "warning", uid: 99, error: { message: "not found" } };
+    expect(renderDownloadReceiptsEvent(event)).toBe("\x1b[33m      Docling failed for UID 99: not found\x1b[0m");
+  });
+
+  it("wraps reprocess-error in red when severity is error", () => {
+    const event = { type: "reprocess-error", severity: "error", filename: "receipt.pdf", error: { message: "failed" } };
+    expect(renderDownloadReceiptsEvent(event)).toBe("\x1b[31m  ❌ receipt.pdf — extraction failed: failed\x1b[0m");
+  });
+
+  it("wraps reprocess-docling-failed in yellow when severity is warning", () => {
+    const event = { type: "reprocess-docling-failed", severity: "warning", filename: "bad.pdf" };
+    expect(renderDownloadReceiptsEvent(event)).toBe("\x1b[33m  ❌ bad.pdf — docling conversion failed\x1b[0m");
+  });
+
+  it("does not color events without a severity field", () => {
+    const event = { type: "unique-receipts", count: 8 };
+    expect(renderDownloadReceiptsEvent(event)).toBe("   8 unique receipt emails");
+  });
+
   describe("renders download-summary as multi-line string with all stats", () => {
     const event = {
       type: "download-summary",

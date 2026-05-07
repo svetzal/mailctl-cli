@@ -49,4 +49,24 @@ describe("createEventRenderer", () => {
     const render = createEventRenderer({ "mailbox-lock-failed": () => "overridden" });
     expect(render({ type: "mailbox-lock-failed", mailbox: "X", error: { message: "e" } })).toBe("overridden");
   });
+
+  it("wraps rendered text in red ANSI codes when severity is error", () => {
+    const render = createEventRenderer({ fail: () => "something failed" });
+    expect(render({ type: "fail", severity: "error" })).toBe("\x1b[31msomething failed\x1b[0m");
+  });
+
+  it("wraps rendered text in yellow ANSI codes when severity is warning", () => {
+    const render = createEventRenderer({ warn: () => "something warned" });
+    expect(render({ type: "warn", severity: "warning" })).toBe("\x1b[33msomething warned\x1b[0m");
+  });
+
+  it("does not add color when severity is absent", () => {
+    const render = createEventRenderer({ info: () => "just info" });
+    expect(render({ type: "info" })).toBe("just info");
+  });
+
+  it("returns null (not colored null) when no handler matches and fallback is disabled", () => {
+    const render = createEventRenderer({}, { fallback: false });
+    expect(render({ type: "unknown", severity: "error" })).toBeNull();
+  });
 });

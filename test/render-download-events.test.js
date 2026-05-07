@@ -42,6 +42,26 @@ describe("renderDownloadEvent", () => {
     expect(renderDownloadEvent(event)).toBe("      ⚠️  Download failed for broken.pdf: timeout");
   });
 
+  it("wraps download-failed in red when severity is error", () => {
+    const event = { type: "download-failed", severity: "error", filename: "broken.pdf", error: { message: "timeout" } };
+    expect(renderDownloadEvent(event)).toBe("\x1b[31m      ⚠️  Download failed for broken.pdf: timeout\x1b[0m");
+  });
+
+  it("wraps fetch-structure-error in red when severity is error", () => {
+    const event = { type: "fetch-structure-error", severity: "error", uid: 42, error: { message: "not found" } };
+    expect(renderDownloadEvent(event)).toBe("\x1b[31m      ⚠️  Could not fetch structure for UID 42: not found\x1b[0m");
+  });
+
+  it("wraps invalid-pdf in yellow when severity is warning", () => {
+    const event = { type: "invalid-pdf", severity: "warning", filename: "bad.pdf" };
+    expect(renderDownloadEvent(event)).toBe("\x1b[33m      ⚠️  Skipping bad.pdf — not a valid PDF\x1b[0m");
+  });
+
+  it("does not color events without a severity field", () => {
+    const event = { type: "downloaded", filename: "receipt.pdf", size: 51200 };
+    expect(renderDownloadEvent(event)).toBe("   📄 Downloaded: receipt.pdf (50 KB)");
+  });
+
   it("renders mailbox-lock-failed with mailbox and error message", () => {
     const event = { type: "mailbox-lock-failed", mailbox: "INBOX", error: { message: "no such mailbox" } };
     expect(renderDownloadEvent(event)).toBe("   Could not lock mailbox INBOX: no such mailbox");
