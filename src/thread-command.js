@@ -6,7 +6,7 @@
  */
 import { uidNotFoundError } from "./find-message.js";
 import { filterSearchMailboxes } from "./imap-client.js";
-import { detectMailbox } from "./mailbox-detect.js";
+import { detectMailboxOrFail } from "./mailbox-detect.js";
 import { parseIntOption } from "./parse-options.js";
 import { findThread } from "./thread.js";
 
@@ -43,9 +43,7 @@ export async function threadCommand(uid, opts, deps, onProgress = () => {}) {
   await forEachAccount(targetAccounts, async (client, acct) => {
     let mailbox = opts.mailbox;
     if (!mailbox) {
-      const allBoxes = await listMailboxes(client);
-      const paths = filterSearchMailboxes(allBoxes);
-      mailbox = await detectMailbox(client, uid, paths);
+      mailbox = await detectMailboxOrFail(client, uid, listMailboxes);
       if (!mailbox) {
         return;
       }

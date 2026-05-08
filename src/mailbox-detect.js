@@ -1,3 +1,4 @@
+import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
@@ -25,6 +26,24 @@ export async function detectMailbox(client, uid, mailboxPaths, onProgress = () =
   }
 
   return null;
+}
+
+/**
+ * List all searchable mailboxes, detect which one contains `uid`, and return it.
+ * Returns null if not found in any mailbox.
+ *
+ * @param {any} client - connected IMAP client
+ * @param {string|number} uid - message UID to find
+ * @param {Function} listMailboxes - (client) → Promise<Array>
+ * @param {function(object): void} [onProgress] - receives structured progress events
+ * @returns {Promise<string|null>} mailbox path or null if not found
+ */
+export async function detectMailboxOrFail(client, uid, listMailboxes, onProgress = () => {}) {
+  const allBoxes = await listMailboxes(client);
+  const paths = filterSearchMailboxes(allBoxes);
+  const mailbox = await detectMailbox(client, uid, paths, onProgress);
+  if (!mailbox) return null;
+  return mailbox;
 }
 
 /**

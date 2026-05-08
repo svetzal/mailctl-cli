@@ -6,6 +6,7 @@
  */
 import { resolve } from "node:path";
 import { withMessage } from "./find-message.js";
+import { streamToBuffer } from "./imap-orchestration.js";
 import { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "./reply.js";
 
 /**
@@ -33,9 +34,7 @@ async function fetchOriginalMessage(uid, opts, deps) {
 
   const { result: parsed, account } = await withMessage(uid, opts, deps, async (client) => {
     const raw = await client.download(uid, undefined, { uid: true });
-    const chunks = [];
-    for await (const chunk of raw.content) chunks.push(chunk);
-    const buf = Buffer.concat(chunks);
+    const buf = await streamToBuffer(raw.content);
     return simpleParser(buf);
   });
 

@@ -7,9 +7,8 @@
 
 import { filterAccountsByName } from "./cli-helpers.js";
 import { applyFlagChanges, computeFlagChanges } from "./flag-messages.js";
-import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
-import { detectMailbox } from "./mailbox-detect.js";
+import { detectMailboxOrFail } from "./mailbox-detect.js";
 import { parseAndGroupUids } from "./move-logic.js";
 
 /**
@@ -75,9 +74,7 @@ export async function flagCommand(uids, opts, deps) {
 
       let mailbox = opts.mailbox;
       if (!mailbox) {
-        const allBoxes = await listMailboxes(client);
-        const paths = filterSearchMailboxes(allBoxes);
-        mailbox = await detectMailbox(client, acctUids[0], paths);
+        mailbox = await detectMailboxOrFail(client, acctUids[0], listMailboxes);
         if (!mailbox) {
           const msg = `UID ${acctUids[0]} not found in any mailbox on ${acct.name}`;
           stats.failed++;

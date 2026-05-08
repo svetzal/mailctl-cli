@@ -9,10 +9,23 @@
  *
  * Helpers:
  *
+ * - `streamToBuffer(stream)` — consume a readable stream into a Buffer
  * - `withMailboxLock(client, mailboxPath, fn, options)` — acquire a lock, run fn, release in finally; returns null on lock failure
  * - `groupByMailbox(results)` — group scan results by mailbox path
  * - `forEachMailboxGroup(client, byMailbox, fn, onProgress)` — iterate over a mailbox→messages map with locking
  */
+
+/**
+ * Consume a Node.js readable stream and return all data as a single Buffer.
+ *
+ * @param {AsyncIterable<Buffer>} stream - readable stream to consume
+ * @returns {Promise<Buffer>}
+ */
+export async function streamToBuffer(stream) {
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
 
 /**
  * Acquires a mailbox lock, runs fn(), and releases it in a finally block.

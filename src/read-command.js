@@ -4,7 +4,9 @@
  * Extracts the orchestration logic from the cli.js read handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
+
 import { withMessage } from "./find-message.js";
+import { streamToBuffer } from "./imap-orchestration.js";
 
 /**
  * @typedef {object} ReadCommandDeps
@@ -34,9 +36,7 @@ export async function readCommand(uid, opts, deps) {
   } = await withMessage(uid, opts, deps, async (client) => {
     try {
       const raw = await client.download(uid, undefined, { uid: true });
-      const chunks = [];
-      for await (const chunk of raw.content) chunks.push(chunk);
-      const buf = Buffer.concat(chunks);
+      const buf = await streamToBuffer(raw.content);
       return simpleParser(buf);
     } catch (err) {
       throw new Error(`Could not fetch UID ${uid}: ${err.message}`);

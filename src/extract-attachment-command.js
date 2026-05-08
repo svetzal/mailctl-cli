@@ -8,6 +8,7 @@ import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { uidNotFoundError, withMessage } from "./find-message.js";
+import { streamToBuffer } from "./imap-orchestration.js";
 
 /**
  * @typedef {object} ExtractAttachmentCommandDeps
@@ -71,9 +72,7 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
 
       // Download just the specific MIME part, not the entire message
       const { content } = await client.download(String(uid), att.part, { uid: true });
-      const chunks = [];
-      for await (const chunk of content) chunks.push(chunk);
-      const buffer = Buffer.concat(chunks);
+      const buffer = await streamToBuffer(content);
 
       const outputDir = resolve(opts.output ?? ".");
       fsGateway.mkdir(outputDir);
