@@ -4,6 +4,7 @@
 
 import { join } from "node:path";
 import { debug } from "./debug.js";
+import { errorEvent } from "./error-event.js";
 
 /**
  * @param {string} pdfPath
@@ -76,7 +77,7 @@ export function resolveExtractionText(
       return pdfMarkdown;
     }
   } catch (err) {
-    onProgress({ type: "docling-failed", severity: "warning", uid, error: err });
+    onProgress(errorEvent("docling-failed", "warning", err, { uid }));
   } finally {
     try {
       fs.rm(tmpPdfPath, { force: true });

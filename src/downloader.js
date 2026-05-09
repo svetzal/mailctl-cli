@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { findPdfParts } from "./attachment-parts.js";
 import { resolveAccounts } from "./cli-helpers.js";
+import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -170,7 +171,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
         const buf = fs.readBuffer(join(outputDir, f));
         existingHashes.add(createHash("sha256").update(buf).digest("hex"));
       } catch (err) {
-        onProgress({ type: "hash-read-error", severity: "warning", file: f, error: err });
+        onProgress(errorEvent("hash-read-error", "warning", err, { file: f }));
       }
     }
   }
@@ -206,7 +207,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
             bodyStructure = fetched.bodyStructure;
           }
         } catch (err) {
-          onProgress({ type: "fetch-structure-error", severity: "error", uid: msg.uid, error: err });
+          onProgress(errorEvent("fetch-structure-error", "error", err, { uid: msg.uid }));
           continue;
         }
 
@@ -242,7 +243,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
 
               // Verify it's actually a PDF
               if (buffer.length < 5 || buffer.subarray(0, 5).toString() !== "%PDF-") {
-                onProgress({ type: "invalid-pdf", severity: "warning", filename });
+                onProgress(errorEvent("invalid-pdf", "warning", new Error("Invalid PDF content"), { filename }));
                 continue;
               }
 
@@ -272,7 +273,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
                 vendor,
               };
             } catch (err) {
-              onProgress({ type: "download-failed", severity: "error", filename, error: err });
+              onProgress(errorEvent("download-failed", "error", err, { filename }));
               stats.skipped++;
             }
           }

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { simpleParser } from "mailparser";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
+import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
 import { htmlToText } from "./html-to-text.js";
@@ -87,13 +88,7 @@ async function processReceiptMessage(client, msg, context) {
       subprocess,
       onProgress,
       (err, ctx) =>
-        onProgress({
-          type: "docling-conversion-failed",
-          severity: "warning",
-          uid: msg.uid,
-          pdfPath: ctx.pdfPath,
-          error: err,
-        }),
+        onProgress(errorEvent("docling-conversion-failed", "warning", err, { uid: msg.uid, pdfPath: ctx.pdfPath })),
     );
     const metadata = await extractReceiptMetadata(
       llm,
@@ -152,7 +147,7 @@ async function processReceiptMessage(client, msg, context) {
 
     return result;
   } catch (err) {
-    onProgress({ type: "process-error", severity: "error", uid: msg.uid, error: err });
+    onProgress(errorEvent("process-error", "error", err, { uid: msg.uid }));
     return { action: "error" };
   }
 }
@@ -213,10 +208,10 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
   const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs, (err, ctx) =>
-    onProgress({ type: "output-tree-error", severity: "warning", path: ctx.path, level: ctx.level, error: err }),
+    onProgress(errorEvent("output-tree-error", "warning", err, { path: ctx.path, level: ctx.level })),
   );
   const existingHashes = loadExistingHashes(outputDir, fs, (err, ctx) =>
-    onProgress({ type: "output-tree-error", severity: "warning", path: ctx.path, level: ctx.level, error: err }),
+    onProgress(errorEvent("output-tree-error", "warning", err, { path: ctx.path, level: ctx.level })),
   );
   const usedPaths = new Set();
 
@@ -381,7 +376,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
   onProgress({ type: "reprocess-start", outputDir });
 
   const sidecars = collectSidecarFiles(outputDir, fs, (err, ctx) =>
-    onProgress({ type: "process-error", severity: "error", uid: ctx.path, error: err }),
+    onProgress(errorEvent("process-error", "error", err, { uid: ctx.path })),
   );
   const stats = { reprocessed: 0, skipped: 0, errors: 0, reclassified: 0 };
   const results = [];
@@ -422,7 +417,11 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
       if (pdfMarkdown) {
         extractionText = pdfMarkdown;
       } else {
-        onProgress({ type: "reprocess-docling-failed", severity: "warning", filename: jsonFilename });
+        onProgress(
+          errorEvent("reprocess-docling-failed", "warning", new Error("docling conversion failed"), {
+            filename: jsonFilename,
+          }),
+        );
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "docling conversion failed" });
         continue;
@@ -485,7 +484,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
       stats.reprocessed++;
       results.push({ file: jsonFilename, status: "reprocessed" });
     } catch (err) {
-      onProgress({ type: "reprocess-error", severity: "error", filename: jsonFilename, error: err });
+      onProgress(errorEvent("reprocess-error", "error", err, { filename: jsonFilename }));
       stats.errors++;
       results.push({ file: jsonFilename, status: "error", reason: err.message });
     }

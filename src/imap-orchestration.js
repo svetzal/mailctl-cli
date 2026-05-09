@@ -15,6 +15,8 @@
  * - `forEachMailboxGroup(client, byMailbox, fn, onProgress)` — iterate over a mailbox→messages map with locking
  */
 
+import { errorEvent } from "./error-event.js";
+
 /**
  * Consume a Node.js readable stream and return all data as a single Buffer.
  *
@@ -43,7 +45,7 @@ export async function withMailboxLock(client, mailboxPath, fn, { onProgress = ()
   try {
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
-    onProgress({ type: "mailbox-lock-failed", severity: "error", mailbox: mailboxPath, error: err });
+    onProgress(errorEvent("mailbox-lock-failed", "error", err, { mailbox: mailboxPath }));
     return null;
   }
   try {
@@ -86,7 +88,7 @@ export async function forEachMailboxGroup(client, byMailbox, fn, onProgress = ()
     try {
       lock = await client.getMailboxLock(mailbox);
     } catch (err) {
-      onProgress({ type: "mailbox-lock-failed", severity: "error", mailbox, error: err });
+      onProgress(errorEvent("mailbox-lock-failed", "error", err, { mailbox }));
       continue;
     }
     try {

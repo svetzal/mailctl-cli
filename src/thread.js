@@ -5,6 +5,7 @@
  */
 
 import { sanitizeForAgentOutput } from "./content-sanitizer.js";
+import { errorEvent } from "./error-event.js";
 import { htmlToText } from "./html-to-text.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
@@ -66,7 +67,7 @@ async function searchMailboxForThread(client, mailboxPath, messageIds, onProgres
               }
             } catch (err) {
               // Header search not supported, caller will handle fallback
-              onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
+              onProgress(errorEvent("search-failed", "warning", err, { mailbox: mailboxPath }));
             }
           }
         }
@@ -98,7 +99,7 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgre
           return uids && uids.length > 0 ? [...uids] : [];
         } catch (err) {
           // Search failed — return empty results
-          onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
+          onProgress(errorEvent("search-failed", "warning", err, { mailbox: mailboxPath }));
           return [];
         }
       },

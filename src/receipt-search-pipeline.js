@@ -5,6 +5,7 @@
  */
 
 import { deduplicateByMessageId } from "./dedup.js";
+import { errorEvent } from "./error-event.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
@@ -36,7 +37,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             const uids = await client.search(criteria, { uid: true });
             if (uids) for (const uid of uids) allUids.add(uid);
           } catch (err) {
-            onProgress({ type: "search-term-error", severity: "warning", mailbox: mailboxPath, term, error: err });
+            onProgress(errorEvent("search-term-error", "warning", err, { mailbox: mailboxPath, term }));
           }
         }
 
@@ -48,7 +49,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             const uids = await client.search(criteria, { uid: true });
             if (uids) for (const uid of uids) allUids.add(uid);
           } catch (err) {
-            onProgress({ type: "search-term-error", severity: "warning", mailbox: mailboxPath, pattern, error: err });
+            onProgress(errorEvent("search-term-error", "warning", err, { mailbox: mailboxPath, pattern }));
           }
         }
 
@@ -82,7 +83,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             });
           }
         } catch (err) {
-          onProgress({ type: "mailbox-fetch-error", severity: "warning", error: err });
+          onProgress(errorEvent("mailbox-fetch-error", "warning", err));
         }
 
         return results;

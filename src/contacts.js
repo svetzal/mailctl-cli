@@ -3,6 +3,7 @@
  */
 
 import { sanitizeForAgentOutput } from "./content-sanitizer.js";
+import { errorEvent } from "./error-event.js";
 import { listMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
@@ -65,7 +66,7 @@ async function scanMailboxContacts(client, mailboxPath, since, direction, onProg
           uids = await client.search({ since }, { uid: true });
         } catch (err) {
           // Search failed — return empty results
-          onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
+          onProgress(errorEvent("search-failed", "warning", err, { mailbox: mailboxPath }));
           return entries;
         }
 

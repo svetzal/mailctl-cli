@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
 import { debug } from "./debug.js";
+import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -34,7 +35,7 @@ async function ensureFolders(client, onProgress) {
         await client.mailboxCreate(folder);
         onProgress({ type: "folder-created", folder });
       } catch (err) {
-        onProgress({ type: "folder-error", severity: "error", folder, error: err });
+        onProgress(errorEvent("folder-error", "error", err, { folder }));
       }
     }
   }
@@ -109,7 +110,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
             onProgress({ type: "moved", icon: "🏢", count: bizUids.length, label });
             stats.moved += bizUids.length;
           } catch (err) {
-            onProgress({ type: "move-error", severity: "error", label, error: err });
+            onProgress(errorEvent("move-error", "error", err, { label }));
             stats.skipped += bizUids.length;
           }
         }
@@ -125,7 +126,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
             onProgress({ type: "moved", icon: "🏠", count: personalUids.length, label });
             stats.moved += personalUids.length;
           } catch (err) {
-            onProgress({ type: "move-error", severity: "error", label, error: err });
+            onProgress(errorEvent("move-error", "error", err, { label }));
             stats.skipped += personalUids.length;
           }
         }

@@ -6,6 +6,7 @@
  */
 import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
+import { errorEvent } from "./error-event.js";
 import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
 import { uidNotFoundError, withMessage } from "./find-message.js";
 import { streamToBuffer } from "./imap-orchestration.js";
@@ -48,7 +49,7 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
           bodyStructure = fetched.bodyStructure;
         }
       } catch (err) {
-        onProgress({ type: "search-failed", severity: "error", mailbox, error: err });
+        onProgress(errorEvent("search-failed", "error", err, { mailbox }));
         throw uidNotFoundError(uid);
       }
 

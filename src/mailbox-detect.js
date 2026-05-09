@@ -1,3 +1,4 @@
+import { errorEvent } from "./error-event.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
@@ -66,7 +67,7 @@ async function searchMailboxForUid(client, mailboxPath, uid, onProgress) {
           return found && found.length > 0;
         } catch (err) {
           // Search failed — return false
-          onProgress({ type: "search-failed", severity: "warning", mailbox: mailboxPath, error: err });
+          onProgress(errorEvent("search-failed", "warning", err, { mailbox: mailboxPath }));
           return false;
         }
       },
