@@ -242,8 +242,8 @@ describe("renderDownloadReceiptsEvent", () => {
     expect(renderDownloadReceiptsEvent(event)).toBe("      Using stored body snippet for extraction (receipt.pdf)");
   });
 
-  it("renders reprocess-skipped with filename", () => {
-    const event = { type: "reprocess-skipped", filename: "receipt.pdf" };
+  it("renders reprocess-skipped with filename and reason", () => {
+    const event = { type: "reprocess-skipped", filename: "receipt.pdf", reason: "no PDF and no body snippet" };
     expect(renderDownloadReceiptsEvent(event)).toBe("  ⏭️  receipt.pdf — no PDF and no body snippet, skipped");
   });
 
