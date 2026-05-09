@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
   accountStart,
-  folderExists,
   folderCreated,
-  scanComplete,
+  folderExists,
   moveDryRun,
   moved,
+  scanComplete,
 } from "../src/sort-event-factories.js";
 
 describe("accountStart", () => {

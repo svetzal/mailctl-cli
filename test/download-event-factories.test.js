@@ -3,8 +3,8 @@ import {
   downloadAccountStart,
   downloadBizCount,
   downloadDryRun,
-  duplicateContent,
   downloaded,
+  duplicateContent,
 } from "../src/download-event-factories.js";
 
 describe("downloadAccountStart", () => {

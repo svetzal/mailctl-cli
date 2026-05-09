@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { scanAccountStart, scanAccountComplete } from "../src/scan-event-factories.js";
+import { scanAccountComplete, scanAccountStart } from "../src/scan-event-factories.js";
 
 describe("scanAccountStart", () => {
   it("has type scan-account-start", () => {

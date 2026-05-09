@@ -1,10 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  deviceCodePrompt,
-  authWaiting,
-  authSuccess,
-  tokenRefreshFailed,
-} from "../src/auth-event-factories.js";
+import { authSuccess, authWaiting, deviceCodePrompt, tokenRefreshFailed } from "../src/auth-event-factories.js";
 
 describe("deviceCodePrompt", () => {
   it("has type device-code-prompt", () => {

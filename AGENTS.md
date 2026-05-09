@@ -102,6 +102,12 @@ src/render-scan-events.js      — renderScanEvent() — pure scan progress even
 src/render-sort-events.js      — renderSortEvent() — pure sort progress event renderer
 src/render-download-events.js  — renderDownloadEvent() — pure download progress event renderer
 src/render-download-receipts-events.js — renderDownloadReceiptsEvent() — pure download-receipts progress event renderer
+src/auth-event-factories.js    — factories for M365 auth progress events (`deviceCodePrompt`, `authWaiting`, `authSuccess`, `tokenRefreshFailed`)
+src/shared-event-factories.js  — factories for shared IMAP scan lifecycle events (`mailboxStart`, `mailboxEmpty`, `mailboxMatches`)
+src/scan-event-factories.js    — factories for scan progress events (`scanAccountStart`, `scanAccountComplete`)
+src/sort-event-factories.js    — factories for sort progress events (`accountStart`, `folderExists`, `folderCreated`, `scanComplete`, `moveDryRun`, `moved`)
+src/download-event-factories.js — factories for download progress events (`downloadAccountStart`, `downloadBizCount`, etc.)
+src/download-receipts-event-factories.js — factories for download-receipts progress events (28 factories covering all phases)
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
 src/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors

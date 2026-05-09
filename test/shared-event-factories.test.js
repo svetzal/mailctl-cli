@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mailboxStart, mailboxEmpty, mailboxMatches } from "../src/shared-event-factories.js";
+import { mailboxEmpty, mailboxMatches, mailboxStart } from "../src/shared-event-factories.js";
 
 describe("mailboxStart", () => {
   it("has type mailbox-start", () => {
