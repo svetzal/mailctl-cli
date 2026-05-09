@@ -6,6 +6,7 @@ import {
   listMailboxes as _listMailboxes,
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
+import { scanAccountComplete, scanAccountStart } from "./scan-event-factories.js";
 
 /**
  * Real implementations used in production. Tests override individual keys.
@@ -53,7 +54,7 @@ export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () 
   const allResults = [];
 
   await forEachAccount(accounts, async (client, account) => {
-    onProgress({ type: "scan-account-start", name: account.name, user: account.user });
+    onProgress(scanAccountStart(account.name, account.user));
 
     let mailboxes;
     if (opts.mailboxes) {
@@ -68,7 +69,7 @@ export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () 
     }
 
     const results = await scanForReceipts(client, account.name, mailboxes, { since });
-    onProgress({ type: "scan-account-complete", name: account.name, count: results.length });
+    onProgress(scanAccountComplete(account.name, results.length));
     allResults.push(...results);
   });
 

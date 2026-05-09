@@ -3,6 +3,27 @@ import { resolve } from "node:path";
 import { simpleParser } from "mailparser";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
+import {
+  downloadSummary,
+  llmDisabled,
+  llmEnabled,
+  reprocessDryRun,
+  reprocessDryRunBody,
+  reprocessNoData,
+  reprocessReclassified,
+  reprocessSkipped,
+  reprocessStart,
+  reprocessSummary,
+  reprocessUpdated,
+  reprocessUsingBody,
+  searchAccount,
+  skipExistingInvoice,
+  skipLowConfidence,
+  skipNonInvoice,
+  subjectExclusions,
+  uniqueReceipts,
+  vendorFilterApplied,
+} from "./download-receipts-event-factories.js";
 import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
@@ -108,17 +129,17 @@ async function processReceiptMessage(client, msg, context) {
 
     // Check LLM classification — skip non-invoices
     if (metadata.is_invoice === false) {
-      onProgress({ type: "skip-non-invoice", vendor: metadata.vendor, confidence: metadata.confidence || 0 });
+      onProgress(skipNonInvoice(metadata.vendor, metadata.confidence || 0));
       return { action: "skipped" };
     }
     if (metadata.confidence !== null && metadata.confidence < MIN_INVOICE_CONFIDENCE) {
-      onProgress({ type: "skip-low-confidence", vendor: metadata.vendor, confidence: metadata.confidence });
+      onProgress(skipLowConfidence(metadata.vendor, metadata.confidence));
       return { action: "skipped" };
     }
 
     // Invoice number dedup
     if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
-      onProgress({ type: "skip-existing-invoice", vendor: metadata.vendor, invoiceNumber: metadata.invoice_number });
+      onProgress(skipExistingInvoice(metadata.vendor, metadata.invoice_number));
       return { action: "duplicate" };
     }
 
@@ -221,13 +242,13 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   // Initialize LLM broker for receipt data extraction (null if no API key available)
   const llm = _createLlmBroker(openAiKey, onProgress);
   if (llm) {
-    onProgress({ type: "llm-enabled" });
+    onProgress(llmEnabled());
   } else {
-    onProgress({ type: "llm-disabled" });
+    onProgress(llmDisabled());
   }
 
   await forEachAccount(targetAccounts, async (client, account) => {
-    onProgress({ type: "search-account", name: account.name, user: account.user });
+    onProgress(searchAccount(account.name, account.user));
 
     // Phase 1: discover receipt emails across all mailboxes
     const searchResults = await searchAccountForReceipts(client, account, since, {
@@ -242,17 +263,12 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     } = applyReceiptFilters(searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS);
 
     if (vendorExcluded > 0) {
-      onProgress({
-        type: "vendor-filter-applied",
-        matchCount: unique.length,
-        excludedCount: vendorExcluded,
-        vendor: opts.vendor || null,
-      });
+      onProgress(vendorFilterApplied(unique.length, vendorExcluded, opts.vendor || null));
     }
     if (subjectExcluded > 0) {
-      onProgress({ type: "subject-exclusions", count: subjectExcluded });
+      onProgress(subjectExclusions(subjectExcluded));
     }
-    onProgress({ type: "unique-receipts", count: unique.length });
+    onProgress(uniqueReceipts(unique.length));
     stats.found += unique.length;
 
     // Phase 2: process each email (grouped by mailbox for IMAP efficiency)
@@ -289,7 +305,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     });
   });
 
-  onProgress({ type: "download-summary", stats });
+  onProgress(downloadSummary(stats));
 
   return { stats, records };
 }
@@ -324,7 +340,7 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
   const vendorCounts = new Map();
 
   await forEachAccount(targetAccounts, async (client, account) => {
-    onProgress({ type: "search-account", name: account.name, user: account.user });
+    onProgress(searchAccount(account.name, account.user));
 
     const unique = await searchAccountForReceipts(client, account, since, {
       listMailboxes,
@@ -373,7 +389,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     throw new Error("OPENAI_API_KEY not set — LLM extraction is required for reprocessing.");
   }
 
-  onProgress({ type: "reprocess-start", outputDir });
+  onProgress(reprocessStart(outputDir));
 
   const sidecars = collectSidecarFiles(outputDir, fs, (err, ctx) =>
     onProgress(errorEvent("process-error", "error", err, { uid: ctx.path })),
@@ -408,7 +424,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
 
     if (hasPdf) {
       if (dryRun) {
-        onProgress({ type: "reprocess-dry-run", filename: jsonFilename });
+        onProgress(reprocessDryRun(jsonFilename));
         stats.reprocessed++;
         results.push({ file: jsonFilename, status: "dry-run" });
         continue;
@@ -428,15 +444,15 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
       }
     } else if (sidecar.source_body_snippet) {
       if (dryRun) {
-        onProgress({ type: "reprocess-dry-run-body", filename: jsonFilename });
+        onProgress(reprocessDryRunBody(jsonFilename));
         stats.reprocessed++;
         results.push({ file: jsonFilename, status: "dry-run" });
         continue;
       }
       extractionText = sidecar.source_body_snippet;
-      onProgress({ type: "reprocess-using-body", filename: jsonFilename });
+      onProgress(reprocessUsingBody(jsonFilename));
     } else {
-      onProgress({ type: "reprocess-skipped", filename: jsonFilename, reason: "no PDF and no body snippet" });
+      onProgress(reprocessSkipped(jsonFilename, "no PDF and no body snippet"));
       stats.skipped++;
       results.push({ file: jsonFilename, status: "skipped", reason: "no PDF and no body snippet" });
       continue;
@@ -454,14 +470,14 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
       );
 
       if (!metadata) {
-        onProgress({ type: "reprocess-no-data", filename: jsonFilename });
+        onProgress(reprocessNoData(jsonFilename));
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "LLM extraction failed" });
         continue;
       }
 
       if (metadata.is_invoice === false) {
-        onProgress({ type: "reprocess-reclassified", filename: jsonFilename });
+        onProgress(reprocessReclassified(jsonFilename));
         fs.rm(jsonPath, { force: true });
         stats.reclassified++;
         results.push({ file: jsonFilename, status: "reclassified", reason: "non-invoice" });
@@ -480,7 +496,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
       };
 
       fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
-      onProgress({ type: "reprocess-updated", filename: jsonFilename });
+      onProgress(reprocessUpdated(jsonFilename));
       stats.reprocessed++;
       results.push({ file: jsonFilename, status: "reprocessed" });
     } catch (err) {
@@ -490,13 +506,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     }
   }
 
-  onProgress({
-    type: "reprocess-summary",
-    reprocessed: stats.reprocessed,
-    skipped: stats.skipped,
-    reclassified: stats.reclassified,
-    errors: stats.errors,
-  });
+  onProgress(reprocessSummary(stats.reprocessed, stats.skipped, stats.reclassified, stats.errors));
 
   return { ...stats, results };
 }

@@ -13,6 +13,7 @@ import {
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
 import { requireClassificationsData } from "./scan-data.js";
+import { accountStart, folderCreated, folderExists, moveDryRun, moved, scanComplete } from "./sort-event-factories.js";
 import { BIZ_FOLDER, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,13 +28,13 @@ async function ensureFolders(client, onProgress) {
     try {
       await client.mailboxOpen(folder);
       await client.mailboxClose();
-      onProgress({ type: "folder-exists", folder });
+      onProgress(folderExists(folder));
     } catch (err) {
       // Folder doesn't exist — fall through to create it
       debug("sorter", "folder not found, will create", err);
       try {
         await client.mailboxCreate(folder);
-        onProgress({ type: "folder-created", folder });
+        onProgress(folderCreated(folder));
       } catch (err) {
         onProgress(errorEvent("folder-error", "error", err, { folder }));
       }
@@ -79,7 +80,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
   const stats = { moved: 0, skipped: 0, alreadySorted: 0, unclassified: 0 };
 
   await forEachAccount(accounts, async (client, account) => {
-    onProgress({ type: "account-start", name: account.name, user: account.user });
+    onProgress(accountStart(account.name, account.user));
 
     await ensureFolders(client, onProgress);
 
@@ -90,7 +91,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
     });
 
     const results = await scanForReceipts(client, account.name, mailboxes, { since });
-    onProgress({ type: "scan-complete", count: results.length });
+    onProgress(scanComplete(results.length));
 
     await forEachMailboxGroup(client, groupByMailbox(results), async (mailbox, messages) => {
       const { business: bizUids, personal: personalUids } = planMoves(messages, classifications);
@@ -103,11 +104,11 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
       if (bizUids.length > 0) {
         const label = `${mailbox} → ${BIZ_FOLDER}`;
         if (dryRun) {
-          onProgress({ type: "move-dry-run", icon: "🏢", count: bizUids.length, label });
+          onProgress(moveDryRun("🏢", bizUids.length, label));
         } else {
           try {
             await client.messageMove(bizUids.join(","), BIZ_FOLDER, { uid: true });
-            onProgress({ type: "moved", icon: "🏢", count: bizUids.length, label });
+            onProgress(moved("🏢", bizUids.length, label));
             stats.moved += bizUids.length;
           } catch (err) {
             onProgress(errorEvent("move-error", "error", err, { label }));
@@ -119,11 +120,11 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
       if (personalUids.length > 0) {
         const label = `${mailbox} → ${PERSONAL_FOLDER}`;
         if (dryRun) {
-          onProgress({ type: "move-dry-run", icon: "🏠", count: personalUids.length, label });
+          onProgress(moveDryRun("🏠", personalUids.length, label));
         } else {
           try {
             await client.messageMove(personalUids.join(","), PERSONAL_FOLDER, { uid: true });
-            onProgress({ type: "moved", icon: "🏠", count: personalUids.length, label });
+            onProgress(moved("🏠", personalUids.length, label));
             stats.moved += personalUids.length;
           } catch (err) {
             onProgress(errorEvent("move-error", "error", err, { label }));

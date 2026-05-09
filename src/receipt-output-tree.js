@@ -7,6 +7,14 @@
 
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import {
+  downloadedPdf,
+  dryRunJson,
+  dryRunMetadata,
+  dryRunPdf,
+  skipDuplicate,
+  wroteMetadata,
+} from "./download-receipts-event-factories.js";
 import { cleanVendorForFilename } from "./receipt-extraction.js";
 
 /**
@@ -197,7 +205,7 @@ export function writeReceiptOutput({
       const dupLabel = metadata.invoice_number
         ? `${vendorClean} ${metadata.invoice_number}`
         : `${vendorClean} (${metadata.date})`;
-      onProgress({ type: "skip-duplicate", label: dupLabel });
+      onProgress(skipDuplicate(dupLabel));
       return { action: "duplicate", metadata };
     }
 
@@ -209,13 +217,13 @@ export function writeReceiptOutput({
     metadata.receipt_file = pdfFilename;
 
     if (dryRun) {
-      onProgress({ type: "dry-run-pdf", filename: pdfFilename });
-      onProgress({ type: "dry-run-json", filename: jsonFilename });
+      onProgress(dryRunPdf(pdfFilename));
+      onProgress(dryRunJson(jsonFilename));
     } else {
       fs.mkdir(monthDir);
       fs.writeFile(pdfPath, att.content);
       fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-      onProgress({ type: "downloaded-pdf", filename: pdfFilename, size: att.content.length });
+      onProgress(downloadedPdf(pdfFilename, att.content.length));
     }
 
     return { action: "downloaded", metadata };
@@ -225,11 +233,11 @@ export function writeReceiptOutput({
     const jsonPath = join(monthDir, jsonFilename);
 
     if (dryRun) {
-      onProgress({ type: "dry-run-metadata", filename: jsonFilename });
+      onProgress(dryRunMetadata(jsonFilename));
     } else {
       fs.mkdir(monthDir);
       fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-      onProgress({ type: "wrote-metadata", filename: jsonFilename });
+      onProgress(wroteMetadata(jsonFilename));
     }
 
     return { action: "noPdf", metadata };

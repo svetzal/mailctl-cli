@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { authSuccess, authWaiting, deviceCodePrompt } from "./auth-event-factories.js";
 import { debug } from "./debug.js";
 import { errorEvent } from "./error-event.js";
 
@@ -97,8 +98,8 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
     );
   const { device_code, user_code, verification_uri, interval, expires_in } = deviceData;
 
-  onProgress({ type: "device-code-prompt", verificationUri: verification_uri, userCode: user_code });
-  onProgress({ type: "auth-waiting" });
+  onProgress(deviceCodePrompt(verification_uri, user_code));
+  onProgress(authWaiting());
 
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const pollInterval = (interval || 5) * 1000;
@@ -142,7 +143,7 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
       expires_at: deps.now() + (tokenData.expires_in ?? DEFAULT_TOKEN_LIFETIME_SECS) * 1000,
     };
     deps.saveTokens(tokens);
-    onProgress({ type: "auth-success" });
+    onProgress(authSuccess());
     return tokens;
   }
 

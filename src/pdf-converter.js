@@ -4,6 +4,7 @@
 
 import { join } from "node:path";
 import { debug } from "./debug.js";
+import { usingPdfContent } from "./download-receipts-event-factories.js";
 import { errorEvent } from "./error-event.js";
 
 /**
@@ -73,7 +74,7 @@ export function resolveExtractionText(
     fs.writeFile(tmpPdfPath, pdfAttachments[0].content);
     const pdfMarkdown = pdfToText(tmpPdfPath, fs, subprocess, onError);
     if (pdfMarkdown) {
-      onProgress({ type: "using-pdf-content", uid });
+      onProgress(usingPdfContent(uid));
       return pdfMarkdown;
     }
   } catch (err) {

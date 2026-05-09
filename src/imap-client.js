@@ -4,6 +4,7 @@ import { withMailboxLock } from "./imap-orchestration.js";
 import { getM365AccessToken } from "./m365-auth.js";
 import { RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 import { buildScanResult } from "./scan-helpers.js";
+import { mailboxEmpty, mailboxMatches, mailboxStart } from "./shared-event-factories.js";
 
 /**
  * Supports both password-based and OAuth2 (XOAUTH2) authentication.
@@ -54,7 +55,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
       async () => {
         const mailboxResults = [];
         // @ts-expect-error — imapflow types client.mailbox as false|MailboxObject; ?. handles the false case at runtime
-        onProgress({ type: "mailbox-start", mailbox, count: client.mailbox?.exists });
+        onProgress(mailboxStart(mailbox, client.mailbox?.exists));
         const allUids = new Set();
 
         for (const term of RECEIPT_SUBJECT_TERMS) {
@@ -78,11 +79,11 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
         }
 
         if (allUids.size === 0) {
-          onProgress({ type: "mailbox-empty", mailbox });
+          onProgress(mailboxEmpty(mailbox));
           return mailboxResults;
         }
 
-        onProgress({ type: "mailbox-matches", mailbox, count: allUids.size });
+        onProgress(mailboxMatches(mailbox, allUids.size));
 
         // Fetch envelopes for all unique UIDs (as comma-separated range string)
         const uidRange = [...allUids].join(",");

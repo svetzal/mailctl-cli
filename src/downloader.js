@@ -4,6 +4,13 @@ import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { findPdfParts } from "./attachment-parts.js";
 import { resolveAccounts } from "./cli-helpers.js";
+import {
+  downloadAccountStart,
+  downloadBizCount,
+  downloadDryRun,
+  downloaded,
+  duplicateContent,
+} from "./download-event-factories.js";
 import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
@@ -177,7 +184,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
   }
 
   await forEachAccount(accounts, async (client, account) => {
-    onProgress({ type: "download-account-start", name: account.name, user: account.user });
+    onProgress(downloadAccountStart(account.name, account.user));
 
     const list = await listMailboxes(client);
     const mailboxes = filterScanMailboxes(list, {
@@ -189,7 +196,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
 
     // Filter to business only
     const bizResults = results.filter((r) => classifications[r.address] === "business");
-    onProgress({ type: "download-biz-count", count: bizResults.length });
+    onProgress(downloadBizCount(bizResults.length));
 
     await forEachMailboxGroup(client, groupByMailbox(bizResults), async (mailbox, messages) => {
       for (const msg of messages) {
@@ -228,7 +235,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
           const filename = buildFilename(vendor, msg.date, part.filename, existingFiles);
 
           if (dryRun) {
-            onProgress({ type: "download-dry-run", filename });
+            onProgress(downloadDryRun(filename));
             stats.downloaded++;
           } else {
             try {
@@ -250,7 +257,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
               // Content-level dedup: skip if we already have this exact file
               const contentHash = createHash("sha256").update(buffer).digest("hex");
               if (existingHashes.has(contentHash)) {
-                onProgress({ type: "duplicate-content", filename });
+                onProgress(duplicateContent(filename));
                 stats.alreadyHave++;
                 manifest[manifestKey] = { status: "duplicate", hash: contentHash.slice(0, 12), date: msg.date, vendor };
                 continue;
@@ -260,7 +267,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
               const outPath = join(outputDir, filename);
               fs.writeFile(outPath, buffer);
               existingFiles.add(filename.toLowerCase());
-              onProgress({ type: "downloaded", filename, size: buffer.length });
+              onProgress(downloaded(filename, buffer.length));
               stats.downloaded++;
 
               // Record content hash in manifest for cross-run dedup

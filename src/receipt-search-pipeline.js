@@ -5,6 +5,7 @@
  */
 
 import { deduplicateByMessageId } from "./dedup.js";
+import { mailboxCandidates, mailboxSearchStart } from "./download-receipts-event-factories.js";
 import { errorEvent } from "./error-event.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
@@ -26,7 +27,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
       mailboxPath,
       async () => {
         const messageCount = client.mailbox?.exists;
-        onProgress({ type: "mailbox-search-start", mailbox: mailboxPath, messageCount });
+        onProgress(mailboxSearchStart(mailboxPath, messageCount));
         const allUids = new Set();
 
         // Subject-based search
@@ -55,7 +56,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
 
         if (allUids.size === 0) return [];
 
-        onProgress({ type: "mailbox-candidates", mailbox: mailboxPath, count: allUids.size });
+        onProgress(mailboxCandidates(mailboxPath, allUids.size));
 
         const results = [];
         const uidRange = [...allUids].join(",");
