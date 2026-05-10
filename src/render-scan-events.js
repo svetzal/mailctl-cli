@@ -1,7 +1,8 @@
 import { createEventRenderer } from "./render-shared-events.js";
+import { scanAccountComplete, scanAccountStart } from "./scan-event-factories.js";
 
 /** @type {(event: object) => string | null} */
 export const renderScanEvent = createEventRenderer({
-  "scan-account-start": (e) => `🔍 Scanning ${e.name} (${e.user})...`,
-  "scan-account-complete": (e) => `   ✅ Found ${e.count} receipt-like messages`,
+  [scanAccountStart.type]: (e) => `🔍 Scanning ${e.name} (${e.user})...`,
+  [scanAccountComplete.type]: (e) => `   ✅ Found ${e.count} receipt-like messages`,
 });

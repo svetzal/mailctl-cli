@@ -79,6 +79,7 @@ src/dedup.js                   — deduplicateByMessageId() — shared by search
 src/move-logic.js              — parseUidArgs(), groupUidsByAccount() — pure UID parsing for move command
 src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachmentIndex() — attachment helpers
 src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
+src/define-event.js            — defineEvent() — shared event factory builder, eliminates type-string duplication
 src/format-bytes.js            — formatKB() — shared byte-to-KB formatter
 src/format-scan.js             — formatScanSummaryText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
 src/format-search.js           — formatSearchResultsText(), buildSearchJson() — pure search result formatter
