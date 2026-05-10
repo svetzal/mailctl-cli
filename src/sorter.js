@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
 import { debug } from "./debug.js";
-import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -13,7 +12,16 @@ import {
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
 import { requireClassificationsData } from "./scan-data.js";
-import { accountStart, folderCreated, folderExists, moveDryRun, moved, scanComplete } from "./sort-event-factories.js";
+import {
+  accountStart,
+  folderCreated,
+  folderError,
+  folderExists,
+  moveDryRun,
+  moved,
+  moveError,
+  scanComplete,
+} from "./sort-event-factories.js";
 import { BIZ_FOLDER, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -36,7 +44,7 @@ async function ensureFolders(client, onProgress) {
         await client.mailboxCreate(folder);
         onProgress(folderCreated(folder));
       } catch (err) {
-        onProgress(errorEvent("folder-error", "error", err, { folder }));
+        onProgress(folderError(err, folder));
       }
     }
   }
@@ -111,7 +119,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
             onProgress(moved("🏢", bizUids.length, label));
             stats.moved += bizUids.length;
           } catch (err) {
-            onProgress(errorEvent("move-error", "error", err, { label }));
+            onProgress(moveError(err, label));
             stats.skipped += bizUids.length;
           }
         }
@@ -127,7 +135,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
             onProgress(moved("🏠", personalUids.length, label));
             stats.moved += personalUids.length;
           } catch (err) {
-            onProgress(errorEvent("move-error", "error", err, { label }));
+            onProgress(moveError(err, label));
             stats.skipped += personalUids.length;
           }
         }

@@ -4,7 +4,10 @@ import {
   downloadBizCount,
   downloadDryRun,
   downloaded,
+  downloadFailed,
   duplicateContent,
+  fetchStructureError,
+  invalidPdf,
 } from "../src/download-event-factories.js";
 
 describe("downloadAccountStart", () => {
@@ -62,5 +65,62 @@ describe("downloaded", () => {
 
   it("has size field", () => {
     expect(downloaded("receipt.pdf", 1024).size).toBe(1024);
+  });
+});
+
+describe("fetchStructureError", () => {
+  it("has type fetch-structure-error", () => {
+    expect(fetchStructureError(new Error("failed"), 42).type).toBe("fetch-structure-error");
+  });
+
+  it("has severity error", () => {
+    expect(fetchStructureError(new Error("failed"), 42).severity).toBe("error");
+  });
+
+  it("has error field", () => {
+    const err = new Error("failed");
+    expect(fetchStructureError(err, 42).error).toBe(err);
+  });
+
+  it("has uid field", () => {
+    expect(fetchStructureError(new Error("failed"), 42).uid).toBe(42);
+  });
+});
+
+describe("invalidPdf", () => {
+  it("has type invalid-pdf", () => {
+    expect(invalidPdf(new Error("not a pdf"), "receipt.pdf").type).toBe("invalid-pdf");
+  });
+
+  it("has severity warning", () => {
+    expect(invalidPdf(new Error("not a pdf"), "receipt.pdf").severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    const err = new Error("not a pdf");
+    expect(invalidPdf(err, "receipt.pdf").error).toBe(err);
+  });
+
+  it("has filename field", () => {
+    expect(invalidPdf(new Error("not a pdf"), "receipt.pdf").filename).toBe("receipt.pdf");
+  });
+});
+
+describe("downloadFailed", () => {
+  it("has type download-failed", () => {
+    expect(downloadFailed(new Error("timeout"), "receipt.pdf").type).toBe("download-failed");
+  });
+
+  it("has severity error", () => {
+    expect(downloadFailed(new Error("timeout"), "receipt.pdf").severity).toBe("error");
+  });
+
+  it("has error field", () => {
+    const err = new Error("timeout");
+    expect(downloadFailed(err, "receipt.pdf").error).toBe(err);
+  });
+
+  it("has filename field", () => {
+    expect(downloadFailed(new Error("timeout"), "receipt.pdf").filename).toBe("receipt.pdf");
   });
 });

@@ -1,9 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { authSuccess, authWaiting, deviceCodePrompt } from "./auth-event-factories.js";
+import { authSuccess, authWaiting, deviceCodePrompt, tokenRefreshFailed } from "./auth-event-factories.js";
 import { debug } from "./debug.js";
-import { errorEvent } from "./error-event.js";
 
 const TOKEN_PATH = join(homedir(), ".newt", "m365-tokens.json");
 const SCOPE = "https://outlook.office365.com/IMAP.AccessAsUser.All offline_access";
@@ -52,7 +51,7 @@ async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToke
 
   if (!res.ok) {
     const errData = /** @type {{ error_description?: string }} */ (await res.json().catch(() => ({})));
-    onProgress(errorEvent("token-refresh-failed", "error", new Error(errData.error_description || res.statusText)));
+    onProgress(tokenRefreshFailed(new Error(errData.error_description || res.statusText)));
     return null;
   }
 

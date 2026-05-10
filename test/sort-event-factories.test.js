@@ -2,9 +2,11 @@ import { describe, expect, it } from "bun:test";
 import {
   accountStart,
   folderCreated,
+  folderError,
   folderExists,
   moveDryRun,
   moved,
+  moveError,
   scanComplete,
 } from "../src/sort-event-factories.js";
 
@@ -42,6 +44,25 @@ describe("folderCreated", () => {
   });
 });
 
+describe("folderError", () => {
+  it("has type folder-error", () => {
+    expect(folderError(new Error("failed"), "Business").type).toBe("folder-error");
+  });
+
+  it("has severity error", () => {
+    expect(folderError(new Error("failed"), "Business").severity).toBe("error");
+  });
+
+  it("has error field", () => {
+    const err = new Error("failed");
+    expect(folderError(err, "Business").error).toBe(err);
+  });
+
+  it("has folder field", () => {
+    expect(folderError(new Error("failed"), "Business").folder).toBe("Business");
+  });
+});
+
 describe("scanComplete", () => {
   it("has type scan-complete", () => {
     expect(scanComplete(10).type).toBe("scan-complete");
@@ -67,6 +88,25 @@ describe("moveDryRun", () => {
 
   it("has label field", () => {
     expect(moveDryRun("->", 5, "Business").label).toBe("Business");
+  });
+});
+
+describe("moveError", () => {
+  it("has type move-error", () => {
+    expect(moveError(new Error("failed"), "INBOX → Business").type).toBe("move-error");
+  });
+
+  it("has severity error", () => {
+    expect(moveError(new Error("failed"), "INBOX → Business").severity).toBe("error");
+  });
+
+  it("has error field", () => {
+    const err = new Error("failed");
+    expect(moveError(err, "INBOX → Business").error).toBe(err);
+  });
+
+  it("has label field", () => {
+    expect(moveError(new Error("failed"), "INBOX → Business").label).toBe("INBOX → Business");
   });
 });
 

@@ -9,7 +9,10 @@ import {
   downloadBizCount,
   downloadDryRun,
   downloaded,
+  downloadFailed,
   duplicateContent,
+  fetchStructureError,
+  invalidPdf,
 } from "./download-event-factories.js";
 import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
@@ -214,7 +217,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
             bodyStructure = fetched.bodyStructure;
           }
         } catch (err) {
-          onProgress(errorEvent("fetch-structure-error", "error", err, { uid: msg.uid }));
+          onProgress(fetchStructureError(err, msg.uid));
           continue;
         }
 
@@ -250,7 +253,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
 
               // Verify it's actually a PDF
               if (buffer.length < 5 || buffer.subarray(0, 5).toString() !== "%PDF-") {
-                onProgress(errorEvent("invalid-pdf", "warning", new Error("Invalid PDF content"), { filename }));
+                onProgress(invalidPdf(new Error("Invalid PDF content"), filename));
                 continue;
               }
 
@@ -280,7 +283,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
                 vendor,
               };
             } catch (err) {
-              onProgress(errorEvent("download-failed", "error", err, { filename }));
+              onProgress(downloadFailed(err, filename));
               stats.skipped++;
             }
           }
