@@ -7,6 +7,7 @@ import {
   downloadFailed,
   duplicateContent,
   fetchStructureError,
+  hashReadError,
   invalidPdf,
 } from "../src/download-event-factories.js";
 
@@ -122,5 +123,25 @@ describe("downloadFailed", () => {
 
   it("has filename field", () => {
     expect(downloadFailed(new Error("timeout"), "receipt.pdf").filename).toBe("receipt.pdf");
+  });
+});
+
+describe("hashReadError", () => {
+  const err = new Error("permission denied");
+
+  it("has type hash-read-error", () => {
+    expect(hashReadError(err, "receipt.pdf").type).toBe("hash-read-error");
+  });
+
+  it("has warning severity", () => {
+    expect(hashReadError(err, "receipt.pdf").severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(hashReadError(err, "receipt.pdf").error).toBe(err);
+  });
+
+  it("has file field", () => {
+    expect(hashReadError(err, "receipt.pdf").file).toBe("receipt.pdf");
   });
 });

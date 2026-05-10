@@ -2,10 +2,9 @@
  * Shared IMAP orchestration utilities.
  * Pure logic or thin async helpers — no direct I/O imports.
  *
- * Standard error event types emitted via onProgress:
- *
- * - `{ type: "mailbox-lock-failed", severity: "error", mailbox: string, error: Error }` — lock acquisition failed
- * - `{ type: "search-failed", severity: "warning", mailbox: string, error: Error }` — search within a locked mailbox failed
+ * Standard error events emitted via onProgress (see shared-event-factories.js):
+ * - mailboxLockFailed — lock acquisition failed (severity: error)
+ * - searchFailed — search within a locked mailbox failed (severity: warning)
  *
  * Helpers:
  *
@@ -15,7 +14,7 @@
  * - `forEachMailboxGroup(client, byMailbox, fn, onProgress)` — iterate over a mailbox→messages map with locking
  */
 
-import { errorEvent } from "./error-event.js";
+import { mailboxLockFailed } from "./shared-event-factories.js";
 
 /**
  * Consume a Node.js readable stream and return all data as a single Buffer.
@@ -45,7 +44,7 @@ export async function withMailboxLock(client, mailboxPath, fn, { onProgress = ()
   try {
     lock = await client.getMailboxLock(mailboxPath);
   } catch (err) {
-    onProgress(errorEvent("mailbox-lock-failed", "error", err, { mailbox: mailboxPath }));
+    onProgress(mailboxLockFailed(err, mailboxPath));
     return null;
   }
   try {
@@ -73,7 +72,7 @@ export function groupByMailbox(results) {
  * Iterate over a mailbox→messages map, acquiring an IMAP lock for each mailbox,
  * calling `fn`, and releasing the lock in a `finally` block.
  *
- * Emits `mailbox-lock-failed` via onProgress when `getMailboxLock` throws
+ * Emits `mailboxLockFailed` (see shared-event-factories.js) via onProgress when `getMailboxLock` throws
  * (e.g. mailbox not found), then skips that mailbox.
  *
  * @param {any} client - connected IMAP client (accepts duck-typed mocks in tests)
@@ -88,7 +87,7 @@ export async function forEachMailboxGroup(client, byMailbox, fn, onProgress = ()
     try {
       lock = await client.getMailboxLock(mailbox);
     } catch (err) {
-      onProgress(errorEvent("mailbox-lock-failed", "error", err, { mailbox }));
+      onProgress(mailboxLockFailed(err, mailbox));
       continue;
     }
     try {

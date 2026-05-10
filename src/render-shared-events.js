@@ -16,6 +16,13 @@ function applySeverityColor(text, severity) {
   return text;
 }
 
+import { mailboxLockFailed, searchFailed } from "./shared-event-factories.js";
+
+const sharedEventMap = {
+  [mailboxLockFailed.type]: (e) => `   Could not lock mailbox ${e.mailbox}: ${e.error.message}`,
+  [searchFailed.type]: (e) => `   Search failed in ${e.mailbox}: ${e.error.message}`,
+};
+
 /**
  * Handles event types that are emitted by multiple commands:
  * - mailbox-lock-failed
@@ -25,14 +32,8 @@ function applySeverityColor(text, severity) {
  * @returns {string | null}
  */
 export function renderSharedEvent(event) {
-  switch (event.type) {
-    case "mailbox-lock-failed":
-      return `   Could not lock mailbox ${event.mailbox}: ${event.error.message}`;
-    case "search-failed":
-      return `   Search failed in ${event.mailbox}: ${event.error.message}`;
-    default:
-      return null;
-  }
+  const handler = sharedEventMap[event.type];
+  return handler ? handler(event) : null;
 }
 
 /**

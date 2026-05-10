@@ -1,6 +1,6 @@
-import { errorEvent } from "./error-event.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
+import { searchFailed } from "./shared-event-factories.js";
 
 /**
  * Find which mailbox contains a given UID.
@@ -67,7 +67,7 @@ async function searchMailboxForUid(client, mailboxPath, uid, onProgress) {
           return found && found.length > 0;
         } catch (err) {
           // Search failed — return false
-          onProgress(errorEvent("search-failed", "warning", err, { mailbox: mailboxPath }));
+          onProgress(searchFailed(err, mailboxPath));
           return false;
         }
       },

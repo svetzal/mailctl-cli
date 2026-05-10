@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { authSuccess, authWaiting, deviceCodePrompt, tokenRefreshFailed } from "../src/auth-event-factories.js";
+import {
+  authSuccess,
+  authWaiting,
+  connectError,
+  deviceCodePrompt,
+  tokenRefreshFailed,
+} from "../src/auth-event-factories.js";
 
 describe("deviceCodePrompt", () => {
   it("has type device-code-prompt", () => {
@@ -39,5 +45,25 @@ describe("tokenRefreshFailed", () => {
   it("has error field", () => {
     const err = new Error("refresh failed");
     expect(tokenRefreshFailed(err).error).toBe(err);
+  });
+});
+
+describe("connectError", () => {
+  const err = new Error("connection refused");
+
+  it("has type connect-error", () => {
+    expect(connectError(err, "Work").type).toBe("connect-error");
+  });
+
+  it("has error severity", () => {
+    expect(connectError(err, "Work").severity).toBe("error");
+  });
+
+  it("has error field", () => {
+    expect(connectError(err, "Work").error).toBe(err);
+  });
+
+  it("has account field", () => {
+    expect(connectError(err, "Work").account).toBe("Work");
   });
 });

@@ -3,8 +3,8 @@
  */
 
 import { sanitizeForAgentOutput } from "./content-sanitizer.js";
-import { errorEvent } from "./error-event.js";
 import { withMailboxLock } from "./imap-orchestration.js";
+import { searchFailed } from "./shared-event-factories.js";
 
 /**
  * @param {any} client - connected IMAP client
@@ -40,7 +40,7 @@ export async function fetchInbox(client, accountName, opts) {
             : await client.search({ all: true }, { uid: true });
         } catch (err) {
           // Search failed — return empty results
-          onProgress(errorEvent("search-failed", "warning", err, { mailbox }));
+          onProgress(searchFailed(err, mailbox));
           return [];
         }
 

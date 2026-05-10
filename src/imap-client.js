@@ -1,10 +1,10 @@
 import { ImapFlow } from "imapflow";
-import { errorEvent } from "./error-event.js";
+import { connectError } from "./auth-event-factories.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { getM365AccessToken } from "./m365-auth.js";
 import { RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 import { buildScanResult } from "./scan-helpers.js";
-import { mailboxEmpty, mailboxMatches, mailboxStart } from "./shared-event-factories.js";
+import { fetchError, mailboxEmpty, mailboxMatches, mailboxStart, searchError } from "./shared-event-factories.js";
 
 /**
  * Supports both password-based and OAuth2 (XOAUTH2) authentication.
@@ -70,7 +70,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
           try {
             uids = await client.search(searchCriteria, { uid: true });
           } catch (err) {
-            onProgress(errorEvent("search-error", "warning", err, { term }));
+            onProgress(searchError(err, term));
             continue;
           }
 
@@ -92,7 +92,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
             mailboxResults.push(buildScanResult(accountName, mailbox, msg));
           }
         } catch (err) {
-          onProgress(errorEvent("fetch-error", "warning", err));
+          onProgress(fetchError(err));
         }
 
         return mailboxResults;
@@ -135,7 +135,7 @@ export async function forEachAccount(accounts, fn, onProgress = () => {}) {
     try {
       client = await connect(account, onProgress);
     } catch (err) {
-      onProgress(errorEvent("connect-error", "error", err, { account: account.name }));
+      onProgress(connectError(err, account.name));
       continue;
     }
     try {

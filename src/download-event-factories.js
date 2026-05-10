@@ -12,3 +12,4 @@ export const downloaded = defineEvent("downloaded", "filename", "size");
 export const fetchStructureError = defineErrorEvent("fetch-structure-error", "error", "uid");
 export const invalidPdf = defineErrorEvent("invalid-pdf", "warning", "filename");
 export const downloadFailed = defineErrorEvent("download-failed", "error", "filename");
+export const hashReadError = defineErrorEvent("hash-read-error", "warning", "file");

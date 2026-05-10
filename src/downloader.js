@@ -12,9 +12,9 @@ import {
   downloadFailed,
   duplicateContent,
   fetchStructureError,
+  hashReadError,
   invalidPdf,
 } from "./download-event-factories.js";
-import { errorEvent } from "./error-event.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -181,7 +181,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
         const buf = fs.readBuffer(join(outputDir, f));
         existingHashes.add(createHash("sha256").update(buf).digest("hex"));
       } catch (err) {
-        onProgress(errorEvent("hash-read-error", "warning", err, { file: f }));
+        onProgress(hashReadError(err, f));
       }
     }
   }

@@ -8,3 +8,4 @@ export const deviceCodePrompt = defineEvent("device-code-prompt", "verificationU
 export const authWaiting = defineEvent("auth-waiting");
 export const authSuccess = defineEvent("auth-success");
 export const tokenRefreshFailed = defineErrorEvent("token-refresh-failed", "error");
+export const connectError = defineErrorEvent("connect-error", "error", "account");
