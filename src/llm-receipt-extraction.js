@@ -5,7 +5,7 @@
 
 import { isOk, LlmBroker, Message, OpenAIGateway } from "mojentic";
 import { buildLlmEmailContext, sanitizeForAgentOutput } from "./content-sanitizer.js";
-import { errorEvent } from "./error-event.js";
+import { llmExtractionFailed, llmNotConfigured } from "./download-receipts-event-factories.js";
 import { cleanVendorForFilename, extractMetadata, formatDate, sanitizeFilename } from "./receipt-extraction.js";
 
 /** JSON schema for LLM-based receipt data extraction. */
@@ -104,7 +104,7 @@ export function createLlmBroker(openAiKey = null, onProgress = () => {}) {
     const broker = new LlmBroker("gpt-5-mini", gateway);
     return { broker, gateway };
   } catch (err) {
-    onProgress(errorEvent("llm-not-configured", "warning", err));
+    onProgress(llmNotConfigured(err));
     return null;
   }
 }
@@ -198,7 +198,7 @@ export async function extractReceiptMetadata(
     try {
       metadata = await extractMetadataWithLLM(llm.broker, extractionText, subject, fromAddress, fromName, emailDate);
     } catch (err) {
-      onProgress(errorEvent("llm-extraction-failed", "warning", err));
+      onProgress(llmExtractionFailed(err));
       metadata = null;
     }
   }

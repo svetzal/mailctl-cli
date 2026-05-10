@@ -4,7 +4,7 @@
  * src/receipt-output-tree.js, src/pdf-converter.js, and src/llm-receipt-extraction.js.
  */
 
-import { defineEvent } from "./define-event.js";
+import { defineErrorEvent, defineEvent } from "./define-event.js";
 
 // From download-receipts.js and listReceiptVendors
 export const searchAccount = defineEvent("search-account", "name", "user");
@@ -43,3 +43,19 @@ export const wroteMetadata = defineEvent("wrote-metadata", "filename");
 
 // From pdf-converter.js
 export const usingPdfContent = defineEvent("using-pdf-content", "uid");
+export const doclingFailed = defineErrorEvent("docling-failed", "warning", "uid");
+export const doclingConversionFailed = defineErrorEvent("docling-conversion-failed", "warning", "uid", "pdfPath");
+
+// From llm-receipt-extraction.js
+export const llmNotConfigured = defineErrorEvent("llm-not-configured", "warning");
+export const llmExtractionFailed = defineErrorEvent("llm-extraction-failed", "warning");
+
+// From receipt-search-pipeline.js
+export const searchTermError = defineErrorEvent("search-term-error", "warning", "mailbox");
+export const mailboxFetchError = defineErrorEvent("mailbox-fetch-error", "warning");
+
+// From download-receipts.js
+export const outputTreeError = defineErrorEvent("output-tree-error", "warning", "path", "level");
+export const processError = defineErrorEvent("process-error", "error", "uid");
+export const reprocessDoclingFailed = defineErrorEvent("reprocess-docling-failed", "warning", "filename");
+export const reprocessError = defineErrorEvent("reprocess-error", "error", "filename");

@@ -4,8 +4,7 @@
 
 import { join } from "node:path";
 import { debug } from "./debug.js";
-import { usingPdfContent } from "./download-receipts-event-factories.js";
-import { errorEvent } from "./error-event.js";
+import { doclingFailed, usingPdfContent } from "./download-receipts-event-factories.js";
 
 /**
  * @param {string} pdfPath
@@ -78,7 +77,7 @@ export function resolveExtractionText(
       return pdfMarkdown;
     }
   } catch (err) {
-    onProgress(errorEvent("docling-failed", "warning", err, { uid }));
+    onProgress(doclingFailed(err, uid));
   } finally {
     try {
       fs.rm(tmpPdfPath, { force: true });

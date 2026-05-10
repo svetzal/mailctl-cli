@@ -5,8 +5,12 @@
  */
 
 import { deduplicateByMessageId } from "./dedup.js";
-import { mailboxCandidates, mailboxSearchStart } from "./download-receipts-event-factories.js";
-import { errorEvent } from "./error-event.js";
+import {
+  mailboxCandidates,
+  mailboxFetchError,
+  mailboxSearchStart,
+  searchTermError,
+} from "./download-receipts-event-factories.js";
 import { filterSearchMailboxes } from "./imap-client.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
@@ -38,7 +42,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             const uids = await client.search(criteria, { uid: true });
             if (uids) for (const uid of uids) allUids.add(uid);
           } catch (err) {
-            onProgress(errorEvent("search-term-error", "warning", err, { mailbox: mailboxPath, term }));
+            onProgress(searchTermError(err, mailboxPath));
           }
         }
 
@@ -50,7 +54,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             const uids = await client.search(criteria, { uid: true });
             if (uids) for (const uid of uids) allUids.add(uid);
           } catch (err) {
-            onProgress(errorEvent("search-term-error", "warning", err, { mailbox: mailboxPath, pattern }));
+            onProgress(searchTermError(err, mailboxPath));
           }
         }
 
@@ -84,7 +88,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
             });
           }
         } catch (err) {
-          onProgress(errorEvent("mailbox-fetch-error", "warning", err));
+          onProgress(mailboxFetchError(err));
         }
 
         return results;

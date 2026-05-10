@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  doclingConversionFailed,
+  doclingFailed,
   downloadedPdf,
   downloadSummary,
   dryRunJson,
@@ -7,10 +9,17 @@ import {
   dryRunPdf,
   llmDisabled,
   llmEnabled,
+  llmExtractionFailed,
+  llmNotConfigured,
   mailboxCandidates,
+  mailboxFetchError,
   mailboxSearchStart,
+  outputTreeError,
+  processError,
+  reprocessDoclingFailed,
   reprocessDryRun,
   reprocessDryRunBody,
+  reprocessError,
   reprocessNoData,
   reprocessReclassified,
   reprocessSkipped,
@@ -19,6 +28,7 @@ import {
   reprocessUpdated,
   reprocessUsingBody,
   searchAccount,
+  searchTermError,
   skipDuplicate,
   skipExistingInvoice,
   skipLowConfidence,
@@ -352,5 +362,201 @@ describe("usingPdfContent", () => {
 
   it("has uid field", () => {
     expect(usingPdfContent(42).uid).toBe(42);
+  });
+});
+
+describe("doclingFailed", () => {
+  const err = new Error("docling not found");
+
+  it("has type docling-failed", () => {
+    expect(doclingFailed(err, 42).type).toBe("docling-failed");
+  });
+
+  it("has warning severity", () => {
+    expect(doclingFailed(err, 42).severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(doclingFailed(err, 42).error).toBe(err);
+  });
+
+  it("has uid field", () => {
+    expect(doclingFailed(err, 42).uid).toBe(42);
+  });
+});
+
+describe("doclingConversionFailed", () => {
+  const err = new Error("subprocess failed");
+
+  it("has type docling-conversion-failed", () => {
+    expect(doclingConversionFailed(err, 7, "/tmp/x.pdf").type).toBe("docling-conversion-failed");
+  });
+
+  it("has warning severity", () => {
+    expect(doclingConversionFailed(err, 7, "/tmp/x.pdf").severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(doclingConversionFailed(err, 7, "/tmp/x.pdf").error).toBe(err);
+  });
+
+  it("has uid field", () => {
+    expect(doclingConversionFailed(err, 7, "/tmp/x.pdf").uid).toBe(7);
+  });
+
+  it("has pdfPath field", () => {
+    expect(doclingConversionFailed(err, 7, "/tmp/x.pdf").pdfPath).toBe("/tmp/x.pdf");
+  });
+});
+
+describe("llmNotConfigured", () => {
+  const err = new Error("bad api key");
+
+  it("has type llm-not-configured", () => {
+    expect(llmNotConfigured(err).type).toBe("llm-not-configured");
+  });
+
+  it("has warning severity", () => {
+    expect(llmNotConfigured(err).severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(llmNotConfigured(err).error).toBe(err);
+  });
+});
+
+describe("llmExtractionFailed", () => {
+  const err = new Error("api timeout");
+
+  it("has type llm-extraction-failed", () => {
+    expect(llmExtractionFailed(err).type).toBe("llm-extraction-failed");
+  });
+
+  it("has warning severity", () => {
+    expect(llmExtractionFailed(err).severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(llmExtractionFailed(err).error).toBe(err);
+  });
+});
+
+describe("searchTermError", () => {
+  const err = new Error("server error");
+
+  it("has type search-term-error", () => {
+    expect(searchTermError(err, "INBOX").type).toBe("search-term-error");
+  });
+
+  it("has warning severity", () => {
+    expect(searchTermError(err, "INBOX").severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(searchTermError(err, "INBOX").error).toBe(err);
+  });
+
+  it("has mailbox field", () => {
+    expect(searchTermError(err, "INBOX").mailbox).toBe("INBOX");
+  });
+});
+
+describe("mailboxFetchError", () => {
+  const err = new Error("timeout");
+
+  it("has type mailbox-fetch-error", () => {
+    expect(mailboxFetchError(err).type).toBe("mailbox-fetch-error");
+  });
+
+  it("has warning severity", () => {
+    expect(mailboxFetchError(err).severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(mailboxFetchError(err).error).toBe(err);
+  });
+});
+
+describe("outputTreeError", () => {
+  const err = new Error("read failed");
+
+  it("has type output-tree-error", () => {
+    expect(outputTreeError(err, "/receipts/2024", "vendor").type).toBe("output-tree-error");
+  });
+
+  it("has warning severity", () => {
+    expect(outputTreeError(err, "/receipts/2024", "vendor").severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(outputTreeError(err, "/receipts/2024", "vendor").error).toBe(err);
+  });
+
+  it("has path field", () => {
+    expect(outputTreeError(err, "/receipts/2024", "vendor").path).toBe("/receipts/2024");
+  });
+
+  it("has level field", () => {
+    expect(outputTreeError(err, "/receipts/2024", "vendor").level).toBe("vendor");
+  });
+});
+
+describe("processError", () => {
+  const err = new Error("parse failed");
+
+  it("has type process-error", () => {
+    expect(processError(err, 77).type).toBe("process-error");
+  });
+
+  it("has error severity", () => {
+    expect(processError(err, 77).severity).toBe("error");
+  });
+
+  it("has error field", () => {
+    expect(processError(err, 77).error).toBe(err);
+  });
+
+  it("has uid field", () => {
+    expect(processError(err, 77).uid).toBe(77);
+  });
+});
+
+describe("reprocessDoclingFailed", () => {
+  const err = new Error("docling conversion failed");
+
+  it("has type reprocess-docling-failed", () => {
+    expect(reprocessDoclingFailed(err, "receipt.pdf").type).toBe("reprocess-docling-failed");
+  });
+
+  it("has warning severity", () => {
+    expect(reprocessDoclingFailed(err, "receipt.pdf").severity).toBe("warning");
+  });
+
+  it("has error field", () => {
+    expect(reprocessDoclingFailed(err, "receipt.pdf").error).toBe(err);
+  });
+
+  it("has filename field", () => {
+    expect(reprocessDoclingFailed(err, "receipt.pdf").filename).toBe("receipt.pdf");
+  });
+});
+
+describe("reprocessError", () => {
+  const err = new Error("extraction failed");
+
+  it("has type reprocess-error", () => {
+    expect(reprocessError(err, "receipt.json").type).toBe("reprocess-error");
+  });
+
+  it("has error severity", () => {
+    expect(reprocessError(err, "receipt.json").severity).toBe("error");
+  });
+
+  it("has error field", () => {
+    expect(reprocessError(err, "receipt.json").error).toBe(err);
+  });
+
+  it("has filename field", () => {
+    expect(reprocessError(err, "receipt.json").filename).toBe("receipt.json");
   });
 });
