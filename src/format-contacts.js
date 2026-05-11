@@ -1,3 +1,4 @@
+import { formatOutput } from "./cli-helpers.js";
 import { formatShortDate } from "./format-date.js";
 
 /**
@@ -41,4 +42,15 @@ export function buildContactsJson(contacts, opts) {
       direction: c.direction,
     })),
   };
+}
+
+/**
+ * @param {boolean} json
+ * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
+ * @param {object} opts
+ * @param {string} opts.sinceLabel
+ * @returns {string}
+ */
+export function formatContactsOutput(json, contacts, opts) {
+  return formatOutput(json, buildContactsJson(contacts, opts), formatContactsText(contacts, opts));
 }

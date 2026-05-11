@@ -11,7 +11,6 @@ import {
   createResolveAccount,
   createResolveJson,
   filterAccountsByName,
-  formatOutput,
   resolveCommandContext,
   withErrorHandling,
 } from "./cli-helpers.js";
@@ -21,20 +20,20 @@ import { downloadReceiptsCommand } from "./download-receipts-command.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
 import { formatAttachmentOutput } from "./format-attachment.js";
-import { buildContactsJson, formatContactsText } from "./format-contacts.js";
-import { buildDownloadJson, formatDownloadResultText } from "./format-download.js";
-import { buildDownloadReceiptsJson, formatDownloadReceiptsResultText } from "./format-download-receipts.js";
-import { buildFlagResultJson, formatFlagResultText } from "./format-flag.js";
-import { buildFoldersJson, formatFoldersText } from "./format-folders.js";
-import { buildImportClassificationsJson } from "./format-import-classifications.js";
-import { buildInboxJson, formatInboxText } from "./format-inbox.js";
-import { buildInitJsonResult, formatInitResultText } from "./format-init.js";
-import { buildMoveJson, formatMoveResultText } from "./format-move.js";
+import { formatContactsOutput } from "./format-contacts.js";
+import { formatDownloadOutput } from "./format-download.js";
+import { formatDownloadReceiptsOutput } from "./format-download-receipts.js";
+import { formatFlagOutput } from "./format-flag.js";
+import { formatFoldersOutput } from "./format-folders.js";
+import { formatImportClassificationsOutput } from "./format-import-classifications.js";
+import { formatInboxOutput } from "./format-inbox.js";
+import { formatInitOutput } from "./format-init.js";
+import { formatMoveOutput } from "./format-move.js";
 import { formatReadOutput } from "./format-read.js";
 import { formatReplyOutput } from "./format-reply.js";
-import { buildClassifyJson, buildScanJson, formatScanSummaryText, formatUnclassifiedText } from "./format-scan.js";
-import { buildSearchJson, formatSearchResultsText } from "./format-search.js";
-import { buildSortJson, formatSortResultText } from "./format-sort.js";
+import { formatClassifyOutput, formatScanOutput } from "./format-scan.js";
+import { formatSearchOutput } from "./format-search.js";
+import { formatSortOutput } from "./format-sort.js";
 import { formatThreadOutput } from "./format-thread.js";
 import { ConfirmGateway } from "./gateways/confirm-gateway.js";
 import { EditorGateway } from "./gateways/editor-gateway.js";
@@ -132,7 +131,7 @@ program
 
       console.error(`Saved raw results to ${rawPath}`);
       console.error(`Saved sender summary to ${summaryPath}`);
-      console.log(formatOutput(json, buildScanJson(total, senders), formatScanSummaryText(senders, total)));
+      console.log(formatScanOutput(json, total, senders));
     }),
   );
 
@@ -149,7 +148,7 @@ program
         fsGateway: _fs,
       });
 
-      console.log(formatOutput(json, buildClassifyJson(unclassifiedList), formatUnclassifiedText(unclassifiedList)));
+      console.log(formatClassifyOutput(json, unclassifiedList));
     }),
   );
 
@@ -164,13 +163,7 @@ program
 
       const { imported, path } = importClassificationsCommand(file, opts.output, { fsGateway: _fs });
 
-      console.log(
-        formatOutput(
-          json,
-          buildImportClassificationsJson(imported, path),
-          `Imported ${imported} classifications to ${path}`,
-        ),
-      );
+      console.log(formatImportClassificationsOutput(json, imported, path));
     }),
   );
 
@@ -186,7 +179,7 @@ program
 
       const stats = await sortCommand(opts, { account: account || null }, renderSortProgress);
 
-      console.log(formatOutput(json, buildSortJson(stats), formatSortResultText(stats)));
+      console.log(formatSortOutput(json, stats));
     }),
   );
 
@@ -203,7 +196,7 @@ program
 
       const stats = await downloadCommand(opts, { account: account || null }, renderDownloadProgress);
 
-      console.log(formatOutput(json, buildDownloadJson(stats), formatDownloadResultText(stats)));
+      console.log(formatDownloadOutput(json, stats));
     }),
   );
 
@@ -229,9 +222,7 @@ program
         importVendorMap: () => import("./vendor-map.js"),
       };
       const result = await downloadReceiptsCommand(opts, deps, renderDownloadReceiptsProgress);
-      console.log(
-        formatOutput(json, buildDownloadReceiptsJson(result), formatDownloadReceiptsResultText(result, opts)),
-      );
+      console.log(formatDownloadReceiptsOutput(json, result, opts));
     }),
   );
 
@@ -264,7 +255,7 @@ program
       for (const w of warnings) console.error(w);
 
       if (json || allResults.length > 0) {
-        console.log(formatOutput(json, buildSearchJson(allResults), formatSearchResultsText(allResults)));
+        console.log(formatSearchOutput(json, allResults));
       }
     }),
   );
@@ -306,7 +297,7 @@ program
         renderAuthProgress,
       );
 
-      console.log(formatOutput(json, buildFoldersJson(allAccountFolders), formatFoldersText(allAccountFolders)));
+      console.log(formatFoldersOutput(json, allAccountFolders));
     }),
   );
 
@@ -351,7 +342,7 @@ program
         listMailboxes,
       });
 
-      console.log(formatOutput(json, buildMoveJson(stats, results), formatMoveResultText(stats)));
+      console.log(formatMoveOutput(json, stats, results));
     }),
   );
 
@@ -370,7 +361,7 @@ program
         forEachAccount,
       });
 
-      console.log(formatOutput(json, buildInboxJson(allResults), formatInboxText(resultsByAccount)));
+      console.log(formatInboxOutput(json, allResults, resultsByAccount));
     }),
   );
 
@@ -395,7 +386,7 @@ program
         listMailboxes,
       });
 
-      console.log(formatOutput(json, buildFlagResultJson(stats, results), formatFlagResultText(stats, results)));
+      console.log(formatFlagOutput(json, stats, results));
     }),
   );
 
@@ -471,9 +462,7 @@ program
         forEachAccount,
       });
 
-      console.log(
-        formatOutput(json, buildContactsJson(contacts, { sinceLabel }), formatContactsText(contacts, { sinceLabel })),
-      );
+      console.log(formatContactsOutput(json, contacts, { sinceLabel }));
     }),
   );
 
@@ -489,7 +478,7 @@ program
       const json = resolveJson(opts);
       const result = await initCommand(program.version() ?? "0.0.0", { global: !!opts.global, force: !!opts.force });
 
-      console.log(formatOutput(json, buildInitJsonResult(result), formatInitResultText(result)));
+      console.log(formatInitOutput(json, result));
     }),
   );
 

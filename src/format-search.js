@@ -1,3 +1,5 @@
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {object} SearchResult
  * @property {string} mailbox - mailbox path where the result was found
@@ -39,4 +41,13 @@ export function formatSearchResultsText(results) {
  */
 export function buildSearchJson(results) {
   return results.map(({ messageId, ...rest }) => rest);
+}
+
+/**
+ * @param {boolean} json
+ * @param {SearchResult[]} results
+ * @returns {string}
+ */
+export function formatSearchOutput(json, results) {
+  return formatOutput(json, buildSearchJson(results), formatSearchResultsText(results));
 }

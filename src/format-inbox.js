@@ -1,3 +1,4 @@
+import { formatOutput } from "./cli-helpers.js";
 import { formatMessageDate } from "./format-date.js";
 
 /**
@@ -17,7 +18,7 @@ export function formatInboxText(resultsByAccount) {
     }
 
     for (const msg of messages) {
-      const marker = msg.unread ? "\u25CF" : "\u25CB";
+      const marker = msg.unread ? "●" : "○";
       const dateStr = formatMessageDate(msg.date);
       const sender = msg.fromName ? `${msg.fromName} <${msg.from}>` : msg.from;
       lines.push(`  ${marker} UID:${msg.uid}  ${dateStr}  ${sender}`);
@@ -45,4 +46,14 @@ export function buildInboxJson(allResults) {
     unread: msg.unread,
     mailbox: msg.mailbox,
   }));
+}
+
+/**
+ * @param {boolean} json
+ * @param {Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>} allResults
+ * @param {Map<string, Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>>} resultsByAccount
+ * @returns {string}
+ */
+export function formatInboxOutput(json, allResults, resultsByAccount) {
+  return formatOutput(json, buildInboxJson(allResults), formatInboxText(resultsByAccount));
 }

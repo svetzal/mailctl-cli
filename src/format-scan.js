@@ -1,3 +1,5 @@
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {object} SenderSummary
  * @property {string} address - sender email address
@@ -72,4 +74,23 @@ export function buildScanJson(total, senders) {
  */
 export function buildClassifyJson(unclassifiedList) {
   return { unclassified: unclassifiedList };
+}
+
+/**
+ * @param {boolean} json
+ * @param {number} total
+ * @param {SenderSummary[]} senders
+ * @returns {string}
+ */
+export function formatScanOutput(json, total, senders) {
+  return formatOutput(json, buildScanJson(total, senders), formatScanSummaryText(senders, total));
+}
+
+/**
+ * @param {boolean} json
+ * @param {UnclassifiedSender[]} unclassifiedList
+ * @returns {string}
+ */
+export function formatClassifyOutput(json, unclassifiedList) {
+  return formatOutput(json, buildClassifyJson(unclassifiedList), formatUnclassifiedText(unclassifiedList));
 }

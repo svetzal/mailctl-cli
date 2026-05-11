@@ -1,3 +1,5 @@
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {import("./flag-command.js").FlagResult} FlagResult
  * @typedef {import("./flag-command.js").FlagStats} FlagStats
@@ -38,4 +40,14 @@ export function formatFlagResultText(stats, results) {
  */
 export function buildFlagResultJson(stats, results) {
   return { ...stats, results };
+}
+
+/**
+ * @param {boolean} json
+ * @param {FlagStats} stats
+ * @param {FlagResult[]} results
+ * @returns {string}
+ */
+export function formatFlagOutput(json, stats, results) {
+  return formatOutput(json, buildFlagResultJson(stats, results), formatFlagResultText(stats, results));
 }

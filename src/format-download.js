@@ -1,3 +1,5 @@
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
  * @returns {string}
@@ -23,4 +25,13 @@ export function buildDownloadJson(stats) {
     noPdf: stats.noPdf,
     skipped: stats.skipped,
   };
+}
+
+/**
+ * @param {boolean} json
+ * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
+ * @returns {string}
+ */
+export function formatDownloadOutput(json, stats) {
+  return formatOutput(json, buildDownloadJson(stats), formatDownloadResultText(stats));
 }

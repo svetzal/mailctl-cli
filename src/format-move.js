@@ -1,3 +1,5 @@
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {object} MoveStats
  * @property {number} moved - number of messages successfully moved
@@ -20,4 +22,14 @@ export function formatMoveResultText(stats) {
  */
 export function buildMoveJson(stats, results) {
   return { ...stats, results };
+}
+
+/**
+ * @param {boolean} json
+ * @param {MoveStats} stats
+ * @param {object[]} results
+ * @returns {string}
+ */
+export function formatMoveOutput(json, stats, results) {
+  return formatOutput(json, buildMoveJson(stats, results), formatMoveResultText(stats));
 }

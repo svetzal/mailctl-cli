@@ -1,3 +1,5 @@
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {{ vendor: string, count: number }} VendorEntry
  */
@@ -68,4 +70,14 @@ export function buildDownloadReceiptsJson(result) {
     return rest;
   }
   return { stats: result.stats, records: result.records };
+}
+
+/**
+ * @param {boolean} json
+ * @param {DownloadReceiptsResult} result
+ * @param {{ since?: string, months?: string }} opts
+ * @returns {string}
+ */
+export function formatDownloadReceiptsOutput(json, result, opts) {
+  return formatOutput(json, buildDownloadReceiptsJson(result), formatDownloadReceiptsResultText(result, opts));
 }

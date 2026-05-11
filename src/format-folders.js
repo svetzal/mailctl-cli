@@ -1,3 +1,5 @@
+import { formatOutput } from "./cli-helpers.js";
+
 /**
  * @typedef {object} FolderInfo
  * @property {string} path - IMAP folder path
@@ -40,4 +42,13 @@ export function formatFoldersText(foldersByAccount) {
  */
 export function buildFoldersJson(foldersByAccount) {
   return foldersByAccount.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
+}
+
+/**
+ * @param {boolean} json
+ * @param {AccountFolders[]} foldersByAccount
+ * @returns {string}
+ */
+export function formatFoldersOutput(json, foldersByAccount) {
+  return formatOutput(json, buildFoldersJson(foldersByAccount), formatFoldersText(foldersByAccount));
 }
