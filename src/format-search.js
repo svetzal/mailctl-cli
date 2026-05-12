@@ -1,4 +1,4 @@
-import { formatOutput } from "./cli-helpers.js";
+import { createFormatOutput } from "./cli-helpers.js";
 
 /**
  * @typedef {object} SearchResult
@@ -43,11 +43,4 @@ export function buildSearchJson(results) {
   return results.map(({ messageId, ...rest }) => rest);
 }
 
-/**
- * @param {boolean} json
- * @param {SearchResult[]} results
- * @returns {string}
- */
-export function formatSearchOutput(json, results) {
-  return formatOutput(json, buildSearchJson(results), formatSearchResultsText(results));
-}
+export const formatSearchOutput = createFormatOutput(buildSearchJson, formatSearchResultsText);

@@ -1,4 +1,4 @@
-import { formatOutput } from "./cli-helpers.js";
+import { createFormatOutput } from "./cli-helpers.js";
 
 /**
  * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
@@ -27,11 +27,4 @@ export function buildDownloadJson(stats) {
   };
 }
 
-/**
- * @param {boolean} json
- * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
- * @returns {string}
- */
-export function formatDownloadOutput(json, stats) {
-  return formatOutput(json, buildDownloadJson(stats), formatDownloadResultText(stats));
-}
+export const formatDownloadOutput = createFormatOutput(buildDownloadJson, formatDownloadResultText);

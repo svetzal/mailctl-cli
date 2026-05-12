@@ -1,4 +1,4 @@
-import { formatOutput } from "./cli-helpers.js";
+import { createFormatOutput } from "./cli-helpers.js";
 
 /**
  * @typedef {object} MoveStats
@@ -9,9 +9,10 @@ import { formatOutput } from "./cli-helpers.js";
 
 /**
  * @param {MoveStats} stats
+ * @param {object[]} [_results]
  * @returns {string}
  */
-export function formatMoveResultText(stats) {
+export function formatMoveResultText(stats, _results) {
   return `\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped (dry-run)`;
 }
 
@@ -24,12 +25,4 @@ export function buildMoveJson(stats, results) {
   return { ...stats, results };
 }
 
-/**
- * @param {boolean} json
- * @param {MoveStats} stats
- * @param {object[]} results
- * @returns {string}
- */
-export function formatMoveOutput(json, stats, results) {
-  return formatOutput(json, buildMoveJson(stats, results), formatMoveResultText(stats));
-}
+export const formatMoveOutput = createFormatOutput(buildMoveJson, formatMoveResultText);

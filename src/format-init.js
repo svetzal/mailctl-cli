@@ -1,4 +1,4 @@
-import { formatOutput } from "./cli-helpers.js";
+import { createFormatOutput } from "./cli-helpers.js";
 
 /**
  * @typedef {import("./init.js").FileAction} FileAction
@@ -67,11 +67,4 @@ export function buildInitJsonResult(result) {
   };
 }
 
-/**
- * @param {boolean} json
- * @param {InitFormatInput} result
- * @returns {string}
- */
-export function formatInitOutput(json, result) {
-  return formatOutput(json, buildInitJsonResult(result), formatInitResultText(result));
-}
+export const formatInitOutput = createFormatOutput(buildInitJsonResult, formatInitResultText);

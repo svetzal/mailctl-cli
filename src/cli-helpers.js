@@ -110,6 +110,16 @@ export function formatOutput(json, jsonData, textOutput) {
 }
 
 /**
+ * Create a format dispatcher that routes to JSON or text based on the first argument.
+ * @param {(...args: any[]) => unknown} buildJsonFn - builds the JSON payload from the remaining args
+ * @param {(...args: any[]) => string} formatTextFn - builds the text output from the remaining args
+ * @returns {(json: boolean, ...args: any[]) => string}
+ */
+export function createFormatOutput(buildJsonFn, formatTextFn) {
+  return (json, ...args) => formatOutput(json, buildJsonFn(...args), formatTextFn(...args));
+}
+
+/**
  * Create a resolver for the --json flag that checks command-level opts first,
  * then falls back to global program opts.
  *

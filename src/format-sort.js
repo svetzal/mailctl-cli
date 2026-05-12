@@ -1,4 +1,4 @@
-import { formatOutput } from "./cli-helpers.js";
+import { createFormatOutput } from "./cli-helpers.js";
 
 /**
  * @param {{ moved: number, skipped: number, unclassified: number }} stats
@@ -26,11 +26,4 @@ export function buildSortJson(stats) {
   };
 }
 
-/**
- * @param {boolean} json
- * @param {{ moved: number, skipped: number, alreadySorted: number, unclassified: number }} stats
- * @returns {string}
- */
-export function formatSortOutput(json, stats) {
-  return formatOutput(json, buildSortJson(stats), formatSortResultText(stats));
-}
+export const formatSortOutput = createFormatOutput(buildSortJson, formatSortResultText);

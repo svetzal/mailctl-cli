@@ -1,4 +1,4 @@
-import { formatOutput } from "./cli-helpers.js";
+import { createFormatOutput } from "./cli-helpers.js";
 
 /**
  * @typedef {object} SenderSummary
@@ -10,11 +10,11 @@ import { formatOutput } from "./cli-helpers.js";
  */
 
 /**
- * @param {SenderSummary[]} senders - aggregated sender list from aggregateBySender()
  * @param {number} totalCount - total number of receipt emails found
+ * @param {SenderSummary[]} senders - aggregated sender list from aggregateBySender()
  * @returns {string}
  */
-export function formatScanSummaryText(senders, totalCount) {
+export function formatScanSummaryText(totalCount, senders) {
   const lines = [];
   lines.push("\n=== Receipt Senders Found ===\n");
   lines.push(`Total: ${totalCount} receipt emails from ${senders.length} unique senders\n`);
@@ -76,21 +76,6 @@ export function buildClassifyJson(unclassifiedList) {
   return { unclassified: unclassifiedList };
 }
 
-/**
- * @param {boolean} json
- * @param {number} total
- * @param {SenderSummary[]} senders
- * @returns {string}
- */
-export function formatScanOutput(json, total, senders) {
-  return formatOutput(json, buildScanJson(total, senders), formatScanSummaryText(senders, total));
-}
+export const formatScanOutput = createFormatOutput(buildScanJson, formatScanSummaryText);
 
-/**
- * @param {boolean} json
- * @param {UnclassifiedSender[]} unclassifiedList
- * @returns {string}
- */
-export function formatClassifyOutput(json, unclassifiedList) {
-  return formatOutput(json, buildClassifyJson(unclassifiedList), formatUnclassifiedText(unclassifiedList));
-}
+export const formatClassifyOutput = createFormatOutput(buildClassifyJson, formatUnclassifiedText);
