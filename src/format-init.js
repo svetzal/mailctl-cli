@@ -55,7 +55,7 @@ export function formatInitResultText(result) {
  * @param {InitFormatInput} result - init command result
  * @returns {{ success: boolean, message: string, version: string, files: FileResult[] }}
  */
-export function buildInitJsonResult(result) {
+export function buildInitJson(result) {
   const { version, files } = result;
   const skipped = files.filter((r) => r.action === "skipped").length;
 
@@ -67,4 +67,4 @@ export function buildInitJsonResult(result) {
   };
 }
 
-export const formatInitOutput = createFormatOutput(buildInitJsonResult, formatInitResultText);
+export const formatInitOutput = createFormatOutput(buildInitJson, formatInitResultText);

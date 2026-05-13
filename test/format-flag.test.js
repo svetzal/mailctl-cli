@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildFlagResultJson, formatFlagResultText } from "../src/format-flag.js";
+import { buildFlagJson, formatFlagResultText } from "../src/format-flag.js";
 
 function makeStats(overrides = {}) {
   return { flagged: 1, failed: 0, skipped: 0, ...overrides };
@@ -155,11 +155,11 @@ describe("formatFlagResultText", () => {
   });
 });
 
-// ── buildFlagResultJson ────────────────────────────────────────────────────────
+// ── buildFlagJson ────────────────────────────────────────────────────────
 
-describe("buildFlagResultJson", () => {
+describe("buildFlagJson", () => {
   it("includes flagged count in output", () => {
-    const result = buildFlagResultJson(makeStats({ flagged: 2 }), [
+    const result = buildFlagJson(makeStats({ flagged: 2 }), [
       {
         status: "flagged",
         dryRun: false,
@@ -175,13 +175,13 @@ describe("buildFlagResultJson", () => {
   });
 
   it("includes failed count in output", () => {
-    const result = buildFlagResultJson(makeStats({ failed: 1 }), []);
+    const result = buildFlagJson(makeStats({ failed: 1 }), []);
 
     expect(result.failed).toBe(1);
   });
 
   it("includes results array", () => {
-    const result = buildFlagResultJson(makeStats(), [
+    const result = buildFlagJson(makeStats(), [
       {
         status: "flagged",
         dryRun: false,
@@ -197,7 +197,7 @@ describe("buildFlagResultJson", () => {
   });
 
   it("preserves per-item fields in results", () => {
-    const result = buildFlagResultJson(makeStats(), [
+    const result = buildFlagJson(makeStats(), [
       {
         status: "flagged",
         dryRun: false,
@@ -213,7 +213,7 @@ describe("buildFlagResultJson", () => {
   });
 
   it("includes failed result in results array", () => {
-    const result = buildFlagResultJson(makeStats({ flagged: 0, failed: 1 }), [
+    const result = buildFlagJson(makeStats({ flagged: 0, failed: 1 }), [
       { status: "failed", account: "test", uids: [42], error: "Account not found" },
     ]);
 
@@ -221,7 +221,7 @@ describe("buildFlagResultJson", () => {
   });
 
   it("returns one results entry per account group", () => {
-    const result = buildFlagResultJson(makeStats({ flagged: 2 }), [
+    const result = buildFlagJson(makeStats({ flagged: 2 }), [
       { status: "flagged", dryRun: false, uids: [42], added: [], removed: [], account: "iCloud", mailbox: "INBOX" },
       { status: "flagged", dryRun: false, uids: [99], added: [], removed: [], account: "Gmail", mailbox: "INBOX" },
     ]);

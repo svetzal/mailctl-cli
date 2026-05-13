@@ -14,7 +14,7 @@ import { createFormatOutput } from "./cli-helpers.js";
  * @param {SenderSummary[]} senders - aggregated sender list from aggregateBySender()
  * @returns {string}
  */
-export function formatScanSummaryText(totalCount, senders) {
+export function formatScanText(totalCount, senders) {
   const lines = [];
   lines.push("\n=== Receipt Senders Found ===\n");
   lines.push(`Total: ${totalCount} receipt emails from ${senders.length} unique senders\n`);
@@ -76,6 +76,6 @@ export function buildClassifyJson(unclassifiedList) {
   return { unclassified: unclassifiedList };
 }
 
-export const formatScanOutput = createFormatOutput(buildScanJson, formatScanSummaryText);
+export const formatScanOutput = createFormatOutput(buildScanJson, formatScanText);
 
 export const formatClassifyOutput = createFormatOutput(buildClassifyJson, formatUnclassifiedText);

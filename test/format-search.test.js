@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildSearchJson, formatSearchResultsText } from "../src/format-search.js";
+import { buildSearchJson, formatSearchText } from "../src/format-search.js";
 
-describe("formatSearchResultsText", () => {
+describe("formatSearchText", () => {
   const result = {
     mailbox: "INBOX",
     uid: 42,
@@ -12,7 +12,7 @@ describe("formatSearchResultsText", () => {
   };
 
   describe("formats a single result correctly", () => {
-    const text = formatSearchResultsText([result]);
+    const text = formatSearchText([result]);
 
     it("contains mailbox label", () => {
       expect(text).toContain("[INBOX]");
@@ -41,7 +41,7 @@ describe("formatSearchResultsText", () => {
 
   describe("formats multiple results, one per line", () => {
     const second = { ...result, uid: 99, mailbox: "Sent", subject: "Re: Hello" };
-    const text = formatSearchResultsText([result, second]);
+    const text = formatSearchText([result, second]);
     const lines = text.split("\n");
 
     it("produces two lines", () => {
@@ -58,19 +58,19 @@ describe("formatSearchResultsText", () => {
   });
 
   it("returns an empty string when results array is empty", () => {
-    expect(formatSearchResultsText([])).toBe("");
+    expect(formatSearchText([])).toBe("");
   });
 
   it("handles missing fromName gracefully", () => {
     const noName = { ...result, fromName: undefined };
-    const text = formatSearchResultsText([noName]);
+    const text = formatSearchText([noName]);
 
     expect(text).toContain("<alice@example.com>");
   });
 
   describe("handles missing from address gracefully", () => {
     const noFrom = { ...result, from: undefined };
-    const text = formatSearchResultsText([noFrom]);
+    const text = formatSearchText([noFrom]);
 
     it("still contains mailbox label", () => {
       expect(text).toContain("[INBOX]");
@@ -83,14 +83,14 @@ describe("formatSearchResultsText", () => {
 
   it("handles missing subject gracefully", () => {
     const noSubject = { ...result, subject: undefined };
-    const text = formatSearchResultsText([noSubject]);
+    const text = formatSearchText([noSubject]);
 
     expect(text).toContain("[INBOX]");
   });
 
   describe("handles missing date gracefully", () => {
     const noDate = { ...result, date: undefined };
-    const text = formatSearchResultsText([noDate]);
+    const text = formatSearchText([noDate]);
 
     it("still contains mailbox label", () => {
       expect(text).toContain("[INBOX]");

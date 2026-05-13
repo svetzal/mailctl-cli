@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildInitJsonResult, formatInitResultText } from "../src/format-init.js";
+import { buildInitJson, formatInitResultText } from "../src/format-init.js";
 
 /** @type {import("../src/format-init.js").InitFormatInput} */
 const baseResult = {
@@ -80,11 +80,11 @@ describe("formatInitResultText", () => {
   });
 });
 
-// ── buildInitJsonResult ───────────────────────────────────────────────────────
+// ── buildInitJson ───────────────────────────────────────────────────────
 
-describe("buildInitJsonResult", () => {
+describe("buildInitJson", () => {
   it("returns success: true when no files are skipped", () => {
-    const output = buildInitJsonResult(baseResult);
+    const output = buildInitJson(baseResult);
 
     expect(output.success).toBe(true);
   });
@@ -92,7 +92,7 @@ describe("buildInitJsonResult", () => {
   it("returns success: false when files are skipped", () => {
     /** @type {import("../src/format-init.js").InitFormatInput} */
     const skippedResult = { ...baseResult, files: [{ path: "SKILL.md", action: "skipped" }] };
-    const output = buildInitJsonResult(skippedResult);
+    const output = buildInitJson(skippedResult);
 
     expect(output.success).toBe(false);
   });
@@ -100,19 +100,19 @@ describe("buildInitJsonResult", () => {
   it("returns 'Skill install skipped' message when files are skipped", () => {
     /** @type {import("../src/format-init.js").InitFormatInput} */
     const skippedResult = { ...baseResult, files: [{ path: "SKILL.md", action: "skipped" }] };
-    const output = buildInitJsonResult(skippedResult);
+    const output = buildInitJson(skippedResult);
 
     expect(output.message).toBe("Skill install skipped");
   });
 
   it("returns the version in the output", () => {
-    const output = buildInitJsonResult(baseResult);
+    const output = buildInitJson(baseResult);
 
     expect(output.version).toBe("1.2.3");
   });
 
   it("returns the files array in the output", () => {
-    const output = buildInitJsonResult(baseResult);
+    const output = buildInitJson(baseResult);
 
     expect(output.files).toBe(baseResult.files);
   });

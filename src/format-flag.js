@@ -38,8 +38,8 @@ export function formatFlagResultText(stats, results) {
  * @param {FlagResult[]} results
  * @returns {object}
  */
-export function buildFlagResultJson(stats, results) {
+export function buildFlagJson(stats, results) {
   return { ...stats, results };
 }
 
-export const formatFlagOutput = createFormatOutput(buildFlagResultJson, formatFlagResultText);
+export const formatFlagOutput = createFormatOutput(buildFlagJson, formatFlagResultText);

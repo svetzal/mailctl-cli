@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { buildClassifyJson, buildScanJson, formatScanSummaryText, formatUnclassifiedText } from "../src/format-scan.js";
+import { buildClassifyJson, buildScanJson, formatScanText, formatUnclassifiedText } from "../src/format-scan.js";
 
-// ── formatScanSummaryText ─────────────────────────────────────────────────────
+// ── formatScanText ─────────────────────────────────────────────────────
 
-describe("formatScanSummaryText", () => {
+describe("formatScanText", () => {
   const sender = {
     address: "receipts@shop.example.com",
     name: "Shop Example",
@@ -13,7 +13,7 @@ describe("formatScanSummaryText", () => {
   };
 
   describe("formats a single sender correctly", () => {
-    const text = formatScanSummaryText(5, [sender]);
+    const text = formatScanText(5, [sender]);
 
     it("shows sender name and count", () => {
       expect(text).toContain("Shop Example (5 emails)");
@@ -40,7 +40,7 @@ describe("formatScanSummaryText", () => {
       accounts: ["Gmail"],
       sampleSubjects: ["Invoice #99"],
     };
-    const text = formatScanSummaryText(7, [sender, second]);
+    const text = formatScanText(7, [sender, second]);
 
     it("shows first sender", () => {
       expect(text).toContain("Shop Example");
@@ -52,13 +52,13 @@ describe("formatScanSummaryText", () => {
   });
 
   it("includes the total count in output", () => {
-    const text = formatScanSummaryText(42, [sender]);
+    const text = formatScanText(42, [sender]);
 
     expect(text).toContain("Total: 42 receipt emails from 1 unique senders");
   });
 
   describe("shows zero results with empty senders list", () => {
-    const text = formatScanSummaryText(0, []);
+    const text = formatScanText(0, []);
 
     it("shows header", () => {
       expect(text).toContain("=== Receipt Senders Found ===");
@@ -71,14 +71,14 @@ describe("formatScanSummaryText", () => {
 
   it("falls back to address when sender has no display name", () => {
     const noName = { ...sender, name: undefined };
-    const text = formatScanSummaryText(5, [noName]);
+    const text = formatScanText(5, [noName]);
 
     expect(text).toContain("receipts@shop.example.com (5 emails)");
   });
 
   it("shows N/A when there are no sample subjects", () => {
     const noSubjects = { ...sender, sampleSubjects: [] };
-    const text = formatScanSummaryText(5, [noSubjects]);
+    const text = formatScanText(5, [noSubjects]);
 
     expect(text).toContain("Example:  N/A");
   });

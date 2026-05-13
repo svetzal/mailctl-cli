@@ -19,7 +19,7 @@ import { createFormatOutput } from "./cli-helpers.js";
  * @param {SearchResult[]} results
  * @returns {string}
  */
-export function formatSearchResultsText(results) {
+export function formatSearchText(results) {
   if (results.length === 0) {
     return "";
   }
@@ -43,4 +43,4 @@ export function buildSearchJson(results) {
   return results.map(({ messageId, ...rest }) => rest);
 }
 
-export const formatSearchOutput = createFormatOutput(buildSearchJson, formatSearchResultsText);
+export const formatSearchOutput = createFormatOutput(buildSearchJson, formatSearchText);
