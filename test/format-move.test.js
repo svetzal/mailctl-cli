@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { buildMoveJson, formatMoveResultText } from "../src/format-move.js";
+import { buildMoveJson, formatMoveText } from "../src/format-move.js";
 
-describe("formatMoveResultText", () => {
+describe("formatMoveText", () => {
   describe("formats a single account move summary", () => {
-    const text = formatMoveResultText({ moved: 3, failed: 0, skipped: 0 });
+    const text = formatMoveText({ moved: 3, failed: 0, skipped: 0 });
 
     it("shows moved count", () => {
       expect(text).toContain("3 moved");
@@ -19,7 +19,7 @@ describe("formatMoveResultText", () => {
   });
 
   describe("formats a multi-account move summary with failures", () => {
-    const text = formatMoveResultText({ moved: 5, failed: 2, skipped: 0 });
+    const text = formatMoveText({ moved: 5, failed: 2, skipped: 0 });
 
     it("shows moved count", () => {
       expect(text).toContain("5 moved");
@@ -31,7 +31,7 @@ describe("formatMoveResultText", () => {
   });
 
   describe("formats a dry-run result with all messages skipped", () => {
-    const text = formatMoveResultText({ moved: 0, failed: 0, skipped: 4 });
+    const text = formatMoveText({ moved: 0, failed: 0, skipped: 4 });
 
     it("shows moved count", () => {
       expect(text).toContain("0 moved");

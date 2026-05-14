@@ -12,7 +12,7 @@ import { createFormatOutput } from "./cli-helpers.js";
  * @param {object[]} [_results]
  * @returns {string}
  */
-export function formatMoveResultText(stats, _results) {
+export function formatMoveText(stats, _results) {
   return `\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped (dry-run)`;
 }
 
@@ -25,4 +25,4 @@ export function buildMoveJson(stats, results) {
   return { ...stats, results };
 }
 
-export const formatMoveOutput = createFormatOutput(buildMoveJson, formatMoveResultText);
+export const formatMoveOutput = createFormatOutput(buildMoveJson, formatMoveText);

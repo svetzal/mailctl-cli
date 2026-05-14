@@ -16,7 +16,7 @@ import { createFormatOutput } from "./cli-helpers.js";
  * @param {{ since?: string, months?: string }} opts - CLI options (since, months)
  * @returns {string}
  */
-export function formatDownloadReceiptsResultText(result, opts) {
+export function formatDownloadReceiptsText(result, opts) {
   if (result.mode === "listVendors") {
     const lines = [];
     if (result.configVendors.length > 0) {
@@ -73,7 +73,4 @@ export function buildDownloadReceiptsJson(result, _opts) {
   return { stats: result.stats, records: result.records };
 }
 
-export const formatDownloadReceiptsOutput = createFormatOutput(
-  buildDownloadReceiptsJson,
-  formatDownloadReceiptsResultText,
-);
+export const formatDownloadReceiptsOutput = createFormatOutput(buildDownloadReceiptsJson, formatDownloadReceiptsText);

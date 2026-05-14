@@ -10,7 +10,7 @@ import { createFormatOutput } from "./cli-helpers.js";
  * @param {FlagResult[]} results - array of per-account flag results
  * @returns {string}
  */
-export function formatFlagResultText(stats, results) {
+export function formatFlagText(stats, results) {
   const lines = [];
 
   for (const flagResult of results) {
@@ -42,4 +42,4 @@ export function buildFlagJson(stats, results) {
   return { ...stats, results };
 }
 
-export const formatFlagOutput = createFormatOutput(buildFlagJson, formatFlagResultText);
+export const formatFlagOutput = createFormatOutput(buildFlagJson, formatFlagText);

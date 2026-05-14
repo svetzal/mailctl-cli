@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildReadJson, buildReadResult, formatReadResultText } from "../src/format-read.js";
+import { buildReadJson, buildReadResult, formatReadText } from "../src/format-read.js";
 
 /**
  * Create a minimal mock of a mailparser ParsedMail object.
@@ -176,10 +176,10 @@ describe("buildReadResult", () => {
   });
 });
 
-describe("formatReadResultText", () => {
+describe("formatReadText", () => {
   describe("includes date, from, to, and subject lines", () => {
     const parsed = mockParsed();
-    const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+    const text = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
 
     it("contains Date", () => {
       expect(text).toContain("Date:");
@@ -202,7 +202,7 @@ describe("formatReadResultText", () => {
     const parsed = mockParsed({
       attachments: [{ filename: "invoice.pdf" }, { filename: null }],
     });
-    const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+    const text = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
 
     it("contains Attachments section header", () => {
       expect(text).toContain("Attachments:");
@@ -219,14 +219,14 @@ describe("formatReadResultText", () => {
 
   it("omits Attachments line when there are no attachments", () => {
     const parsed = mockParsed({ attachments: [] });
-    const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+    const text = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
 
     expect(text).not.toContain("Attachments:");
   });
 
   it("truncates body text to maxBody characters", () => {
     const parsed = mockParsed({ text: "B".repeat(200) });
-    const text = formatReadResultText(parsed, { maxBody: 50, showHeaders: false, showRaw: false });
+    const text = formatReadText(parsed, { maxBody: 50, showHeaders: false, showRaw: false });
 
     // Body section appears after newline; count Bs in the text
     const bCount = (text.match(/B/g) || []).length;
@@ -235,21 +235,21 @@ describe("formatReadResultText", () => {
 
   it("shows raw HTML when showRaw is true and HTML is present", () => {
     const parsed = mockParsed({ html: "<b>Bold</b>" });
-    const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: true });
+    const text = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: true });
 
     expect(text).toContain("<b>Bold</b>");
   });
 
   it("shows plain text body when showRaw is false", () => {
     const parsed = mockParsed({ text: "plain text content" });
-    const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+    const text = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
 
     expect(text).toContain("plain text content");
   });
 
   it("shows '(no text body)' when body is empty", () => {
     const parsed = mockParsed({ text: "", html: null });
-    const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+    const text = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
 
     expect(text).toContain("(no text body)");
   });
@@ -257,7 +257,7 @@ describe("formatReadResultText", () => {
   describe("includes headers section when showHeaders is true", () => {
     const parsed = mockParsed();
     parsed.headers.set("x-custom", "header-value");
-    const text = formatReadResultText(parsed, { maxBody: 1000, showHeaders: true, showRaw: false });
+    const text = formatReadText(parsed, { maxBody: 1000, showHeaders: true, showRaw: false });
 
     it("contains the headers section divider", () => {
       expect(text).toContain("--- Headers ---");

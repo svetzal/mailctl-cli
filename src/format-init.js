@@ -30,7 +30,7 @@ const ACTION_LABELS = {
  * @param {InitFormatInput} result - init command result
  * @returns {string}
  */
-export function formatInitResultText(result) {
+export function formatInitText(result) {
   const { version, files } = result;
   const scope = result.global ? "global (~/.claude)" : "local";
   const lines = [];
@@ -67,4 +67,4 @@ export function buildInitJson(result) {
   };
 }
 
-export const formatInitOutput = createFormatOutput(buildInitJson, formatInitResultText);
+export const formatInitOutput = createFormatOutput(buildInitJson, formatInitText);

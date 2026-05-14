@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { buildFlagJson, formatFlagResultText } from "../src/format-flag.js";
+import { buildFlagJson, formatFlagText } from "../src/format-flag.js";
 
 function makeStats(overrides = {}) {
   return { flagged: 1, failed: 0, skipped: 0, ...overrides };
 }
 
-// ── formatFlagResultText ──────────────────────────────────────────────────────
+// ── formatFlagText ──────────────────────────────────────────────────────
 
-describe("formatFlagResultText", () => {
+describe("formatFlagText", () => {
   it("uses singular 'UID' label for a single UID", () => {
-    const result = formatFlagResultText(makeStats(), [
+    const result = formatFlagText(makeStats(), [
       {
         status: "flagged",
         dryRun: false,
@@ -25,7 +25,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("uses plural 'UIDs' label for multiple UIDs", () => {
-    const result = formatFlagResultText(makeStats(), [
+    const result = formatFlagText(makeStats(), [
       {
         status: "flagged",
         dryRun: false,
@@ -41,7 +41,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("shows [DRY RUN] prefix when dryRun is true", () => {
-    const result = formatFlagResultText(makeStats({ flagged: 0, skipped: 1 }), [
+    const result = formatFlagText(makeStats({ flagged: 0, skipped: 1 }), [
       {
         status: "skipped",
         dryRun: true,
@@ -57,7 +57,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("shows 'Flagged' prefix when not a dry run", () => {
-    const result = formatFlagResultText(makeStats(), [
+    const result = formatFlagText(makeStats(), [
       {
         status: "flagged",
         dryRun: false,
@@ -73,7 +73,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("shows added flags with + prefix", () => {
-    const result = formatFlagResultText(makeStats(), [
+    const result = formatFlagText(makeStats(), [
       {
         status: "flagged",
         dryRun: false,
@@ -89,7 +89,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("shows removed flags with - prefix", () => {
-    const result = formatFlagResultText(makeStats(), [
+    const result = formatFlagText(makeStats(), [
       {
         status: "flagged",
         dryRun: false,
@@ -105,7 +105,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("produces multiple lines for multiple results", () => {
-    const result = formatFlagResultText(makeStats({ flagged: 2 }), [
+    const result = formatFlagText(makeStats({ flagged: 2 }), [
       {
         status: "flagged",
         dryRun: false,
@@ -130,7 +130,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("shows error line for failed results", () => {
-    const result = formatFlagResultText(makeStats({ flagged: 0, failed: 1 }), [
+    const result = formatFlagText(makeStats({ flagged: 0, failed: 1 }), [
       { status: "failed", account: "test", uids: [42], error: 'Account "test" not found.' },
     ]);
 
@@ -138,7 +138,7 @@ describe("formatFlagResultText", () => {
   });
 
   it("includes summary line with counts", () => {
-    const result = formatFlagResultText(makeStats({ flagged: 2, failed: 1 }), [
+    const result = formatFlagText(makeStats({ flagged: 2, failed: 1 }), [
       {
         status: "flagged",
         dryRun: false,

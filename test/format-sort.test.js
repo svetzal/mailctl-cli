@@ -1,29 +1,29 @@
 import { describe, expect, it } from "bun:test";
-import { buildSortJson, formatSortResultText } from "../src/format-sort.js";
+import { buildSortJson, formatSortText } from "../src/format-sort.js";
 
-describe("formatSortResultText", () => {
+describe("formatSortText", () => {
   it("includes the Sort Complete header", () => {
-    const text = formatSortResultText({ moved: 0, skipped: 0, unclassified: 0 });
+    const text = formatSortText({ moved: 0, skipped: 0, unclassified: 0 });
     expect(text).toContain("=== Sort Complete ===");
   });
 
   it("shows moved count", () => {
-    const text = formatSortResultText({ moved: 5, skipped: 0, unclassified: 0 });
+    const text = formatSortText({ moved: 5, skipped: 0, unclassified: 0 });
     expect(text).toContain("Moved:        5");
   });
 
   it("shows skipped count", () => {
-    const text = formatSortResultText({ moved: 0, skipped: 3, unclassified: 0 });
+    const text = formatSortText({ moved: 0, skipped: 3, unclassified: 0 });
     expect(text).toContain("Skipped:      3");
   });
 
   it("shows unclassified count with default note", () => {
-    const text = formatSortResultText({ moved: 0, skipped: 0, unclassified: 2 });
+    const text = formatSortText({ moved: 0, skipped: 0, unclassified: 2 });
     expect(text).toContain("Unclassified: 2 (defaulted to personal)");
   });
 
   describe("formats all stats together correctly", () => {
-    const text = formatSortResultText({ moved: 10, skipped: 5, unclassified: 1 });
+    const text = formatSortText({ moved: 10, skipped: 5, unclassified: 1 });
 
     it("shows moved count", () => {
       expect(text).toContain("Moved:        10");

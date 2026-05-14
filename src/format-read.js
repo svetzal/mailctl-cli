@@ -61,7 +61,7 @@ export function buildReadResult(parsed, acctName, uid, opts) {
  * @param {FormatTextOptions} opts
  * @returns {string}
  */
-export function formatReadResultText(parsed, opts) {
+export function formatReadText(parsed, opts) {
   const bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
   const lines = [];
 
@@ -123,6 +123,6 @@ export function formatReadOutput(json, parsed, acctName, uid, opts) {
   return formatOutput(
     json,
     buildReadJson(parsed, acctName, uid, { maxBody, maxBodyExplicit, includeHeaders: !!opts.headers }),
-    formatReadResultText(parsed, { maxBody, showHeaders: !!opts.headers, showRaw: !!opts.raw }),
+    formatReadText(parsed, { maxBody, showHeaders: !!opts.headers, showRaw: !!opts.raw }),
   );
 }

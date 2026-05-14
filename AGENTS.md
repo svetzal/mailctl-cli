@@ -83,20 +83,20 @@ src/define-event.js            — defineEvent() — shared event factory builde
 src/format-bytes.js            — formatKB() — shared byte-to-KB formatter
 src/format-scan.js             — formatScanText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
 src/format-search.js           — formatSearchText(), buildSearchJson() — pure search result formatter
-src/format-move.js             — formatMoveResultText(), buildMoveJson() — pure move summary formatter
-src/format-sort.js             — formatSortResultText(), buildSortJson() — pure sort summary formatter
-src/format-download.js         — formatDownloadResultText(), buildDownloadJson() — pure download summary formatter
-src/format-download-receipts.js — formatDownloadReceiptsResultText(), buildDownloadReceiptsJson() — pure download-receipts result formatter
-src/format-flag.js             — formatFlagResultText(), buildFlagJson() — pure flag result formatter
+src/format-move.js             — formatMoveText(), buildMoveJson() — pure move summary formatter
+src/format-sort.js             — formatSortText(), buildSortJson() — pure sort summary formatter
+src/format-download.js         — formatDownloadText(), buildDownloadJson() — pure download summary formatter
+src/format-download-receipts.js — formatDownloadReceiptsText(), buildDownloadReceiptsJson() — pure download-receipts result formatter
+src/format-flag.js             — formatFlagText(), buildFlagJson() — pure flag result formatter
 src/format-reply.js            — formatReplyDryRunText(), formatReplySentText(), buildReplyDryRunJson(), buildReplySentJson() — pure reply result formatters
 src/format-attachment.js       — formatAttachmentListText(), formatAttachmentSavedText(), buildAttachmentListJson(), buildAttachmentSavedJson() — pure attachment result formatters
 src/format-folders.js          — formatFoldersText(), buildFoldersJson() — pure folder listing formatter
-src/format-read.js             — buildReadResult(), formatReadResultText(), buildReadJson() — pure read command formatters
+src/format-read.js             — buildReadResult(), formatReadText(), buildReadJson() — pure read command formatters
 src/format-thread.js           — formatThreadText(), buildThreadJson() — pure thread result formatter
 src/format-inbox.js            — formatInboxText(), buildInboxJson() — pure inbox result formatter
 src/format-contacts.js         — formatContactsText(), buildContactsJson() — pure contacts result formatter
 src/format-import-classifications.js — buildImportClassificationsJson() — pure import-classifications JSON builder
-src/format-init.js             — formatInitResultText(), buildInitJson() — pure init result formatters
+src/format-init.js             — formatInitText(), buildInitJson() — pure init result formatters
 src/read-email.js              — re-export shim for format-read.js (deprecated)
 src/render-auth-events.js      — renderAuthEvent() — pure auth progress event renderer
 src/render-scan-events.js      — renderScanEvent() — pure scan progress event renderer

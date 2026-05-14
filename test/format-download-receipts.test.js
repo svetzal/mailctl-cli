@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { buildDownloadReceiptsJson, formatDownloadReceiptsResultText } from "../src/format-download-receipts.js";
+import { buildDownloadReceiptsJson, formatDownloadReceiptsText } from "../src/format-download-receipts.js";
 
 /** @typedef {import("../src/format-download-receipts.js").DownloadReceiptsResult} DownloadReceiptsResult */
 
-describe("formatDownloadReceiptsResultText", () => {
+describe("formatDownloadReceiptsText", () => {
   describe("listVendors mode", () => {
     describe("lists known vendors when present", () => {
       /** @type {DownloadReceiptsResult} */
@@ -12,7 +12,7 @@ describe("formatDownloadReceiptsResultText", () => {
         configVendors: ["Acme Corp", "Widget Inc"],
         recentVendors: [],
       };
-      const text = formatDownloadReceiptsResultText(result, { months: "12" });
+      const text = formatDownloadReceiptsText(result, { months: "12" });
 
       it("shows known vendors header", () => {
         expect(text).toContain("Known vendors (from config):");
@@ -30,7 +30,7 @@ describe("formatDownloadReceiptsResultText", () => {
         configVendors: [],
         recentVendors: [],
       };
-      const text = formatDownloadReceiptsResultText(result, { months: "12" });
+      const text = formatDownloadReceiptsText(result, { months: "12" });
       expect(text).not.toContain("Known vendors");
     });
 
@@ -41,7 +41,7 @@ describe("formatDownloadReceiptsResultText", () => {
         configVendors: [],
         recentVendors: [],
       };
-      const text = formatDownloadReceiptsResultText(result, { months: "12" });
+      const text = formatDownloadReceiptsText(result, { months: "12" });
       expect(text).toContain("No receipt vendors found in the search period.");
     });
 
@@ -52,7 +52,7 @@ describe("formatDownloadReceiptsResultText", () => {
         configVendors: [],
         recentVendors: [{ vendor: "Acme", count: 3 }],
       };
-      const text = formatDownloadReceiptsResultText(result, { months: "12" });
+      const text = formatDownloadReceiptsText(result, { months: "12" });
       expect(text).toContain("Acme (3 receipts)");
     });
 
@@ -63,7 +63,7 @@ describe("formatDownloadReceiptsResultText", () => {
         configVendors: [],
         recentVendors: [{ vendor: "Acme", count: 1 }],
       };
-      const text = formatDownloadReceiptsResultText(result, { months: "12" });
+      const text = formatDownloadReceiptsText(result, { months: "12" });
       expect(text).toContain("Acme (1 receipt)");
     });
 
@@ -74,7 +74,7 @@ describe("formatDownloadReceiptsResultText", () => {
         configVendors: [],
         recentVendors: [{ vendor: "Acme", count: 2 }],
       };
-      const text = formatDownloadReceiptsResultText(result, { months: "6" });
+      const text = formatDownloadReceiptsText(result, { months: "6" });
       expect(text).toContain("last 6 months");
     });
 
@@ -85,7 +85,7 @@ describe("formatDownloadReceiptsResultText", () => {
         configVendors: [],
         recentVendors: [{ vendor: "Acme", count: 2 }],
       };
-      const text = formatDownloadReceiptsResultText(result, { since: "2025-01-01", months: "12" });
+      const text = formatDownloadReceiptsText(result, { since: "2025-01-01", months: "12" });
       expect(text).toContain("since 2025-01-01");
     });
   });
@@ -94,28 +94,28 @@ describe("formatDownloadReceiptsResultText", () => {
     it("includes Reprocess Complete header", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "reprocess", reprocessed: 5, skipped: 2, errors: 0 };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("=== Reprocess Complete ===");
     });
 
     it("shows reprocessed count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "reprocess", reprocessed: 5, skipped: 2, errors: 0 };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Reprocessed:   5");
     });
 
     it("shows skipped count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "reprocess", reprocessed: 5, skipped: 2, errors: 0 };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Skipped:       2");
     });
 
     it("shows errors count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "reprocess", reprocessed: 5, skipped: 2, errors: 1 };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Errors:        1");
     });
   });
@@ -126,42 +126,42 @@ describe("formatDownloadReceiptsResultText", () => {
     it("includes Download Receipts Complete header", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "download", stats };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("=== Download Receipts Complete ===");
     });
 
     it("shows found count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "download", stats };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Found:         10");
     });
 
     it("shows downloaded count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "download", stats };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Downloaded:    5");
     });
 
     it("shows no PDF count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "download", stats };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("No PDF:        2");
     });
 
     it("shows already have count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "download", stats };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Already have:  2");
     });
 
     it("shows errors count", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "download", stats };
-      const text = formatDownloadReceiptsResultText(result, {});
+      const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Errors:        1");
     });
   });

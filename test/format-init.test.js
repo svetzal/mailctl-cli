@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildInitJson, formatInitResultText } from "../src/format-init.js";
+import { buildInitJson, formatInitText } from "../src/format-init.js";
 
 /** @type {import("../src/format-init.js").InitFormatInput} */
 const baseResult = {
@@ -8,29 +8,29 @@ const baseResult = {
   files: [{ path: ".claude/skills/mailctl/SKILL.md", action: "created" }],
 };
 
-// ── formatInitResultText ──────────────────────────────────────────────────────
+// ── formatInitText ──────────────────────────────────────────────────────
 
-describe("formatInitResultText", () => {
+describe("formatInitText", () => {
   it("shows the version in the header", () => {
-    const text = formatInitResultText(baseResult);
+    const text = formatInitText(baseResult);
 
     expect(text).toContain("mailctl v1.2.3");
   });
 
   it("shows 'global (~/.claude)' scope when global is true", () => {
-    const text = formatInitResultText({ ...baseResult, global: true });
+    const text = formatInitText({ ...baseResult, global: true });
 
     expect(text).toContain("global (~/.claude)");
   });
 
   it("shows 'local' scope when global is false", () => {
-    const text = formatInitResultText(baseResult);
+    const text = formatInitText(baseResult);
 
     expect(text).toContain("local");
   });
 
   it("shows '+' icon and 'Created' label for created files", () => {
-    const text = formatInitResultText(baseResult);
+    const text = formatInitText(baseResult);
 
     expect(text).toContain("+ .claude/skills/mailctl/SKILL.md (Created)");
   });
@@ -38,7 +38,7 @@ describe("formatInitResultText", () => {
   it("shows '~' icon and 'Updated' label for updated files", () => {
     /** @type {import("../src/format-init.js").InitFormatInput} */
     const result = { ...baseResult, files: [{ path: "SKILL.md", action: "updated" }] };
-    const text = formatInitResultText(result);
+    const text = formatInitText(result);
 
     expect(text).toContain("~ SKILL.md (Updated)");
   });
@@ -46,7 +46,7 @@ describe("formatInitResultText", () => {
   it("shows '!' icon and 'Skipped' label for skipped files", () => {
     /** @type {import("../src/format-init.js").InitFormatInput} */
     const result = { ...baseResult, files: [{ path: "SKILL.md", action: "skipped" }] };
-    const text = formatInitResultText(result);
+    const text = formatInitText(result);
 
     expect(text).toContain("! SKILL.md (Skipped)");
   });
@@ -54,13 +54,13 @@ describe("formatInitResultText", () => {
   it("shows '=' icon and 'Up to date' label for unknown action", () => {
     /** @type {import("../src/format-init.js").InitFormatInput} */
     const result = { ...baseResult, files: [{ path: "SKILL.md", action: "up-to-date" }] };
-    const text = formatInitResultText(result);
+    const text = formatInitText(result);
 
     expect(text).toContain("= SKILL.md (Up to date)");
   });
 
   it("shows the file path in each line", () => {
-    const text = formatInitResultText(baseResult);
+    const text = formatInitText(baseResult);
 
     expect(text).toContain(".claude/skills/mailctl/SKILL.md");
   });
@@ -68,13 +68,13 @@ describe("formatInitResultText", () => {
   it("shows a warning indented below the file when warning is present", () => {
     /** @type {import("../src/format-init.js").InitFormatInput} */
     const result = { ...baseResult, files: [{ path: "SKILL.md", action: "skipped", warning: "Version mismatch" }] };
-    const text = formatInitResultText(result);
+    const text = formatInitText(result);
 
     expect(text).toContain("    Version mismatch");
   });
 
   it("does not show a warning line when warning is absent", () => {
-    const text = formatInitResultText(baseResult);
+    const text = formatInitText(baseResult);
 
     expect(text).not.toContain("    ");
   });

@@ -4,7 +4,7 @@ import { createFormatOutput } from "./cli-helpers.js";
  * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
  * @returns {string}
  */
-export function formatDownloadResultText(stats) {
+export function formatDownloadText(stats) {
   return [
     "\n=== Download Complete ===",
     `Downloaded:    ${stats.downloaded}`,
@@ -27,4 +27,4 @@ export function buildDownloadJson(stats) {
   };
 }
 
-export const formatDownloadOutput = createFormatOutput(buildDownloadJson, formatDownloadResultText);
+export const formatDownloadOutput = createFormatOutput(buildDownloadJson, formatDownloadText);
