@@ -51,6 +51,8 @@ async function fetchOriginalMessage(uid, opts, deps) {
  * @param {object} originalParsed - parsed original email
  * @param {object} headers - reply headers from buildReplyHeaders
  * @param {ReplyCommandDeps} deps
+ * @throws {Error} when --edit produces an empty reply
+ * @throws {Error} when none of --message, --message-file, or --edit are provided
  * @returns {Promise<string|null>} user message text, or null when aborted
  */
 async function resolveUserMessage(opts, originalParsed, headers, deps) {
@@ -89,6 +91,8 @@ async function resolveUserMessage(opts, originalParsed, headers, deps) {
  * @param {string} uid
  * @param {object} opts - CLI options (message, messageFile, edit, cc, dryRun, yes, mailbox)
  * @param {ReplyCommandDeps} deps - injected dependencies
+ * @throws {Error} when none of --message, --message-file, or --edit are provided
+ * @throws {Error} when the matched account has no SMTP configuration
  * @returns {Promise<
  *   | { aborted: true }
  *   | { dryRun: true, message: object }

@@ -377,6 +377,7 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
  * @param {boolean} [opts.dryRun]
  * @param {object} [gateways] - injectable dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
+ * @throws {Error} when OPENAI_API_KEY is not available
  * @returns {Promise<{reprocessed: number, skipped: number, errors: number, reclassified: number, results: Array}>}
  */
 export async function reprocessReceipts(opts, gateways = {}, onProgress = () => {}) {

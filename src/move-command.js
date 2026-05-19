@@ -24,6 +24,7 @@ import { parseAndGroupUids } from "./move-logic.js";
  * @param {string[]} uids - raw UID arguments from the CLI
  * @param {object} opts - CLI options (to, mailbox, dryRun)
  * @param {MoveCommandDeps} deps - injected dependencies
+ * @throws {Error} when the destination folder does not exist on an account
  * @returns {Promise<{ stats: { moved: number, failed: number, skipped: number }, results: Array }>}
  */
 export async function moveCommand(uids, opts, deps) {

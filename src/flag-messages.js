@@ -9,6 +9,9 @@
  * @param {boolean} [opts.unread]
  * @param {boolean} [opts.star]
  * @param {boolean} [opts.unstar]
+ * @throws {Error} when --read and --unread are both set
+ * @throws {Error} when --star and --unstar are both set
+ * @throws {Error} when no flag options are specified
  * @returns {{ add: string[], remove: string[] }}
  */
 export function computeFlagChanges(opts) {

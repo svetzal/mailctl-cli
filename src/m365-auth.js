@@ -73,6 +73,9 @@ async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToke
  * @param {string} _clientSecret
  * @param {function(object): void} onProgress - receives structured progress events
  * @param {M365AuthDeps} deps
+ * @throws {Error} when the device code request fails
+ * @throws {Error} when the token exchange returns an error
+ * @throws {Error} when the device code flow times out
  * @returns {Promise<TokenSet>}
  */
 async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, deps) {

@@ -70,6 +70,7 @@ export function saveClassifications(dataDir, classifications, fs = new FileSyste
 /**
  * @param {string} dataDir
  * @param {FileSystemGateway} [fs]
+ * @throws {Error} when classifications.json does not exist
  * @returns {Record<string, string>}
  */
 export function requireClassificationsData(dataDir, fs = new FileSystemGateway()) {

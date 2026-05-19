@@ -68,6 +68,8 @@ export function filterAccountsByName(accounts, name) {
  * @template {{ name: string }} T
  * @param {string|null|undefined} accountFilter - account name to filter by, or null/undefined for all
  * @param {() => T[]} loadAccountsFn - function that returns all configured accounts
+ * @throws {Error} when no accounts are configured
+ * @throws {Error} when the named account filter matches nothing
  * @returns {T[]}
  */
 export function resolveAccounts(accountFilter, loadAccountsFn) {
@@ -185,6 +187,7 @@ export function createProgressRenderer(renderFn) {
  *
  * @param {object} opts - Commander option object
  * @param {CommandContextDeps} deps - injected resolver functions (for testability)
+ * @throws {Error} when the named account filter matches nothing
  * @returns {CommandContext}
  */
 export function resolveCommandContext(
