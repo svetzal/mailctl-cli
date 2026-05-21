@@ -43,4 +43,5 @@ export function buildSearchJson(results) {
   return results.map(({ messageId, ...rest }) => rest);
 }
 
+/** @type {(json: boolean, results: SearchResult[]) => string} */
 export const formatSearchOutput = createFormatOutput(buildSearchJson, formatSearchText);

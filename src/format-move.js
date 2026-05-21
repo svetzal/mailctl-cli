@@ -25,4 +25,5 @@ export function buildMoveJson(stats, results) {
   return { ...stats, results };
 }
 
+/** @type {(json: boolean, stats: MoveStats, results: object[]) => string} */
 export const formatMoveOutput = createFormatOutput(buildMoveJson, formatMoveText);

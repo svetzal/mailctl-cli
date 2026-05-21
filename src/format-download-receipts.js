@@ -73,4 +73,5 @@ export function buildDownloadReceiptsJson(result, _opts) {
   return { stats: result.stats, records: result.records };
 }
 
+/** @type {(json: boolean, result: DownloadReceiptsResult, opts: { since?: string, months?: string }) => string} */
 export const formatDownloadReceiptsOutput = createFormatOutput(buildDownloadReceiptsJson, formatDownloadReceiptsText);

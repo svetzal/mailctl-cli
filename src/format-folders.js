@@ -44,4 +44,5 @@ export function buildFoldersJson(foldersByAccount) {
   return foldersByAccount.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
 }
 
+/** @type {(json: boolean, foldersByAccount: AccountFolders[]) => string} */
 export const formatFoldersOutput = createFormatOutput(buildFoldersJson, formatFoldersText);

@@ -76,6 +76,8 @@ export function buildClassifyJson(unclassifiedList) {
   return { unclassified: unclassifiedList };
 }
 
+/** @type {(json: boolean, totalCount: number, senders: SenderSummary[]) => string} */
 export const formatScanOutput = createFormatOutput(buildScanJson, formatScanText);
 
+/** @type {(json: boolean, unclassifiedSenders: UnclassifiedSender[]) => string} */
 export const formatClassifyOutput = createFormatOutput(buildClassifyJson, formatUnclassifiedText);

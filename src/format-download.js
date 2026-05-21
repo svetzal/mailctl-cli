@@ -27,4 +27,5 @@ export function buildDownloadJson(stats) {
   };
 }
 
+/** @type {(json: boolean, stats: { downloaded: number, alreadyHave: number, noPdf: number, skipped: number }) => string} */
 export const formatDownloadOutput = createFormatOutput(buildDownloadJson, formatDownloadText);

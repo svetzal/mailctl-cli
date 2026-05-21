@@ -44,4 +44,5 @@ export function buildContactsJson(contacts, opts) {
   };
 }
 
+/** @type {(json: boolean, contacts: Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>, opts: {sinceLabel: string}) => string} */
 export const formatContactsOutput = createFormatOutput(buildContactsJson, formatContactsText);

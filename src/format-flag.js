@@ -42,4 +42,5 @@ export function buildFlagJson(stats, results) {
   return { ...stats, results };
 }
 
+/** @type {(json: boolean, stats: FlagStats, results: FlagResult[]) => string} */
 export const formatFlagOutput = createFormatOutput(buildFlagJson, formatFlagText);

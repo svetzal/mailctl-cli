@@ -67,4 +67,5 @@ export function buildInitJson(result) {
   };
 }
 
+/** @type {(json: boolean, result: InitFormatInput) => string} */
 export const formatInitOutput = createFormatOutput(buildInitJson, formatInitText);

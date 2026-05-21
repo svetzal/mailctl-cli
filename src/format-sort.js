@@ -26,4 +26,5 @@ export function buildSortJson(stats) {
   };
 }
 
+/** @type {(json: boolean, stats: { moved: number, skipped: number, alreadySorted: number, unclassified: number }) => string} */
 export const formatSortOutput = createFormatOutput(buildSortJson, formatSortText);
