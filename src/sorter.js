@@ -63,6 +63,33 @@ const defaultGateways = {
 };
 
 /**
+ * @param {import("imapflow").ImapFlow} client
+ * @param {Array<number|string>} uids
+ * @param {string} folder
+ * @param {string} icon
+ * @param {string} mailbox
+ * @param {boolean} dryRun
+ * @param {function(object): void} onProgress
+ * @param {{moved: number, skipped: number}} stats
+ */
+async function moveGroup(client, uids, folder, icon, mailbox, dryRun, onProgress, stats) {
+  if (uids.length === 0) return;
+  const label = `${mailbox} → ${folder}`;
+  if (dryRun) {
+    onProgress(moveDryRun(icon, uids.length, label));
+  } else {
+    try {
+      await client.messageMove(uids.join(","), folder, { uid: true });
+      onProgress(moved(icon, uids.length, label));
+      stats.moved += uids.length;
+    } catch (err) {
+      onProgress(moveError(err, label));
+      stats.skipped += uids.length;
+    }
+  }
+}
+
+/**
  * @param {object} [opts]
  * @param {boolean} [opts.dryRun=false]  - just report what would be moved
  * @param {number}  [opts.months=24]     - how far back to scan
@@ -109,37 +136,8 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
         if (!classifications[msg.address]) stats.unclassified++;
       }
 
-      if (bizUids.length > 0) {
-        const label = `${mailbox} → ${BIZ_FOLDER}`;
-        if (dryRun) {
-          onProgress(moveDryRun("🏢", bizUids.length, label));
-        } else {
-          try {
-            await client.messageMove(bizUids.join(","), BIZ_FOLDER, { uid: true });
-            onProgress(moved("🏢", bizUids.length, label));
-            stats.moved += bizUids.length;
-          } catch (err) {
-            onProgress(moveError(err, label));
-            stats.skipped += bizUids.length;
-          }
-        }
-      }
-
-      if (personalUids.length > 0) {
-        const label = `${mailbox} → ${PERSONAL_FOLDER}`;
-        if (dryRun) {
-          onProgress(moveDryRun("🏠", personalUids.length, label));
-        } else {
-          try {
-            await client.messageMove(personalUids.join(","), PERSONAL_FOLDER, { uid: true });
-            onProgress(moved("🏠", personalUids.length, label));
-            stats.moved += personalUids.length;
-          } catch (err) {
-            onProgress(moveError(err, label));
-            stats.skipped += personalUids.length;
-          }
-        }
-      }
+      await moveGroup(client, bizUids, BIZ_FOLDER, "🏢", mailbox, dryRun, onProgress, stats);
+      await moveGroup(client, personalUids, PERSONAL_FOLDER, "🏠", mailbox, dryRun, onProgress, stats);
     });
   });
 
