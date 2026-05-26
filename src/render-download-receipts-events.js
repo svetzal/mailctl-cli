@@ -5,6 +5,7 @@ import {
   dryRunJson,
   dryRunMetadata,
   dryRunPdf,
+  emptyExtractionSkipped,
   llmDisabled,
   llmEnabled,
   llmExtractionFailed,
@@ -60,6 +61,8 @@ export const renderDownloadReceiptsEvent = createEventRenderer({
     `   Skipping ${e.vendor} — classified as non-invoice (confidence: ${(e.confidence || 0).toFixed(2)})`,
   [skipLowConfidence.type]: (e) => `   Skipping ${e.vendor} — low confidence ${e.confidence.toFixed(2)}`,
   [skipExistingInvoice.type]: (e) => `   Skipping ${e.vendor} ${e.invoiceNumber} — already exists`,
+  [emptyExtractionSkipped.type]: (e) =>
+    `   Skipping ${e.vendor || e.sourceEmail} — empty extraction (no amount, no invoice number, no PDF)`,
   [skipDuplicate.type]: (e) => `   Skipping ${e.label} — duplicate content`,
   [dryRunPdf.type]: (e) => `   [DRY RUN] ${e.filename}`,
   [dryRunJson.type]: (e) => `   [DRY RUN] ${e.filename}`,
@@ -75,6 +78,7 @@ export const renderDownloadReceiptsEvent = createEventRenderer({
       `Downloaded:  ${s.downloaded}`,
       `No PDF:      ${s.noPdf}`,
       `Skipped:     ${s.skipped} (non-invoice or low confidence)`,
+      `Empty:       ${s.skippedEmpty ?? 0} (no amount, no invoice number, no PDF)`,
       `Duplicates:  ${s.alreadyHave}`,
       `Errors:      ${s.errors}`,
     ].join("\n");

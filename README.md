@@ -145,6 +145,22 @@ Downloads PDF attachments from business receipt emails. Output directory is conf
 
 **Dedup:** SHA-256 content hashing — never downloads the same PDF twice, even across runs. State tracked in `data/download-manifest.json`.
 
+#### Download Receipts — LLM-powered receipt PDF download with metadata sidecars
+
+```bash
+mailctl download-receipts                   # download receipts, skip empty extractions
+mailctl download-receipts --dry-run
+mailctl download-receipts -m 6              # look back 6 months
+mailctl download-receipts --vendor Stripe   # filter to a specific vendor
+mailctl download-receipts --include-empty   # also write sidecars with no amount/invoice/PDF
+mailctl download-receipts --list-vendors    # list vendors seen in recent receipts
+mailctl download-receipts --reprocess       # re-run LLM on existing sidecars
+```
+
+Downloads receipt PDFs and writes a JSON sidecar alongside each one with extracted metadata (vendor, amount, invoice number, date). Uses LLM (gpt-5-mini via mojentic) when an OpenAI API key is available; falls back to pattern-based extraction.
+
+**Empty extractions:** By default, sidecars are skipped when extraction yields no amount, no invoice number, and no PDF attachment — these carry no bookkeeping value. Pass `--include-empty` to write sidecars for all processed emails regardless.
+
 ## Typical Workflow
 
 1. **Search** to find specific emails across accounts

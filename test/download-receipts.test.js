@@ -561,7 +561,9 @@ describe("source_body_snippet", () => {
     const client = makeNoPdfEmailClient(longBody);
     const { mockFs, written } = makeMockFs();
 
-    await downloadReceiptEmails({ outputDir: tmpDir }, standardGateways(client, mockFs));
+    // includeEmpty: true so the sidecar is written even though the long body
+    // contains no detectable amount or invoice number
+    await downloadReceiptEmails({ outputDir: tmpDir, includeEmpty: true }, standardGateways(client, mockFs));
 
     const jsonKey = Object.keys(written).find((k) => k.endsWith(".json"));
     const sidecar = JSON.parse(written[jsonKey]);
@@ -593,6 +595,84 @@ describe("source_body_snippet", () => {
     const jsonPath = `${outputDir}/2026/01/Stripe-INV-123.json`;
     const updated = JSON.parse(written[jsonPath]);
     expect(updated.source_body_snippet).toBe("old body text");
+  });
+});
+
+// ── empty extraction skipping ─────────────────────────────────────────────────
+
+/** Email client that yields a plain-text email with no PDF and no detectable amount or invoice number. */
+function makeEmptyExtractionEmailClient() {
+  const emailDate = new Date("2025-03-07");
+  const emailBody = [
+    `From: newsletter@acme.com`,
+    `Subject: Thank you for being a subscriber`,
+    `Date: ${emailDate.toUTCString()}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/plain`,
+    `Message-ID: <empty-extraction-msg@acme.com>`,
+    ``,
+    `Thank you for being a subscriber. We appreciate your business.`,
+  ].join("\r\n");
+  const rawBuffer = Buffer.from(emailBody);
+
+  return {
+    getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+    search: mock(() => Promise.resolve([1])),
+    mailbox: { exists: 1 },
+    fetch: mock(() => {
+      async function* gen() {
+        yield {
+          uid: 1,
+          envelope: {
+            date: emailDate,
+            from: [{ address: "newsletter@acme.com", name: "Acme" }],
+            subject: "Thank you for being a subscriber",
+            messageId: "empty-extraction-msg@acme.com",
+          },
+        };
+      }
+      return gen();
+    }),
+    download: mock(() => {
+      async function* gen() {
+        yield rawBuffer;
+      }
+      return Promise.resolve({ content: gen() });
+    }),
+  };
+}
+
+describe("empty extraction skipping", () => {
+  it("skips sidecar when extraction is empty by default", async () => {
+    const client = makeEmptyExtractionEmailClient();
+    const { mockFs, written } = makeMockFs();
+
+    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, standardGateways(client, mockFs));
+
+    const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+    expect(jsonKeys).toHaveLength(0);
+    expect(stats.skippedEmpty).toBe(1);
+  });
+
+  it("writes sidecar when --include-empty is set", async () => {
+    const client = makeEmptyExtractionEmailClient();
+    const { mockFs, written } = makeMockFs();
+
+    await downloadReceiptEmails({ outputDir: tmpDir, includeEmpty: true }, standardGateways(client, mockFs));
+
+    const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+    expect(jsonKeys.length).toBeGreaterThan(0);
+  });
+
+  it("writes sidecar when at least amount is present even without PDF", async () => {
+    // Body has "$9.99" so pattern extraction finds an amount — not empty
+    const client = makeNoPdfEmailClient("Your payment of $9.99 has been processed.");
+    const { mockFs, written } = makeMockFs();
+
+    await downloadReceiptEmails({ outputDir: tmpDir }, standardGateways(client, mockFs));
+
+    const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+    expect(jsonKeys.length).toBeGreaterThan(0);
   });
 });
 

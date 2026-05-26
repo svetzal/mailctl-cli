@@ -6,6 +6,7 @@ import { resolveAccounts } from "./cli-helpers.js";
 import {
   doclingConversionFailed,
   downloadSummary,
+  emptyExtractionSkipped,
   llmDisabled,
   llmEnabled,
   outputTreeError,
@@ -55,6 +56,18 @@ import { matchesVendor } from "./vendor-map.js";
 const BODY_SNIPPET_MAX_CHARS = 2000;
 const MIN_INVOICE_CONFIDENCE = 0.4;
 
+/**
+ * Returns true when extraction produced no useful data — no amount, no invoice number, and no PDF.
+ * Sidecars for these emails carry no bookkeeping value and are skipped by default.
+ *
+ * @param {object} metadata - extracted receipt metadata
+ * @param {Array} pdfAttachments - PDF attachments found in the email
+ * @returns {boolean}
+ */
+function isEmptyExtraction(metadata, pdfAttachments) {
+  return pdfAttachments.length === 0 && metadata.amount == null && metadata.invoice_number == null;
+}
+
 export { RECEIPT_EXTRACTION_SCHEMA } from "./llm-receipt-extraction.js";
 export { searchMailboxForReceipts } from "./receipt-search-pipeline.js";
 export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
@@ -66,6 +79,7 @@ export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
  * @param {string} context.accountName
  * @param {string} context.outputDir
  * @param {boolean} context.dryRun
+ * @param {boolean} [context.includeEmpty] - when false (default), skips sidecars with no amount, no invoice number, and no PDF
  * @param {{ broker: any }|null} context.llm
  * @param {Set<string>} context.existingInvoiceNumbers
  * @param {Set<string>} context.existingHashes
@@ -73,13 +87,14 @@ export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} context.fs
  * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
  * @param {function(object): void} [context.onProgress] - receives structured progress events
- * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'error', metadata?: object }>}
+ * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'skippedEmpty'|'error', metadata?: object }>}
  */
 async function processReceiptMessage(client, msg, context) {
   const {
     accountName,
     outputDir,
     dryRun,
+    includeEmpty = false,
     llm,
     existingInvoiceNumbers,
     existingHashes,
@@ -146,6 +161,18 @@ async function processReceiptMessage(client, msg, context) {
       return { action: "duplicate" };
     }
 
+    // Skip empty extractions unless caller explicitly opts in
+    if (!includeEmpty && isEmptyExtraction(metadata, pdfAttachments)) {
+      onProgress(
+        emptyExtractionSkipped(
+          metadata.vendor || msg.fromName || msg.fromAddress,
+          msg.fromAddress,
+          (metadata.date || emailDate).toString(),
+        ),
+      );
+      return { action: "skippedEmpty" };
+    }
+
     const result = writeReceiptOutput({
       metadata,
       pdfAttachments,
@@ -201,6 +228,7 @@ const defaultGateways = {
  * @param {string}  [opts.account] - only search this account
  * @param {string}  [opts.vendor] - filter to a specific vendor (substring match)
  * @param {boolean} [opts.dryRun=false] - show what would be done
+ * @param {boolean} [opts.includeEmpty=false] - also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)
  * @param {object} [gateways] - injectable implementations for testing
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ stats: object, records: Array }>}
@@ -217,6 +245,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   } = { ...defaultGateways, ...gateways };
 
   const dryRun = opts.dryRun ?? false;
+  const includeEmpty = opts.includeEmpty ?? false;
   const months = opts.months ?? 12;
   const outputDir = resolve(opts.outputDir || ".");
   const accountFilter = opts.account || null;
@@ -239,7 +268,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   );
   const usedPaths = new Set();
 
-  const stats = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, alreadyHave: 0, errors: 0 };
+  const stats = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, skippedEmpty: 0, alreadyHave: 0, errors: 0 };
   const records = [];
 
   // Initialize LLM broker for receipt data extraction (null if no API key available)
@@ -282,6 +311,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
           accountName: account.name,
           outputDir,
           dryRun,
+          includeEmpty,
           llm,
           existingInvoiceNumbers,
           existingHashes,
@@ -299,6 +329,8 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
           records.push(/** @type {object} */ (metadata));
         } else if (action === "skipped") {
           stats.skipped++;
+        } else if (action === "skippedEmpty") {
+          stats.skippedEmpty++;
         } else if (action === "duplicate") {
           stats.alreadyHave++;
         } else if (action === "error") {

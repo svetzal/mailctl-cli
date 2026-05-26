@@ -75,6 +75,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
       account: account || null,
       vendor: opts.vendor || null,
       dryRun: opts.dryRun ?? false,
+      includeEmpty: opts.includeEmpty ?? false,
     },
     llmGateways,
     onProgress,

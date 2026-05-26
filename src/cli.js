@@ -105,7 +105,7 @@ const renderDownloadReceiptsProgress = createProgressRenderer(renderDownloadRece
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-  .version("1.0.3")
+  .version("1.0.4")
   .option("--account <name>", "email account to use (searches all if omitted)")
   .option("--json", "output results as JSON");
 
@@ -210,6 +210,11 @@ program
   .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
   .option("--vendor <name>", "filter to a specific vendor (substring match)")
   .option("--list-vendors", "list vendors found in recent receipts", false)
+  .option(
+    "--include-empty",
+    "also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)",
+    false,
+  )
   .action(
     wrapAction(async (opts) => {
       const json = resolveJson(opts);

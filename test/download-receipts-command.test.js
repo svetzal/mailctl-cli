@@ -181,5 +181,49 @@ describe("downloadReceiptsCommand", () => {
         expect.any(Function),
       );
     });
+
+    it("forwards includeEmpty: false by default", async () => {
+      const downloadReceiptEmails = mock(async () => ({
+        stats: { found: 0, downloaded: 0, noPdf: 0, skippedEmpty: 0, alreadyHave: 0, errors: 0 },
+        records: [],
+      }));
+      const deps = makeDeps({
+        importDownloadReceipts: mock(async () => ({
+          listReceiptVendors: mock(async () => []),
+          reprocessReceipts: mock(async () => ({})),
+          downloadReceiptEmails,
+        })),
+      });
+
+      await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
+
+      expect(downloadReceiptEmails).toHaveBeenCalledWith(
+        expect.objectContaining({ includeEmpty: false }),
+        expect.anything(),
+        expect.any(Function),
+      );
+    });
+
+    it("forwards includeEmpty: true when --include-empty is set", async () => {
+      const downloadReceiptEmails = mock(async () => ({
+        stats: { found: 0, downloaded: 0, noPdf: 0, skippedEmpty: 0, alreadyHave: 0, errors: 0 },
+        records: [],
+      }));
+      const deps = makeDeps({
+        importDownloadReceipts: mock(async () => ({
+          listReceiptVendors: mock(async () => []),
+          reprocessReceipts: mock(async () => ({})),
+          downloadReceiptEmails,
+        })),
+      });
+
+      await downloadReceiptsCommand({ output: ".", months: "12", includeEmpty: true }, deps);
+
+      expect(downloadReceiptEmails).toHaveBeenCalledWith(
+        expect.objectContaining({ includeEmpty: true }),
+        expect.anything(),
+        expect.any(Function),
+      );
+    });
   });
 });

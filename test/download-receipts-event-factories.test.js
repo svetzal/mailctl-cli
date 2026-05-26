@@ -7,6 +7,7 @@ import {
   dryRunJson,
   dryRunMetadata,
   dryRunPdf,
+  emptyExtractionSkipped,
   llmDisabled,
   llmEnabled,
   llmExtractionFailed,
@@ -558,5 +559,23 @@ describe("reprocessError", () => {
 
   it("has filename field", () => {
     expect(reprocessError(err, "receipt.json").filename).toBe("receipt.json");
+  });
+});
+
+describe("emptyExtractionSkipped", () => {
+  it("has type empty-extraction-skipped", () => {
+    expect(emptyExtractionSkipped("Acme", "billing@acme.com", "2025-03-07").type).toBe("empty-extraction-skipped");
+  });
+
+  it("has vendor field", () => {
+    expect(emptyExtractionSkipped("Acme", "billing@acme.com", "2025-03-07").vendor).toBe("Acme");
+  });
+
+  it("has sourceEmail field", () => {
+    expect(emptyExtractionSkipped("Acme", "billing@acme.com", "2025-03-07").sourceEmail).toBe("billing@acme.com");
+  });
+
+  it("has date field", () => {
+    expect(emptyExtractionSkipped("Acme", "billing@acme.com", "2025-03-07").date).toBe("2025-03-07");
   });
 });
