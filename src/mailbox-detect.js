@@ -31,7 +31,7 @@ export async function detectMailbox(client, uid, mailboxPaths, onProgress = () =
 
 /**
  * List all searchable mailboxes, detect which one contains `uid`, and return it.
- * Returns null if not found in any mailbox.
+ * Returns null if not found in any mailbox — does not throw.
  *
  * @param {any} client - connected IMAP client
  * @param {string|number} uid - message UID to find
@@ -39,7 +39,7 @@ export async function detectMailbox(client, uid, mailboxPaths, onProgress = () =
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<string|null>} mailbox path or null if not found
  */
-export async function detectMailboxOrFail(client, uid, listMailboxes, onProgress = () => {}) {
+export async function detectMailboxAcrossAll(client, uid, listMailboxes, onProgress = () => {}) {
   const allBoxes = await listMailboxes(client);
   const paths = filterSearchMailboxes(allBoxes);
   const mailbox = await detectMailbox(client, uid, paths, onProgress);

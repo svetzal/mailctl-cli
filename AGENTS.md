@@ -122,7 +122,7 @@ src/sorter.js                  — IMAP folder management, message moving
 src/downloader.js              — PDF attachment download with SHA-256 dedup
 src/download-receipts.js       — Receipt download orchestration: downloadReceiptEmails(), listReceiptVendors(), reprocessReceipts() — search → filter → extract metadata → write PDF+sidecar
 src/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
-src/mailbox-detect.js          — detectMailbox() — finds which mailbox contains a given UID
+src/mailbox-detect.js          — detectMailbox(), detectMailboxAcrossAll() — finds which mailbox contains a given UID
 src/reply.js                   — Pure reply builders: headers, body, editor template, parser
 src/thread.js                  — Thread finding logic (header search + subject fallback); formatting moved to format-thread.js
 src/inbox.js                   — fetchInbox() — inbox IMAP fetch; formatting moved to format-inbox.js
@@ -156,6 +156,10 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **Shared helpers** — `forEachAccount()` handles connect/logout lifecycle, `filterScanMailboxes()` and `filterSearchMailboxes()` centralize mailbox exclusion logic
 - **Search dedup** — search deduplicates results by message-id header to avoid showing the same email found in multiple mailboxes (e.g. Gmail All Mail + INBOX)
 - **Consistent `--json`** — all commands support `--json` for machine-readable output; errors also output as JSON in that mode
+- **Two canonical error escalation patterns for command orchestrators:**
+  - *Single-item commands* (`read`, `reply`, `search`, `extract-attachment`, `thread`, `classify`, `import-classifications`) throw on failure. The CLI layer catches these via `withErrorHandling` and formats the error for the user.
+  - *Batch commands* (`move`, `flag`) accumulate per-item `{ status: "failed", error: … }` entries in their result list and never throw on item-level failure. They return `{ stats, results }` even when some items failed.
+  - *Thin delegators* (`scan`, `sort`, `download`, `inbox`, `contacts`, `list-folders`) wrap their delegate call in try/catch and re-throw with a user-facing prefix (e.g. `"Scan failed: " + err.message`) so raw IMAP protocol errors never reach the user directly.
 
 ## Engineering Standards
 

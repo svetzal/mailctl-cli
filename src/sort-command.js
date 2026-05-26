@@ -22,13 +22,17 @@ import { sortReceipts } from "./sorter.js";
 export async function sortCommand(opts, deps, onProgress = () => {}) {
   const { account } = deps;
 
-  return await sortReceipts(
-    {
-      months: parseIntOption(opts.months, 24),
-      dryRun: opts.dryRun ?? false,
-      account: account || undefined,
-    },
-    {},
-    onProgress,
-  );
+  try {
+    return await sortReceipts(
+      {
+        months: parseIntOption(opts.months, 24),
+        dryRun: opts.dryRun ?? false,
+        account: account || undefined,
+      },
+      {},
+      onProgress,
+    );
+  } catch (err) {
+    throw new Error(`Sort failed: ${err.message}`);
+  }
 }

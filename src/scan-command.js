@@ -25,15 +25,20 @@ import { aggregateBySender, scanAllAccounts } from "./scanner.js";
 export async function scanCommand(opts, deps, onProgress = () => {}) {
   const { account, dataDir, fsGateway } = deps;
 
-  const results = await scanAllAccounts(
-    {
-      months: parseIntOption(opts.months, 12),
-      allMailboxes: opts.allMailboxes ?? false,
-      account: account || undefined,
-    },
-    {},
-    onProgress,
-  );
+  let results;
+  try {
+    results = await scanAllAccounts(
+      {
+        months: parseIntOption(opts.months, 12),
+        allMailboxes: opts.allMailboxes ?? false,
+        account: account || undefined,
+      },
+      {},
+      onProgress,
+    );
+  } catch (err) {
+    throw new Error(`Scan failed: ${err.message}`);
+  }
 
   const senders = aggregateBySender(results);
 

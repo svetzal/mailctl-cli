@@ -24,17 +24,21 @@ export async function listFoldersCommand(_opts, deps, onProgress = () => {}) {
   /** @type {Array<{ account: string, folders: Array<{ path: string, specialUse: string|null }> }>} */
   const allAccountFolders = [];
 
-  await forEachAccount(
-    targetAccounts,
-    async (client, acct) => {
-      const folders = await listMailboxes(client);
-      allAccountFolders.push({
-        account: acct.name,
-        folders: folders.map((f) => ({ path: f.path, specialUse: f.specialUse || null })),
-      });
-    },
-    onProgress,
-  );
+  try {
+    await forEachAccount(
+      targetAccounts,
+      async (client, acct) => {
+        const folders = await listMailboxes(client);
+        allAccountFolders.push({
+          account: acct.name,
+          folders: folders.map((f) => ({ path: f.path, specialUse: f.specialUse || null })),
+        });
+      },
+      onProgress,
+    );
+  } catch (err) {
+    throw new Error(`List folders failed: ${err.message}`);
+  }
 
   return { allAccountFolders };
 }

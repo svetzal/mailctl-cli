@@ -23,14 +23,18 @@ import { parseIntOption } from "./parse-options.js";
 export async function downloadCommand(opts, deps, onProgress = () => {}) {
   const { account, downloadReceipts = _downloadReceipts } = deps;
 
-  return await downloadReceipts(
-    {
-      months: parseIntOption(opts.months, 24),
-      dryRun: opts.dryRun ?? false,
-      outputDir: opts.output,
-      account: account || undefined,
-    },
-    {},
-    onProgress,
-  );
+  try {
+    return await downloadReceipts(
+      {
+        months: parseIntOption(opts.months, 24),
+        dryRun: opts.dryRun ?? false,
+        outputDir: opts.output,
+        account: account || undefined,
+      },
+      {},
+      onProgress,
+    );
+  } catch (err) {
+    throw new Error(`Download failed: ${err.message}`);
+  }
 }

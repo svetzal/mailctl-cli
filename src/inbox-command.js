@@ -29,17 +29,21 @@ export async function inboxCommand(opts, deps, onProgress = () => {}) {
   const resultsByAccount = new Map();
   const allResults = [];
 
-  await forEachAccount(targetAccounts, async (client, acct) => {
-    const messages = await fetchInbox(client, acct.name, {
-      limit,
-      since,
-      unreadOnly: opts.unread ?? false,
-      onProgress,
-    });
+  try {
+    await forEachAccount(targetAccounts, async (client, acct) => {
+      const messages = await fetchInbox(client, acct.name, {
+        limit,
+        since,
+        unreadOnly: opts.unread ?? false,
+        onProgress,
+      });
 
-    resultsByAccount.set(acct.name, messages);
-    allResults.push(...messages);
-  });
+      resultsByAccount.set(acct.name, messages);
+      allResults.push(...messages);
+    });
+  } catch (err) {
+    throw new Error(`Inbox fetch failed: ${err.message}`);
+  }
 
   return { resultsByAccount, allResults };
 }

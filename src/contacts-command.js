@@ -32,17 +32,21 @@ export async function contactsCommand(opts, deps, onProgress = () => {}) {
 
   const allEntries = [];
 
-  await forEachAccount(targetAccounts, async (client, acct) => {
-    const entries = await extractContacts(client, acct.name, {
-      since,
-      limit,
-      sentOnly: opts.sent ?? false,
-      receivedOnly: opts.received ?? false,
-      onProgress,
-    });
+  try {
+    await forEachAccount(targetAccounts, async (client, acct) => {
+      const entries = await extractContacts(client, acct.name, {
+        since,
+        limit,
+        sentOnly: opts.sent ?? false,
+        receivedOnly: opts.received ?? false,
+        onProgress,
+      });
 
-    allEntries.push(...entries);
-  });
+      allEntries.push(...entries);
+    });
+  } catch (err) {
+    throw new Error(`Contacts fetch failed: ${err.message}`);
+  }
 
   // Collect self addresses: config selfAddresses + each account's user address
   const selfAddresses = [...getConfigSelfAddresses()];
