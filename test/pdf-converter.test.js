@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { pdfToText, resolveExtractionText } from "../src/pdf-converter.js";
+import { pdfToText, resolveExtractionText, selectMarkdownFile } from "../src/pdf-converter.js";
 
 // ── resolveExtractionText ─────────────────────────────────────────────────────
 
@@ -195,5 +195,29 @@ describe("pdfToText", () => {
 
       expect(errors[0].ctx.pdfPath).toBe("/some/file.pdf");
     });
+  });
+});
+
+// ── selectMarkdownFile ────────────────────────────────────────────────────────
+
+describe("selectMarkdownFile", () => {
+  it("returns the markdown filename when present", () => {
+    const result = selectMarkdownFile(["output.md", "output.pdf"]);
+    expect(result).toBe("output.md");
+  });
+
+  it("returns undefined when no markdown file is present", () => {
+    const result = selectMarkdownFile(["output.pdf", "output.txt"]);
+    expect(result).toBeUndefined();
+  });
+
+  it("returns undefined for an empty file list", () => {
+    const result = selectMarkdownFile([]);
+    expect(result).toBeUndefined();
+  });
+
+  it("matches only .md extension, not .mdx or .md.bak", () => {
+    const result = selectMarkdownFile(["file.mdx", "file.md.bak"]);
+    expect(result).toBeUndefined();
   });
 });

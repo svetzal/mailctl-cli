@@ -18,6 +18,98 @@ import {
 import { cleanVendorForFilename } from "./receipt-extraction.js";
 
 /**
+ * Pure: computes the month subdirectory path for the given email date.
+ * @param {string} outputDir
+ * @param {Date|string} emailDate
+ * @returns {string}
+ */
+export function receiptMonthDir(outputDir, emailDate) {
+  const d = emailDate instanceof Date ? emailDate : new Date(emailDate);
+  const yyyy = String(d.getFullYear());
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return join(outputDir, yyyy, mm);
+}
+
+/**
+ * Pure: derives the raw base filename for a receipt (before collision handling).
+ * Applies vendor name cleaning, invoice-number sanitization, and the 60-char truncation rule.
+ *
+ * @param {object} metadata - extracted receipt metadata (invoice_number, date)
+ * @param {object} msg - envelope (fromAddress, fromName)
+ * @param {string} bodyText - plain-text email body
+ * @param {string} subject - email subject
+ * @returns {{ rawBase: string, vendorClean: string }}
+ */
+export function deriveReceiptBaseName(metadata, msg, bodyText, subject) {
+  const vendorClean = cleanVendorForFilename(msg.fromAddress, msg.fromName, bodyText, subject);
+  let rawBase;
+  if (metadata.invoice_number) {
+    const safeInvoice = metadata.invoice_number
+      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+    rawBase = `${vendorClean}-${safeInvoice}`;
+  } else {
+    rawBase = `${vendorClean}-${metadata.date}`;
+  }
+  if (rawBase.length > 60) {
+    rawBase = rawBase.slice(0, 60).replace(/[-_][^-_]*$/, "");
+    rawBase = rawBase.replace(/[-._]+$/, "");
+  }
+  return { rawBase, vendorClean };
+}
+
+/**
+ * Pure: computes a write plan for a receipt — no filesystem calls.
+ * Hashes the PDF for dedup, returns action, file paths, content buffers, and updated metadata.
+ *
+ * @param {object} params
+ * @param {object} params.metadata
+ * @param {Array} params.pdfAttachments
+ * @param {string} params.baseName - unique base name (post collision-check)
+ * @param {string} params.monthDir - output month directory path
+ * @param {Set<string>} params.existingHashes - known SHA-256 hashes of existing PDFs
+ * @param {string} params.vendorClean - sanitized vendor name (used for dup label)
+ * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', writes?: Array<{path: string, content: any}>, metadata?: object, dupLabel?: string }}
+ */
+export function planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir, existingHashes, vendorClean }) {
+  const jsonFilename = `${baseName}.json`;
+  const jsonPath = join(monthDir, jsonFilename);
+
+  if (pdfAttachments.length > 0) {
+    const att = pdfAttachments[0];
+    const contentHash = createHash("sha256").update(att.content).digest("hex");
+
+    if (existingHashes.has(contentHash)) {
+      const dupLabel = metadata.invoice_number
+        ? `${vendorClean} ${metadata.invoice_number}`
+        : `${vendorClean} (${metadata.date})`;
+      return { action: "duplicate", dupLabel };
+    }
+
+    const pdfFilename = `${baseName}.pdf`;
+    const pdfPath = join(monthDir, pdfFilename);
+    const updatedMetadata = { ...metadata, receipt_file: pdfFilename };
+
+    return {
+      action: "downloaded",
+      writes: [
+        { path: pdfPath, content: att.content },
+        { path: jsonPath, content: JSON.stringify(updatedMetadata, null, 2) },
+      ],
+      metadata: updatedMetadata,
+    };
+  }
+
+  const updatedMetadata = { ...metadata, receipt_file: null };
+  return {
+    action: "noPdf",
+    writes: [{ path: jsonPath, content: JSON.stringify(updatedMetadata, null, 2) }],
+    metadata: updatedMetadata,
+  };
+}
+
+/**
  * Walk the year/month output directory tree, invoking visitor for each file.
  * Encapsulates the <root>/<YYYY>/<MM>/<file> directory convention.
  * @param {string} outputDir
@@ -144,6 +236,9 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
 }
 
 /**
+ * Thin shell: orchestrates path derivation, collision checks, plan execution, and progress events
+ * for writing one receipt to disk.
+ *
  * @param {object} params
  * @param {object} params.metadata
  * @param {Array} params.pdfAttachments
@@ -173,73 +268,40 @@ export function writeReceiptOutput({
   fs,
   onProgress = () => {},
 }) {
-  const d = emailDate instanceof Date ? emailDate : new Date(emailDate);
-  const yyyy = String(d.getFullYear());
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const monthDir = join(outputDir, yyyy, mm);
-
-  const vendorClean = cleanVendorForFilename(msg.fromAddress, msg.fromName, bodyText, parsed.subject || msg.subject);
-  let rawBase;
-  if (metadata.invoice_number) {
-    const safeInvoice = metadata.invoice_number
-      .replace(/[/\\:*?"<>|]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-    rawBase = `${vendorClean}-${safeInvoice}`;
-  } else {
-    rawBase = `${vendorClean}-${metadata.date}`;
-  }
-
-  if (rawBase.length > 60) {
-    rawBase = rawBase.slice(0, 60).replace(/[-_][^-_]*$/, "");
-    rawBase = rawBase.replace(/[-._]+$/, "");
-  }
-
+  const monthDir = receiptMonthDir(outputDir, emailDate);
+  const { rawBase, vendorClean } = deriveReceiptBaseName(metadata, msg, bodyText, parsed.subject || msg.subject);
   const baseName = uniqueBaseName(monthDir, rawBase, usedPaths, fs);
+  const plan = planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir, existingHashes, vendorClean });
 
-  if (pdfAttachments.length > 0) {
-    const att = pdfAttachments[0];
-    const contentHash = createHash("sha256").update(att.content).digest("hex");
+  if (plan.action === "duplicate") {
+    onProgress(skipDuplicate(plan.dupLabel ?? ""));
+    return { action: "duplicate", metadata };
+  }
 
-    if (existingHashes.has(contentHash)) {
-      const dupLabel = metadata.invoice_number
-        ? `${vendorClean} ${metadata.invoice_number}`
-        : `${vendorClean} (${metadata.date})`;
-      onProgress(skipDuplicate(dupLabel));
-      return { action: "duplicate", metadata };
+  const pdfFilename = `${baseName}.pdf`;
+  const jsonFilename = `${baseName}.json`;
+
+  if (!dryRun) {
+    fs.mkdir(monthDir);
+    for (const { path, content } of plan.writes ?? []) {
+      fs.writeFile(path, content);
     }
+  }
 
-    const pdfFilename = `${baseName}.pdf`;
-    const jsonFilename = `${baseName}.json`;
-    const pdfPath = join(monthDir, pdfFilename);
-    const jsonPath = join(monthDir, jsonFilename);
-
-    metadata.receipt_file = pdfFilename;
-
+  if (plan.action === "downloaded") {
     if (dryRun) {
       onProgress(dryRunPdf(pdfFilename));
       onProgress(dryRunJson(jsonFilename));
     } else {
-      fs.mkdir(monthDir);
-      fs.writeFile(pdfPath, att.content);
-      fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-      onProgress(downloadedPdf(pdfFilename, att.content.length));
+      onProgress(downloadedPdf(pdfFilename, pdfAttachments[0].content.length));
     }
-
-    return { action: "downloaded", metadata };
   } else {
-    metadata.receipt_file = null;
-    const jsonFilename = `${baseName}.json`;
-    const jsonPath = join(monthDir, jsonFilename);
-
     if (dryRun) {
       onProgress(dryRunMetadata(jsonFilename));
     } else {
-      fs.mkdir(monthDir);
-      fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
       onProgress(wroteMetadata(jsonFilename));
     }
-
-    return { action: "noPdf", metadata };
   }
+
+  return { action: plan.action, metadata: plan.metadata };
 }

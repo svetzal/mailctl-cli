@@ -7,6 +7,15 @@ import { debug } from "./debug.js";
 import { doclingFailed, usingPdfContent } from "./download-receipts-event-factories.js";
 
 /**
+ * Pure: finds the first markdown file in a list of filenames.
+ * @param {string[]} files
+ * @returns {string|undefined}
+ */
+export function selectMarkdownFile(files) {
+  return files.find((f) => f.endsWith(".md"));
+}
+
+/**
  * @param {string} pdfPath
  * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} subprocess
@@ -29,7 +38,7 @@ export function pdfToText(pdfPath, fs, subprocess, onError = () => {}) {
       },
     );
     const files = fs.readdir(tmpDir);
-    const mdFile = files.find((f) => f.endsWith(".md"));
+    const mdFile = selectMarkdownFile(files);
     if (mdFile) {
       return fs.readText(join(tmpDir, mdFile)).trim();
     }

@@ -5,8 +5,11 @@ import { join } from "node:path";
 import { FileSystemGateway } from "../src/gateways/fs-gateway.js";
 import {
   collectSidecarFiles,
+  deriveReceiptBaseName,
   loadExistingHashes,
   loadExistingInvoiceNumbers,
+  planReceiptWrite,
+  receiptMonthDir,
   uniqueBaseName,
   walkOutputTree,
 } from "../src/receipt-output-tree.js";
@@ -480,5 +483,150 @@ describe("collectSidecarFiles", () => {
       const result = collectSidecarFiles(tmpDir, REAL_FS);
       expect(result[0].sidecar.vendor).toBe("Stripe");
     });
+  });
+});
+
+// ── receiptMonthDir ───────────────────────────────────────────────────────────
+
+describe("receiptMonthDir", () => {
+  it("returns correct path for a Date object", () => {
+    const result = receiptMonthDir("/output", new Date("2026-03-15"));
+    expect(result).toBe(join("/output", "2026", "03"));
+  });
+
+  it("returns correct path for a date string", () => {
+    const result = receiptMonthDir("/output", "2025-11-07");
+    expect(result).toBe(join("/output", "2025", "11"));
+  });
+
+  it("zero-pads single-digit months", () => {
+    const result = receiptMonthDir("/output", new Date("2026-01-01"));
+    expect(result.endsWith(join("2026", "01"))).toBe(true);
+  });
+
+  it("handles December (month 12) without padding", () => {
+    const result = receiptMonthDir("/output", new Date("2025-12-25"));
+    expect(result.endsWith(join("2025", "12"))).toBe(true);
+  });
+});
+
+// ── deriveReceiptBaseName ─────────────────────────────────────────────────────
+
+const BASE_MSG = { fromAddress: "billing@acme.com", fromName: "Acme" };
+
+describe("deriveReceiptBaseName", () => {
+  it("uses invoice_number in the base name when present", () => {
+    const metadata = { invoice_number: "INV-001", date: "2026-01-15" };
+    const { rawBase } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Invoice #INV-001");
+    expect(rawBase).toContain("INV-001");
+  });
+
+  it("falls back to date when invoice_number is absent", () => {
+    const metadata = { invoice_number: null, date: "2026-01-15" };
+    const { rawBase } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Payment confirmation");
+    expect(rawBase).toContain("2026-01-15");
+  });
+
+  it("sanitizes illegal characters in invoice_number", () => {
+    const metadata = { invoice_number: "INV/001:bad", date: "2026-01-15" };
+    const { rawBase } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Invoice");
+    expect(rawBase).not.toMatch(/[/:]/);
+  });
+
+  it("truncates rawBase longer than 60 characters", () => {
+    const metadata = { invoice_number: "A".repeat(70), date: "2026-01-15" };
+    const { rawBase } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Invoice");
+    expect(rawBase.length).toBeLessThanOrEqual(60);
+  });
+
+  it("also returns vendorClean", () => {
+    const metadata = { invoice_number: "INV-001", date: "2026-01-15" };
+    const { vendorClean } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Invoice");
+    expect(typeof vendorClean).toBe("string");
+    expect(vendorClean.length).toBeGreaterThan(0);
+  });
+});
+
+// ── planReceiptWrite ──────────────────────────────────────────────────────────
+
+const PLAN_PDF_CONTENT = Buffer.from("%PDF-1.4 test content");
+const PLAN_PDF_HASH = createHash("sha256").update(PLAN_PDF_CONTENT).digest("hex");
+
+describe("planReceiptWrite", () => {
+  const BASE_PARAMS = {
+    metadata: { vendor: "Stripe", date: "2026-01-15", invoice_number: "INV-001", amount: 49 },
+    baseName: "Stripe-INV-001",
+    monthDir: "/output/2026/01",
+    existingHashes: new Set(),
+    vendorClean: "Stripe",
+  };
+
+  it("returns action duplicate when content hash matches existing", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [{ content: PLAN_PDF_CONTENT }],
+      existingHashes: new Set([PLAN_PDF_HASH]),
+    });
+    expect(plan.action).toBe("duplicate");
+  });
+
+  it("includes dupLabel in duplicate plan", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [{ content: PLAN_PDF_CONTENT }],
+      existingHashes: new Set([PLAN_PDF_HASH]),
+    });
+    expect(plan.dupLabel).toBeDefined();
+  });
+
+  it("returns action downloaded for a new PDF attachment", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [{ content: PLAN_PDF_CONTENT }],
+    });
+    expect(plan.action).toBe("downloaded");
+  });
+
+  it("downloaded plan includes both .pdf and .json writes", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [{ content: PLAN_PDF_CONTENT }],
+    });
+    const paths = (plan.writes ?? []).map((w) => w.path);
+    expect(paths.some((p) => p.endsWith(".pdf"))).toBe(true);
+    expect(paths.some((p) => p.endsWith(".json"))).toBe(true);
+  });
+
+  it("downloaded plan sets receipt_file in metadata", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [{ content: PLAN_PDF_CONTENT }],
+    });
+    expect(plan.metadata.receipt_file).toMatch(/\.pdf$/);
+  });
+
+  it("returns action noPdf when no PDF attachments", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [],
+    });
+    expect(plan.action).toBe("noPdf");
+  });
+
+  it("noPdf plan includes only .json write", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [],
+    });
+    expect((plan.writes ?? []).length).toBe(1);
+    expect((plan.writes ?? [])[0].path.endsWith(".json")).toBe(true);
+  });
+
+  it("noPdf plan sets receipt_file to null in metadata", () => {
+    const plan = planReceiptWrite({
+      ...BASE_PARAMS,
+      pdfAttachments: [],
+    });
+    expect(plan.metadata.receipt_file).toBeNull();
   });
 });

@@ -42,6 +42,13 @@ import {
   sanitizeForAgentOutput,
 } from "./llm-receipt-extraction.js";
 import { pdfToText, resolveExtractionText } from "./pdf-converter.js";
+import {
+  buildReprocessedSidecar,
+  classifyReceiptExtraction,
+  classifyReprocessResult,
+  MIN_INVOICE_CONFIDENCE,
+  sidecarPassesFilters,
+} from "./receipt-decisions.js";
 import { applyReceiptFilters } from "./receipt-filters.js";
 import {
   collectSidecarFiles,
@@ -54,19 +61,6 @@ import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 import { matchesVendor } from "./vendor-map.js";
 
 const BODY_SNIPPET_MAX_CHARS = 2000;
-const MIN_INVOICE_CONFIDENCE = 0.4;
-
-/**
- * Returns true when extraction produced no useful data — no amount, no invoice number, and no PDF.
- * Sidecars for these emails carry no bookkeeping value and are skipped by default.
- *
- * @param {object} metadata - extracted receipt metadata
- * @param {Array} pdfAttachments - PDF attachments found in the email
- * @returns {boolean}
- */
-function isEmptyExtraction(metadata, pdfAttachments) {
-  return pdfAttachments.length === 0 && metadata.amount == null && metadata.invoice_number == null;
-}
 
 export { RECEIPT_EXTRACTION_SCHEMA } from "./llm-receipt-extraction.js";
 export { searchMailboxForReceipts } from "./receipt-search-pipeline.js";
@@ -145,32 +139,34 @@ async function processReceiptMessage(client, msg, context) {
       bodyText.length > BODY_SNIPPET_MAX_CHARS ? bodyText.slice(0, BODY_SNIPPET_MAX_CHARS) : bodyText,
     );
 
-    // Check LLM classification — skip non-invoices
-    if (metadata.is_invoice === false) {
-      onProgress(skipNonInvoice(metadata.vendor, metadata.confidence || 0));
-      return { action: "skipped" };
-    }
-    if (metadata.confidence !== null && metadata.confidence < MIN_INVOICE_CONFIDENCE) {
-      onProgress(skipLowConfidence(metadata.vendor, metadata.confidence));
-      return { action: "skipped" };
-    }
+    const decision = classifyReceiptExtraction(metadata, pdfAttachments, {
+      includeEmpty,
+      existingInvoiceNumbers,
+      minConfidence: MIN_INVOICE_CONFIDENCE,
+    });
 
-    // Invoice number dedup
-    if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
-      onProgress(skipExistingInvoice(metadata.vendor, metadata.invoice_number));
-      return { action: "duplicate" };
-    }
-
-    // Skip empty extractions unless caller explicitly opts in
-    if (!includeEmpty && isEmptyExtraction(metadata, pdfAttachments)) {
-      onProgress(
-        emptyExtractionSkipped(
-          metadata.vendor || msg.fromName || msg.fromAddress,
-          msg.fromAddress,
-          (metadata.date || emailDate).toString(),
-        ),
-      );
-      return { action: "skippedEmpty" };
+    if (decision.action !== "proceed") {
+      switch (decision.event) {
+        case "skipNonInvoice":
+          onProgress(skipNonInvoice(decision.vendor ?? "", decision.confidence ?? 0));
+          break;
+        case "skipLowConfidence":
+          onProgress(skipLowConfidence(decision.vendor ?? "", decision.confidence ?? 0));
+          break;
+        case "skipExistingInvoice":
+          onProgress(skipExistingInvoice(decision.vendor ?? "", decision.invoice_number ?? ""));
+          break;
+        case "emptyExtractionSkipped":
+          onProgress(
+            emptyExtractionSkipped(
+              metadata.vendor || msg.fromName || msg.fromAddress,
+              msg.fromAddress,
+              (metadata.date || emailDate).toString(),
+            ),
+          );
+          break;
+      }
+      return { action: decision.action };
     }
 
     const result = writeReceiptOutput({
@@ -436,19 +432,8 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     const pdfPath = `${baseName}.pdf`;
     const jsonFilename = jsonPath.split("/").pop();
 
-    // Filter by vendor
-    if (vendorFilter && sidecar.vendor) {
-      if (!sidecar.vendor.toLowerCase().includes(vendorFilter.toLowerCase())) {
-        continue;
-      }
-    }
-
-    // Filter by since date
-    if (sinceDate && sidecar.date) {
-      const sidecarDate = new Date(sidecar.date);
-      if (!Number.isNaN(sidecarDate.getTime()) && sidecarDate < sinceDate) {
-        continue;
-      }
+    if (!sidecarPassesFilters(sidecar, { vendorFilter, sinceDate })) {
+      continue;
     }
 
     // Check if a corresponding PDF exists
@@ -499,14 +484,16 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
         sidecar.date ? new Date(sidecar.date) : new Date(),
       );
 
-      if (!metadata) {
+      const reprocessDecision = classifyReprocessResult(metadata);
+
+      if (reprocessDecision.action === "noData") {
         onProgress(reprocessNoData(jsonFilename));
         stats.errors++;
         results.push({ file: jsonFilename, status: "error", reason: "LLM extraction failed" });
         continue;
       }
 
-      if (metadata.is_invoice === false) {
+      if (reprocessDecision.action === "reclassified") {
         onProgress(reprocessReclassified(jsonFilename));
         fs.rm(jsonPath, { force: true });
         stats.reclassified++;
@@ -514,16 +501,8 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
         continue;
       }
 
-      // Preserve fields from the original sidecar that aren't part of extraction
-      const updated = {
-        ...metadata,
-        source_account: sidecar.source_account || metadata.source_account,
-        email_uid: sidecar.email_uid || metadata.email_uid,
-        receipt_file: sidecar.receipt_file || metadata.receipt_file,
-        source_body_snippet: sidecar.source_body_snippet || null,
-        downloadedAt: sidecar.downloadedAt || null,
-        reprocessedAt: new Date().toISOString(),
-      };
+      const reprocessedAt = new Date().toISOString();
+      const updated = buildReprocessedSidecar(metadata, sidecar, reprocessedAt);
 
       fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
       onProgress(reprocessUpdated(jsonFilename));
