@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
@@ -32,6 +31,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
 import { getConfigDownloadDir } from "./config.js";
+import { buildManifestRecord, contentHash, isValidPdf } from "./download-pdf-decisions.js";
 
 /**
  * Loaded from config via vendor-map.js.
@@ -179,7 +179,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
     if (f.toLowerCase().endsWith(".pdf")) {
       try {
         const buf = fs.readBuffer(join(outputDir, f));
-        existingHashes.add(createHash("sha256").update(buf).digest("hex"));
+        existingHashes.add(contentHash(buf));
       } catch (err) {
         onProgress(hashReadError(err, f));
       }
@@ -228,7 +228,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
 
         if (pdfParts.length === 0) {
           stats.noPdf++;
-          manifest[manifestKey] = { status: "no-pdf", date: msg.date };
+          manifest[manifestKey] = buildManifestRecord("no-pdf", { date: msg.date });
           continue;
         }
 
@@ -252,20 +252,20 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
               const buffer = Buffer.concat(chunks);
 
               // Verify it's actually a PDF
-              if (buffer.length < 5 || buffer.subarray(0, 5).toString() !== "%PDF-") {
+              if (!isValidPdf(buffer)) {
                 onProgress(invalidPdf(new Error("Invalid PDF content"), filename));
                 continue;
               }
 
               // Content-level dedup: skip if we already have this exact file
-              const contentHash = createHash("sha256").update(buffer).digest("hex");
-              if (existingHashes.has(contentHash)) {
+              const hash = contentHash(buffer);
+              if (existingHashes.has(hash)) {
                 onProgress(duplicateContent(filename));
                 stats.alreadyHave++;
-                manifest[manifestKey] = { status: "duplicate", hash: contentHash.slice(0, 12), date: msg.date, vendor };
+                manifest[manifestKey] = buildManifestRecord("duplicate", { hash, date: msg.date, vendor });
                 continue;
               }
-              existingHashes.add(contentHash);
+              existingHashes.add(hash);
 
               const outPath = join(outputDir, filename);
               fs.writeFile(outPath, buffer);
@@ -273,15 +273,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
               onProgress(downloaded(filename, buffer.length));
               stats.downloaded++;
 
-              // Record content hash in manifest for cross-run dedup
-              const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 12);
-              manifest[manifestKey] = {
-                status: "downloaded",
-                filename,
-                hash,
-                date: msg.date,
-                vendor,
-              };
+              manifest[manifestKey] = buildManifestRecord("downloaded", { filename, hash, date: msg.date, vendor });
             } catch (err) {
               onProgress(downloadFailed(err, filename));
               stats.skipped++;

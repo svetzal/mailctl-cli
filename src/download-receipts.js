@@ -1,12 +1,8 @@
-import { createHash } from "node:crypto";
 import { resolve } from "node:path";
-import { simpleParser } from "mailparser";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
 import {
-  doclingConversionFailed,
   downloadSummary,
-  emptyExtractionSkipped,
   llmDisabled,
   llmEnabled,
   outputTreeError,
@@ -23,181 +19,32 @@ import {
   reprocessUpdated,
   reprocessUsingBody,
   searchAccount,
-  skipExistingInvoice,
-  skipLowConfidence,
-  skipNonInvoice,
   subjectExclusions,
   uniqueReceipts,
   vendorFilterApplied,
 } from "./download-receipts-event-factories.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
-import { htmlToText } from "./html-to-text.js";
 import { forEachAccount as _forEachAccount, listMailboxes as _listMailboxes } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
-import {
-  createLlmBroker,
-  extractMetadataWithLLM,
-  extractReceiptMetadata,
-  sanitizeForAgentOutput,
-} from "./llm-receipt-extraction.js";
-import { pdfToText, resolveExtractionText } from "./pdf-converter.js";
+import { createLlmBroker, extractMetadataWithLLM } from "./llm-receipt-extraction.js";
+import { pdfToText } from "./pdf-converter.js";
+import { processReceiptMessage } from "./process-receipt-message.js";
 import {
   buildReprocessedSidecar,
-  classifyReceiptExtraction,
   classifyReprocessResult,
-  MIN_INVOICE_CONFIDENCE,
   sidecarPassesFilters,
+  tallyReceiptAction,
 } from "./receipt-decisions.js";
 import { applyReceiptFilters } from "./receipt-filters.js";
-import {
-  collectSidecarFiles,
-  loadExistingHashes,
-  loadExistingInvoiceNumbers,
-  writeReceiptOutput,
-} from "./receipt-output-tree.js";
+import { collectSidecarFiles, loadExistingHashes, loadExistingInvoiceNumbers } from "./receipt-output-tree.js";
 import { searchAccountForReceipts, searchMailboxForReceipts } from "./receipt-search-pipeline.js";
 import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 import { matchesVendor } from "./vendor-map.js";
 
-const BODY_SNIPPET_MAX_CHARS = 2000;
-
 export { RECEIPT_EXTRACTION_SCHEMA } from "./llm-receipt-extraction.js";
 export { searchMailboxForReceipts } from "./receipt-search-pipeline.js";
 export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
-
-/**
- * @param {object} client - connected IMAP client
- * @param {object} msg - envelope result with uid, from, subject, date, mailbox, accountName
- * @param {object} context
- * @param {string} context.accountName
- * @param {string} context.outputDir
- * @param {boolean} context.dryRun
- * @param {boolean} [context.includeEmpty] - when false (default), skips sidecars with no amount, no invoice number, and no PDF
- * @param {{ broker: any }|null} context.llm
- * @param {Set<string>} context.existingInvoiceNumbers
- * @param {Set<string>} context.existingHashes
- * @param {Set<string>} context.usedPaths
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} context.fs
- * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
- * @param {function(object): void} [context.onProgress] - receives structured progress events
- * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'skippedEmpty'|'error', metadata?: object }>}
- */
-async function processReceiptMessage(client, msg, context) {
-  const {
-    accountName,
-    outputDir,
-    dryRun,
-    includeEmpty = false,
-    llm,
-    existingInvoiceNumbers,
-    existingHashes,
-    usedPaths,
-    fs,
-    subprocess,
-    onProgress = () => {},
-  } = context;
-
-  try {
-    // Download and parse the full message
-    const raw = await client.download(String(msg.uid), undefined, { uid: true });
-    const chunks = [];
-    for await (const chunk of raw.content) chunks.push(chunk);
-    const buf = Buffer.concat(chunks);
-    const parsed = await simpleParser(buf);
-
-    const bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
-    const emailDate = parsed.date || msg.date || new Date();
-
-    // Find PDF attachments early — needed to decide extraction source
-    const pdfAttachments = (parsed.attachments || []).filter(
-      (a) => a.contentType === "application/pdf" || a.filename?.toLowerCase().endsWith(".pdf"),
-    );
-
-    const extractionText = resolveExtractionText(
-      pdfAttachments,
-      bodyText,
-      msg.uid,
-      fs,
-      subprocess,
-      onProgress,
-      (err, ctx) => onProgress(doclingConversionFailed(err, msg.uid, ctx.pdfPath)),
-    );
-    const metadata = await extractReceiptMetadata(
-      llm,
-      extractionText,
-      parsed.subject || msg.subject,
-      msg.fromAddress,
-      msg.fromName,
-      emailDate,
-      onProgress,
-    );
-
-    metadata.source_account = accountName.toLowerCase();
-    metadata.email_uid = msg.uid;
-    metadata.source_body_snippet = sanitizeForAgentOutput(
-      bodyText.length > BODY_SNIPPET_MAX_CHARS ? bodyText.slice(0, BODY_SNIPPET_MAX_CHARS) : bodyText,
-    );
-
-    const decision = classifyReceiptExtraction(metadata, pdfAttachments, {
-      includeEmpty,
-      existingInvoiceNumbers,
-      minConfidence: MIN_INVOICE_CONFIDENCE,
-    });
-
-    if (decision.action !== "proceed") {
-      switch (decision.event) {
-        case "skipNonInvoice":
-          onProgress(skipNonInvoice(decision.vendor ?? "", decision.confidence ?? 0));
-          break;
-        case "skipLowConfidence":
-          onProgress(skipLowConfidence(decision.vendor ?? "", decision.confidence ?? 0));
-          break;
-        case "skipExistingInvoice":
-          onProgress(skipExistingInvoice(decision.vendor ?? "", decision.invoice_number ?? ""));
-          break;
-        case "emptyExtractionSkipped":
-          onProgress(
-            emptyExtractionSkipped(
-              metadata.vendor || msg.fromName || msg.fromAddress,
-              msg.fromAddress,
-              (metadata.date || emailDate).toString(),
-            ),
-          );
-          break;
-      }
-      return { action: decision.action };
-    }
-
-    const result = writeReceiptOutput({
-      metadata,
-      pdfAttachments,
-      msg,
-      bodyText,
-      parsed,
-      emailDate,
-      outputDir,
-      dryRun,
-      existingHashes,
-      usedPaths,
-      fs,
-      onProgress,
-    });
-
-    if (result.action === "downloaded" && metadata.invoice_number) {
-      existingInvoiceNumbers.add(metadata.invoice_number);
-    }
-    if (result.action === "downloaded" && pdfAttachments.length > 0) {
-      const contentHash = createHash("sha256").update(pdfAttachments[0].content).digest("hex");
-      existingHashes.add(contentHash);
-    }
-
-    return result;
-  } catch (err) {
-    onProgress(processError(err, msg.uid));
-    return { action: "error" };
-  }
-}
 
 /** Singleton gateway instances used in production. */
 const _defaultFs = new FileSystemGateway();
@@ -264,7 +111,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   );
   const usedPaths = new Set();
 
-  const stats = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, skippedEmpty: 0, alreadyHave: 0, errors: 0 };
+  let stats = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, skippedEmpty: 0, alreadyHave: 0, errors: 0 };
   const records = [];
 
   // Initialize LLM broker for receipt data extraction (null if no API key available)
@@ -317,20 +164,9 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
           onProgress,
         };
         const { action, metadata } = await processReceiptMessage(client, msg, context);
-        if (action === "downloaded") {
-          stats.downloaded++;
+        stats = tallyReceiptAction(stats, action);
+        if (action === "downloaded" || action === "noPdf") {
           records.push(/** @type {object} */ (metadata));
-        } else if (action === "noPdf") {
-          stats.noPdf++;
-          records.push(/** @type {object} */ (metadata));
-        } else if (action === "skipped") {
-          stats.skipped++;
-        } else if (action === "skippedEmpty") {
-          stats.skippedEmpty++;
-        } else if (action === "duplicate") {
-          stats.alreadyHave++;
-        } else if (action === "error") {
-          stats.errors++;
         }
       }
     });

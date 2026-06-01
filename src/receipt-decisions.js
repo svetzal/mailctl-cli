@@ -3,6 +3,13 @@
  * No I/O — all inputs are plain values, outputs are plain objects.
  */
 
+import {
+  emptyExtractionSkipped,
+  skipExistingInvoice,
+  skipLowConfidence,
+  skipNonInvoice,
+} from "./download-receipts-event-factories.js";
+
 export const MIN_INVOICE_CONFIDENCE = 0.4;
 
 /**
@@ -118,4 +125,60 @@ export function classifyReprocessResult(metadata) {
     return { action: "reclassified" };
   }
   return { action: "update" };
+}
+
+/**
+ * Maps a non-proceed classification decision to its corresponding progress event object.
+ * Returns null for "proceed" decisions or unknown events.
+ *
+ * @param {object} decision - result from classifyReceiptExtraction
+ * @param {object} metadata - extracted receipt metadata
+ * @param {object} msg - message envelope with fromName, fromAddress
+ * @param {Date} emailDate - email date
+ * @returns {object|null}
+ */
+export function receiptDecisionEvent(decision, metadata, msg, emailDate) {
+  switch (decision.event) {
+    case "skipNonInvoice":
+      return skipNonInvoice(decision.vendor ?? "", decision.confidence ?? 0);
+    case "skipLowConfidence":
+      return skipLowConfidence(decision.vendor ?? "", decision.confidence ?? 0);
+    case "skipExistingInvoice":
+      return skipExistingInvoice(decision.vendor ?? "", decision.invoice_number ?? "");
+    case "emptyExtractionSkipped":
+      return emptyExtractionSkipped(
+        metadata.vendor || msg.fromName || msg.fromAddress,
+        msg.fromAddress,
+        (metadata.date || emailDate).toString(),
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * Returns a new stats object with the counter for the given action incremented by 1.
+ * Unknown actions return the original stats unchanged.
+ *
+ * @param {object} stats
+ * @param {string} action
+ * @returns {object}
+ */
+export function tallyReceiptAction(stats, action) {
+  switch (action) {
+    case "downloaded":
+      return { ...stats, downloaded: stats.downloaded + 1 };
+    case "noPdf":
+      return { ...stats, noPdf: stats.noPdf + 1 };
+    case "skipped":
+      return { ...stats, skipped: stats.skipped + 1 };
+    case "skippedEmpty":
+      return { ...stats, skippedEmpty: stats.skippedEmpty + 1 };
+    case "duplicate":
+      return { ...stats, alreadyHave: stats.alreadyHave + 1 };
+    case "error":
+      return { ...stats, errors: stats.errors + 1 };
+    default:
+      return stats;
+  }
 }

@@ -5,7 +5,9 @@ import {
   classifyReprocessResult,
   isEmptyExtraction,
   MIN_INVOICE_CONFIDENCE,
+  receiptDecisionEvent,
   sidecarPassesFilters,
+  tallyReceiptAction,
 } from "../src/receipt-decisions.js";
 
 // ── isEmptyExtraction ─────────────────────────────────────────────────────────
@@ -292,5 +294,83 @@ describe("classifyReprocessResult", () => {
   it("returns update when is_invoice is null (extraction uncertain)", () => {
     const result = classifyReprocessResult({ is_invoice: null, vendor: "Unknown" });
     expect(result.action).toBe("update");
+  });
+});
+
+// ── receiptDecisionEvent ──────────────────────────────────────────────────────
+
+describe("receiptDecisionEvent", () => {
+  const BASE_META = { vendor: "Acme", confidence: 0.9, date: null };
+  const MSG = { fromName: "Acme Corp", fromAddress: "billing@acme.com" };
+  const EMAIL_DATE = new Date("2025-03-07");
+
+  it("returns skipNonInvoice event for skipNonInvoice decision", () => {
+    const decision = { action: "skipped", event: "skipNonInvoice", vendor: "Acme", confidence: 0.8 };
+    const ev = receiptDecisionEvent(decision, BASE_META, MSG, EMAIL_DATE);
+    expect(ev.type).toBe("skip-non-invoice");
+  });
+
+  it("returns skipLowConfidence event for skipLowConfidence decision", () => {
+    const decision = { action: "skipped", event: "skipLowConfidence", vendor: "Acme", confidence: 0.2 };
+    const ev = receiptDecisionEvent(decision, BASE_META, MSG, EMAIL_DATE);
+    expect(ev.type).toBe("skip-low-confidence");
+  });
+
+  it("returns skipExistingInvoice event for skipExistingInvoice decision", () => {
+    const decision = { action: "duplicate", event: "skipExistingInvoice", vendor: "Acme", invoice_number: "INV-1" };
+    const ev = receiptDecisionEvent(decision, BASE_META, MSG, EMAIL_DATE);
+    expect(ev.type).toBe("skip-existing-invoice");
+  });
+
+  it("returns emptyExtractionSkipped event for emptyExtractionSkipped decision", () => {
+    const decision = { action: "skippedEmpty", event: "emptyExtractionSkipped" };
+    const ev = receiptDecisionEvent(decision, BASE_META, MSG, EMAIL_DATE);
+    expect(ev.type).toBe("empty-extraction-skipped");
+  });
+
+  it("returns null for proceed decision", () => {
+    const decision = { action: "proceed" };
+    const ev = receiptDecisionEvent(decision, BASE_META, MSG, EMAIL_DATE);
+    expect(ev).toBeNull();
+  });
+});
+
+// ── tallyReceiptAction ────────────────────────────────────────────────────────
+
+describe("tallyReceiptAction", () => {
+  const BASE_STATS = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, skippedEmpty: 0, alreadyHave: 0, errors: 0 };
+
+  it("increments downloaded for downloaded action", () => {
+    expect(tallyReceiptAction(BASE_STATS, "downloaded").downloaded).toBe(1);
+  });
+
+  it("increments noPdf for noPdf action", () => {
+    expect(tallyReceiptAction(BASE_STATS, "noPdf").noPdf).toBe(1);
+  });
+
+  it("increments skipped for skipped action", () => {
+    expect(tallyReceiptAction(BASE_STATS, "skipped").skipped).toBe(1);
+  });
+
+  it("increments skippedEmpty for skippedEmpty action", () => {
+    expect(tallyReceiptAction(BASE_STATS, "skippedEmpty").skippedEmpty).toBe(1);
+  });
+
+  it("increments alreadyHave for duplicate action", () => {
+    expect(tallyReceiptAction(BASE_STATS, "duplicate").alreadyHave).toBe(1);
+  });
+
+  it("increments errors for error action", () => {
+    expect(tallyReceiptAction(BASE_STATS, "error").errors).toBe(1);
+  });
+
+  it("does not mutate the input stats object", () => {
+    const stats = { ...BASE_STATS };
+    tallyReceiptAction(stats, "downloaded");
+    expect(stats.downloaded).toBe(0);
+  });
+
+  it("returns stats unchanged for unknown action", () => {
+    expect(tallyReceiptAction(BASE_STATS, "unknown")).toEqual(BASE_STATS);
   });
 });
