@@ -60,6 +60,18 @@ export const DOMAIN_STRIP_PREFIXES = [
  */
 export const MIN_INVOICE_DIGITS = 3;
 
+/** Maximum characters for a derived vendor or filename name. */
+export const MAX_VENDOR_NAME_LENGTH = 30;
+
+/** Maximum characters for an extracted service or product name. */
+export const MAX_SERVICE_LENGTH = 60;
+
+/** Byte window after a forwarded-message marker to scan for the original sender. */
+export const FORWARDED_SCAN_WINDOW = 1000;
+
+/** Regex to strip corporate suffixes from display names. Safe to share: only used with .replace(). */
+const CORPORATE_SUFFIX_PATTERN = /,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi;
+
 /** Forwarded message markers. */
 export const FORWARDED_MARKERS = [
   "---------- Forwarded message ----------",
@@ -137,7 +149,7 @@ export function extractVendorFromContent(subject, _bodyText) {
     const match = subject.match(pat);
     if (match) {
       const name = match[1].trim();
-      if (name.length >= 3 && name.length <= 30) return sanitizeFilename(name);
+      if (name.length >= 3 && name.length <= MAX_VENDOR_NAME_LENGTH) return sanitizeFilename(name);
     }
   }
   return null;
@@ -158,7 +170,7 @@ export function extractForwardedSender(bodyText) {
   }
   if (fwdStart === -1) return null;
 
-  const afterMarker = bodyText.slice(fwdStart, fwdStart + 1000);
+  const afterMarker = bodyText.slice(fwdStart, fwdStart + FORWARDED_SCAN_WINDOW);
   const fromMatch =
     afterMarker.match(/From:\s*(?:([^<\n]+?)\s*)?<([^>\n]+)>/i) || afterMarker.match(/From:\s*(\S+@\S+)/i);
 
@@ -200,10 +212,8 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
       const fwdDomain = fwdSender.address.split("@")[1];
       if (fwdDomain && vendorDomainMap[fwdDomain]) return vendorDomainMap[fwdDomain];
       if (fwdSender.name) {
-        const cleaned = sanitizeFilename(
-          fwdSender.name.replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi, "").trim(),
-        );
-        if (cleaned.length >= 2) return cleaned.slice(0, 30).replace(/[-._]+$/, "");
+        const cleaned = sanitizeFilename(fwdSender.name.replace(CORPORATE_SUFFIX_PATTERN, "").trim());
+        if (cleaned.length >= 2) return cleaned.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/[-._]+$/, "");
       }
       if (fwdDomain) return vendorFromDomain(fwdDomain, vendorDomainMap);
     }
@@ -235,14 +245,14 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
   // Use fromName, cleaning corporate suffixes
   let clean = name || localPart;
   clean = clean
-    .replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi, "")
+    .replace(CORPORATE_SUFFIX_PATTERN, "")
     .replace(/\s*(via Stripe|via Clover|via FastSpring Checkout)\s*/gi, "")
     .trim();
 
   let result = sanitizeFilename(clean) || sanitizeFilename(localPart);
 
-  if (result.length > 30) {
-    result = result.slice(0, 30).replace(/-[^-]*$/, "");
+  if (result.length > MAX_VENDOR_NAME_LENGTH) {
+    result = result.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/-[^-]*$/, "");
   }
 
   result = result.replace(/[-._]+$/, "");
@@ -447,7 +457,7 @@ export function extractService(text) {
     const match = text.match(pat);
     if (match) {
       const service = match[1].trim();
-      if (service.length < 3 || service.length > 60) continue;
+      if (service.length < 3 || service.length > MAX_SERVICE_LENGTH) continue;
       if (GARBAGE_PATTERNS.some((gp) => gp.test(service))) continue;
       return service;
     }

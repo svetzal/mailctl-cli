@@ -105,6 +105,17 @@ export function parseDate(input) {
 }
 
 /**
+ * Returns a Date set `months` months before now, normalized to midnight local time.
+ * @param {number} months
+ * @returns {Date}
+ */
+export function monthsAgo(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return startOfDay(d);
+}
+
+/**
  * @param {Date} d
  * @returns {Date}
  */

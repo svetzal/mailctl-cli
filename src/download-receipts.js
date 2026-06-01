@@ -28,6 +28,7 @@ import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
 import { forEachAccount as _forEachAccount, listMailboxes as _listMailboxes } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
 import { createLlmBroker, extractMetadataWithLLM } from "./llm-receipt-extraction.js";
+import { monthsAgo } from "./parse-date.js";
 import { pdfToText } from "./pdf-converter.js";
 import { processReceiptMessage } from "./process-receipt-message.js";
 import {
@@ -93,13 +94,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   const outputDir = resolve(opts.outputDir || ".");
   const accountFilter = opts.account || null;
 
-  const since = opts.since
-    ? new Date(opts.since)
-    : (() => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - months);
-        return d;
-      })();
+  const since = opts.since ? new Date(opts.since) : monthsAgo(months);
 
   const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
@@ -193,13 +188,7 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
   const months = opts.months ?? 3;
   const accountFilter = opts.account || null;
 
-  const since = opts.since
-    ? opts.since
-    : (() => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - months);
-        return d;
-      })();
+  const since = opts.since ? opts.since : monthsAgo(months);
 
   const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
