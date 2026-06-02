@@ -72,7 +72,8 @@ describe("loadSenders", () => {
     const fs = makeMockFs({ readJson: mock(() => [{ address: "test@example.com" }]) });
     const senders = loadSenders("/data", fs);
 
-    it("calls readJson with the senders file path", () => expect(fs.readJson).toHaveBeenCalledWith("/data/senders.json"));
+    it("calls readJson with the senders file path", () =>
+      expect(fs.readJson).toHaveBeenCalledWith("/data/senders.json"));
     it("returns the senders list", () => expect(senders).toEqual([{ address: "test@example.com" }]));
   });
 });

@@ -76,10 +76,8 @@ describe("extractUnsubscribeLinks", () => {
   describe("extracts URLs from List-Unsubscribe header (plain string)", () => {
     const listUnsubscribe = "<https://example.com/unsubscribe?id=123>, <mailto:unsub@example.com>";
     const links = extractUnsubscribeLinks(mockParsed({ listUnsubscribe }));
-    it("includes the https unsubscribe URL", () =>
-      expect(links).toContain("https://example.com/unsubscribe?id=123"));
-    it("excludes mailto links", () =>
-      expect(links.some((l) => l.includes("mailto:"))).toBe(false));
+    it("includes the https unsubscribe URL", () => expect(links).toContain("https://example.com/unsubscribe?id=123"));
+    it("excludes mailto links", () => expect(links.some((l) => l.includes("mailto:"))).toBe(false));
   });
 
   // Regression: href-based URL matching still works

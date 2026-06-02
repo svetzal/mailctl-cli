@@ -1141,7 +1141,6 @@ describe("listReceiptVendors", () => {
   });
 
   it("acme vendor has count 2", async () => {
-    const emailDate = new Date("2025-01-01");
     const msgs = [
       {
         fromAddress: "billing@acme.com",
