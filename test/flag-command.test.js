@@ -51,17 +51,24 @@ describe("flagCommand", () => {
       );
     });
 
-    it("accumulates failure when account prefix is not found", async () => {
-      const deps = makeDeps({ accounts: [makeAccount({ name: "Other" })] });
-      const { stats, results } = await flagCommand(["test:42"], { read: true }, deps);
-      expect(stats.failed).toBe(1);
-      expect(results[0].status).toBe("failed");
-    });
+    describe("accumulates failure when account prefix is not found", () => {
+      it("increments stats.failed", async () => {
+        const deps = makeDeps({ accounts: [makeAccount({ name: "Other" })] });
+        const { stats } = await flagCommand(["test:42"], { read: true }, deps);
+        expect(stats.failed).toBe(1);
+      });
 
-    it("includes error message when account is not found", async () => {
-      const deps = makeDeps({ accounts: [makeAccount({ name: "Other" })] });
-      const { results } = await flagCommand(["test:42"], { read: true }, deps);
-      expect(results[0].error).toContain('Account "test" not found.');
+      it("result has status failed", async () => {
+        const deps = makeDeps({ accounts: [makeAccount({ name: "Other" })] });
+        const { results } = await flagCommand(["test:42"], { read: true }, deps);
+        expect(results[0].status).toBe("failed");
+      });
+
+      it("includes error message when account is not found", async () => {
+        const deps = makeDeps({ accounts: [makeAccount({ name: "Other" })] });
+        const { results } = await flagCommand(["test:42"], { read: true }, deps);
+        expect(results[0].error).toContain('Account "test" not found.');
+      });
     });
   });
 
@@ -194,42 +201,62 @@ describe("flagCommand", () => {
       expect(results[0].mailbox).toBe("INBOX");
     });
 
-    it("accumulates failure when UID not found in any mailbox during auto-detection", async () => {
-      const notFoundClient = {
-        getMailboxLock: mock(() => Promise.resolve(makeLock())),
-        search: mock(() => Promise.resolve([])), // no UIDs found
-        messageFlagsAdd: mock(() => Promise.resolve()),
-        messageFlagsRemove: mock(() => Promise.resolve()),
-      };
-      const deps = makeDeps({
-        forEachAccount: mock(async (_accounts, fn) => {
-          await fn(notFoundClient, makeAccount());
-        }),
-        _client: notFoundClient,
+    describe("accumulates failure when UID not found in any mailbox during auto-detection", () => {
+      function makeNotFoundDeps() {
+        const notFoundClient = {
+          getMailboxLock: mock(() => Promise.resolve(makeLock())),
+          search: mock(() => Promise.resolve([])), // no UIDs found
+          messageFlagsAdd: mock(() => Promise.resolve()),
+          messageFlagsRemove: mock(() => Promise.resolve()),
+        };
+        return makeDeps({
+          forEachAccount: mock(async (_accounts, fn) => {
+            await fn(notFoundClient, makeAccount());
+          }),
+          _client: notFoundClient,
+        });
+      }
+
+      it("increments stats.failed", async () => {
+        const deps = makeNotFoundDeps();
+        const { stats } = await flagCommand(["42"], { read: true }, deps);
+        expect(stats.failed).toBe(1);
       });
 
-      const { stats, results } = await flagCommand(["42"], { read: true }, deps);
-      expect(stats.failed).toBe(1);
-      expect(results[0].status).toBe("failed");
+      it("result has status failed", async () => {
+        const deps = makeNotFoundDeps();
+        const { results } = await flagCommand(["42"], { read: true }, deps);
+        expect(results[0].status).toBe("failed");
+      });
     });
 
-    it("accumulates failure when mailbox lock fails", async () => {
-      const lockFailClient = {
-        getMailboxLock: mock(() => Promise.reject(new Error("Lock failed"))),
-        search: mock(() => Promise.resolve([42])),
-        messageFlagsAdd: mock(() => Promise.resolve()),
-        messageFlagsRemove: mock(() => Promise.resolve()),
-      };
-      const deps = makeDeps({
-        forEachAccount: mock(async (_accounts, fn) => {
-          await fn(lockFailClient, makeAccount());
-        }),
-        _client: lockFailClient,
+    describe("accumulates failure when mailbox lock fails", () => {
+      function makeLockFailDeps() {
+        const lockFailClient = {
+          getMailboxLock: mock(() => Promise.reject(new Error("Lock failed"))),
+          search: mock(() => Promise.resolve([42])),
+          messageFlagsAdd: mock(() => Promise.resolve()),
+          messageFlagsRemove: mock(() => Promise.resolve()),
+        };
+        return makeDeps({
+          forEachAccount: mock(async (_accounts, fn) => {
+            await fn(lockFailClient, makeAccount());
+          }),
+          _client: lockFailClient,
+        });
+      }
+
+      it("increments stats.failed", async () => {
+        const deps = makeLockFailDeps();
+        const { stats } = await flagCommand(["42"], { read: true, mailbox: "INBOX" }, deps);
+        expect(stats.failed).toBe(1);
       });
 
-      const { stats, results } = await flagCommand(["42"], { read: true, mailbox: "INBOX" }, deps);
-      expect(stats.failed).toBe(1);
-      expect(results[0].status).toBe("failed");
+      it("result has status failed", async () => {
+        const deps = makeLockFailDeps();
+        const { results } = await flagCommand(["42"], { read: true, mailbox: "INBOX" }, deps);
+        expect(results[0].status).toBe("failed");
+      });
     });
   });
 });

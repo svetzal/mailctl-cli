@@ -123,7 +123,7 @@ describe("forEachAccount contract (simulated)", () => {
     expect(captured[0]).toBe(account);
   });
 
-  it("emits connect-error and continues to the next account when connection fails", () => {
+  describe("emits connect-error and continues to the next account when connection fails", () => {
     const onProgress = /** @type {(event: any) => void} */ (mock(() => {}));
     const error = new Error("Connection refused");
     const accounts = [
@@ -144,8 +144,13 @@ describe("forEachAccount contract (simulated)", () => {
       }
     }
 
-    expect(onProgress).toHaveBeenCalledWith({ type: "connect-error", account: "FailAcct", error });
-    expect(fnCallCount).toBe(1);
+    it("emits connect-error for the failing account", () => {
+      expect(onProgress).toHaveBeenCalledWith({ type: "connect-error", account: "FailAcct", error });
+    });
+
+    it("continues and calls fn for the succeeding account", () => {
+      expect(fnCallCount).toBe(1);
+    });
   });
 });
 

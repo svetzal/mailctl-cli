@@ -587,14 +587,14 @@ describe("planReceiptWrite", () => {
     expect(plan.action).toBe("downloaded");
   });
 
-  it("downloaded plan includes both .pdf and .json writes", () => {
+  describe("downloaded plan includes both .pdf and .json writes", () => {
     const plan = planReceiptWrite({
       ...BASE_PARAMS,
       pdfAttachments: [{ content: PLAN_PDF_CONTENT }],
     });
     const paths = (plan.writes ?? []).map((w) => w.path);
-    expect(paths.some((p) => p.endsWith(".pdf"))).toBe(true);
-    expect(paths.some((p) => p.endsWith(".json"))).toBe(true);
+    it("includes a .pdf write", () => expect(paths.some((p) => p.endsWith(".pdf"))).toBe(true));
+    it("includes a .json write", () => expect(paths.some((p) => p.endsWith(".json"))).toBe(true));
   });
 
   it("downloaded plan sets receipt_file in metadata", () => {

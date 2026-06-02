@@ -246,7 +246,7 @@ describe("extractAttachmentCommand", () => {
       );
     });
 
-    it("emits mailbox-lock-failed when mailbox lock fails", async () => {
+    describe("emits mailbox-lock-failed when mailbox lock fails", () => {
       const error = new Error("Lock failed");
       const lockFailClient = {
         getMailboxLock: mock(() => Promise.reject(error)),
@@ -261,15 +261,29 @@ describe("extractAttachmentCommand", () => {
         }),
         _client: lockFailClient,
       });
-      await expect(
-        extractAttachmentCommand("42", 0, { list: true, mailbox: "INBOX" }, deps, onProgress),
-      ).rejects.toThrow("Could not find UID 42 in any account.");
+      // Suppress the unhandled rejection at describe scope; each it handles it explicitly
+      const commandPromise = extractAttachmentCommand(
+        "42",
+        0,
+        { list: true, mailbox: "INBOX" },
+        deps,
+        onProgress,
+      ).catch(() => {});
 
-      expect(onProgress).toHaveBeenCalledWith({
-        type: "mailbox-lock-failed",
-        severity: "error",
-        mailbox: "INBOX",
-        error,
+      it("rejects with UID not found error", async () => {
+        await expect(
+          extractAttachmentCommand("42", 0, { list: true, mailbox: "INBOX" }, deps, onProgress),
+        ).rejects.toThrow("Could not find UID 42 in any account.");
+      });
+
+      it("emits mailbox-lock-failed event to onProgress", async () => {
+        await commandPromise;
+        expect(onProgress).toHaveBeenCalledWith({
+          type: "mailbox-lock-failed",
+          severity: "error",
+          mailbox: "INBOX",
+          error,
+        });
       });
     });
   });

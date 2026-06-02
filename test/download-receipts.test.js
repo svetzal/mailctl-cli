@@ -1138,6 +1138,69 @@ describe("listReceiptVendors", () => {
 
     const acme = vendors.find((v) => v.address === "billing@acme.com");
     expect(acme).toBeDefined();
+  });
+
+  it("acme vendor has count 2", async () => {
+    const emailDate = new Date("2025-01-01");
+    const msgs = [
+      {
+        fromAddress: "billing@acme.com",
+        fromName: "Acme",
+        uid: 1,
+        mailbox: "INBOX",
+        date: new Date("2025-01-01"),
+        subject: "Invoice",
+      },
+      {
+        fromAddress: "billing@acme.com",
+        fromName: "Acme",
+        uid: 2,
+        mailbox: "INBOX",
+        date: new Date("2025-02-01"),
+        subject: "Invoice",
+      },
+      {
+        fromAddress: "orders@shop.com",
+        fromName: "Shop",
+        uid: 3,
+        mailbox: "INBOX",
+        date: new Date("2025-01-15"),
+        subject: "Receipt",
+      },
+    ];
+
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1, 2, 3])),
+      mailbox: { exists: 3 },
+      fetch: mock(() => {
+        async function* gen() {
+          for (const msg of msgs) {
+            yield {
+              uid: msg.uid,
+              envelope: {
+                date: msg.date,
+                from: [{ address: msg.fromAddress, name: msg.fromName }],
+                subject: msg.subject,
+                messageId: `msg-${msg.uid}@example.com`,
+              },
+            };
+          }
+        }
+        return gen();
+      }),
+    };
+
+    const vendors = await listReceiptVendors(
+      {},
+      {
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (_accounts, fn) => fn(client, _accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+      },
+    );
+
+    const acme = vendors.find((v) => v.address === "billing@acme.com");
     expect(acme?.count).toBe(2);
   });
 
@@ -1186,6 +1249,49 @@ describe("listReceiptVendors", () => {
     );
 
     expect(vendors.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("sorts vendors by count descending (first >= second)", async () => {
+    const emailDate = new Date("2025-01-01");
+
+    const msgs = [
+      { uid: 1, address: "a@frequent.com", name: "Frequent", subject: "Invoice" },
+      { uid: 2, address: "a@frequent.com", name: "Frequent", subject: "Invoice" },
+      { uid: 3, address: "a@frequent.com", name: "Frequent", subject: "Invoice" },
+      { uid: 4, address: "b@rare.com", name: "Rare", subject: "Receipt" },
+    ];
+
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve(msgs.map((m) => m.uid))),
+      mailbox: { exists: msgs.length },
+      fetch: mock(() => {
+        async function* gen() {
+          for (const msg of msgs) {
+            yield {
+              uid: msg.uid,
+              envelope: {
+                date: emailDate,
+                from: [{ address: msg.address, name: msg.name }],
+                subject: msg.subject,
+                messageId: `msg-${msg.uid}@example.com`,
+              },
+            };
+          }
+        }
+        return gen();
+      }),
+    };
+
+    const vendors = await listReceiptVendors(
+      {},
+      {
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (_accounts, fn) => fn(client, _accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+      },
+    );
+
     expect(vendors[0].count).toBeGreaterThanOrEqual(vendors[1].count);
   });
 
@@ -1221,6 +1327,39 @@ describe("listReceiptVendors", () => {
 
     const vendor = vendors.find((v) => v.address === "billing@vendor.com");
     expect(vendor?.vendor).toBeDefined();
+  });
+
+  it("includes vendor address in each result", async () => {
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([5])),
+      mailbox: { exists: 1 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 5,
+            envelope: {
+              date: new Date("2025-03-01"),
+              from: [{ address: "billing@vendor.com", name: "Vendor Corp" }],
+              subject: "Invoice",
+              messageId: "msg-5@example.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+
+    const vendors = await listReceiptVendors(
+      {},
+      {
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (_accounts, fn) => fn(client, _accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+      },
+    );
+
+    const vendor = vendors.find((v) => v.address === "billing@vendor.com");
     expect(vendor?.address).toBe("billing@vendor.com");
   });
 });

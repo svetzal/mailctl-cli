@@ -16,13 +16,13 @@ function mockParsed({ html, text, listUnsubscribe } = {}) {
 
 describe("extractUnsubscribeLinks", () => {
   // Test 1: Klaviyo unsubscribe via class/text (Yarbo email)
-  it("extracts links from anchor class and text (Klaviyo/Yarbo)", () => {
+  describe("extracts links from anchor class and text (Klaviyo/Yarbo)", () => {
     const html = `<a class="unsubscribe-link" style="color:#4E4E4E;" href="https://ctrk.klclick.com/l/01KHXW2RSA8S71EWHHVR77CSXX_14">Unsubscribe</a> | <a class="manage-preferences" style="color:#4E4E4E;" href="https://ctrk.klclick.com/l/01KHXW2RSA8S71EWHHVR77CSXX_15">Manage Preferences</a>`;
-    const parsed = mockParsed({ html });
-    const links = extractUnsubscribeLinks(parsed);
-
-    expect(links).toContain("https://ctrk.klclick.com/l/01KHXW2RSA8S71EWHHVR77CSXX_14");
-    expect(links).toContain("https://ctrk.klclick.com/l/01KHXW2RSA8S71EWHHVR77CSXX_15");
+    const links = extractUnsubscribeLinks(mockParsed({ html }));
+    it("includes unsubscribe-link href", () =>
+      expect(links).toContain("https://ctrk.klclick.com/l/01KHXW2RSA8S71EWHHVR77CSXX_14"));
+    it("includes manage-preferences href", () =>
+      expect(links).toContain("https://ctrk.klclick.com/l/01KHXW2RSA8S71EWHHVR77CSXX_15"));
   });
 
   // Test 2: Eloqua preference center (ESET email)
@@ -44,10 +44,13 @@ describe("extractUnsubscribeLinks", () => {
   });
 
   // Test 4: Broken QP URL rejection
-  it("rejects broken QP-mangled URLs", () => {
-    expect(isValidUrl("https://manage.kmail-lists.com/subscriptions/unsubscribe?a==")).toBe(false);
-    expect(isValidUrl("https://manage.kmail-lists.com/subscriptions/unsubscribe?a=3Dfoo")).toBe(false);
-    expect(isValidUrl("https://example.com/unsubscribe?token=abc123")).toBe(true);
+  describe("rejects broken QP-mangled URLs", () => {
+    it("rejects URL with double-equals in query string", () =>
+      expect(isValidUrl("https://manage.kmail-lists.com/subscriptions/unsubscribe?a==")).toBe(false));
+    it("rejects URL with QP-encoded equals (=3D)", () =>
+      expect(isValidUrl("https://manage.kmail-lists.com/subscriptions/unsubscribe?a=3Dfoo")).toBe(false));
+    it("accepts a well-formed URL", () =>
+      expect(isValidUrl("https://example.com/unsubscribe?token=abc123")).toBe(true));
   });
 
   it("does not include broken QP URLs in extraction results", () => {
@@ -70,13 +73,13 @@ describe("extractUnsubscribeLinks", () => {
     expect(links).toContain("https://manage.kmail-lists.com/subscriptions/unsubscribe?a=YrrctJ&c=01JDW");
   });
 
-  it("extracts URLs from List-Unsubscribe header (plain string)", () => {
+  describe("extracts URLs from List-Unsubscribe header (plain string)", () => {
     const listUnsubscribe = "<https://example.com/unsubscribe?id=123>, <mailto:unsub@example.com>";
-    const parsed = mockParsed({ listUnsubscribe });
-    const links = extractUnsubscribeLinks(parsed);
-
-    expect(links).toContain("https://example.com/unsubscribe?id=123");
-    expect(links.some((l) => l.includes("mailto:"))).toBe(false);
+    const links = extractUnsubscribeLinks(mockParsed({ listUnsubscribe }));
+    it("includes the https unsubscribe URL", () =>
+      expect(links).toContain("https://example.com/unsubscribe?id=123"));
+    it("excludes mailto links", () =>
+      expect(links.some((l) => l.includes("mailto:"))).toBe(false));
   });
 
   // Regression: href-based URL matching still works

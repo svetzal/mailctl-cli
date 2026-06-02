@@ -37,28 +37,35 @@ describe("matchesVendor", () => {
     expect(matchesVendor("apple", "no_reply@email.apple.com", "")).toBe(true);
   });
 
-  it("is case-insensitive", () => {
-    expect(matchesVendor("STRIPE", "notifications@stripe.com", "")).toBe(true);
-    expect(matchesVendor("stripe", "BILLING@STRIPE.COM", "")).toBe(true);
-    expect(matchesVendor("Acme", "x@y.com", "ACME Corp")).toBe(true);
+  describe("is case-insensitive", () => {
+    it("matches uppercase vendor key against lowercase address", () =>
+      expect(matchesVendor("STRIPE", "notifications@stripe.com", "")).toBe(true));
+    it("matches lowercase vendor key against uppercase address", () =>
+      expect(matchesVendor("stripe", "BILLING@STRIPE.COM", "")).toBe(true));
+    it("matches mixed-case vendor key against uppercase display name", () =>
+      expect(matchesVendor("Acme", "x@y.com", "ACME Corp")).toBe(true));
   });
 
   it("returns false for non-matching vendor", () => {
     expect(matchesVendor("github", "billing@stripe.com", "Stripe")).toBe(false);
   });
 
-  it("handles empty fromName gracefully", () => {
-    expect(matchesVendor("stripe", "billing@stripe.com", "")).toBe(true);
-    expect(matchesVendor("stripe", "billing@stripe.com", null)).toBe(true);
-    expect(matchesVendor("stripe", "billing@stripe.com", undefined)).toBe(true);
+  describe("handles empty fromName gracefully", () => {
+    it("returns true when fromName is empty string", () =>
+      expect(matchesVendor("stripe", "billing@stripe.com", "")).toBe(true));
+    it("returns true when fromName is null", () =>
+      expect(matchesVendor("stripe", "billing@stripe.com", null)).toBe(true));
+    it("returns true when fromName is undefined", () =>
+      expect(matchesVendor("stripe", "billing@stripe.com", undefined)).toBe(true));
   });
 
-  it("handles empty fromAddress gracefully", () => {
-    expect(matchesVendor("test", "", "Test Vendor")).toBe(true);
-    // null address still matches if display name matches
-    expect(matchesVendor("test", null, "Test Vendor")).toBe(true);
-    // no match when neither address nor name match
-    expect(matchesVendor("github", null, "Test Vendor")).toBe(false);
+  describe("handles empty fromAddress gracefully", () => {
+    it("returns true when fromAddress is empty string and display name matches", () =>
+      expect(matchesVendor("test", "", "Test Vendor")).toBe(true));
+    it("returns true when fromAddress is null and display name matches", () =>
+      expect(matchesVendor("test", null, "Test Vendor")).toBe(true));
+    it("returns false when fromAddress is null and display name does not match", () =>
+      expect(matchesVendor("github", null, "Test Vendor")).toBe(false));
   });
 
   it("matches partial sender name", () => {

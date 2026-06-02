@@ -34,19 +34,24 @@ describe("withMailboxLock", () => {
     expect(lock.release).toHaveBeenCalledTimes(1);
   });
 
-  it("emits mailbox-lock-failed via onProgress and returns null when lock acquisition fails", async () => {
+  describe("emits mailbox-lock-failed via onProgress and returns null when lock acquisition fails", () => {
     const error = new Error("no such mailbox");
     const client = { getMailboxLock: mock(() => Promise.reject(error)) };
     const onProgress = mock(() => {});
+    const resultPromise = withMailboxLock(client, "INBOX", async () => "unreachable", { onProgress });
 
-    const result = await withMailboxLock(client, "INBOX", async () => "unreachable", { onProgress });
+    it("returns null", async () => {
+      expect(await resultPromise).toBeNull();
+    });
 
-    expect(result).toBeNull();
-    expect(onProgress).toHaveBeenCalledWith({
-      type: "mailbox-lock-failed",
-      severity: "error",
-      mailbox: "INBOX",
-      error,
+    it("emits mailbox-lock-failed event to onProgress", async () => {
+      await resultPromise;
+      expect(onProgress).toHaveBeenCalledWith({
+        type: "mailbox-lock-failed",
+        severity: "error",
+        mailbox: "INBOX",
+        error,
+      });
     });
   });
 });

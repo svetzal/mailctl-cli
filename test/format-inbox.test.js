@@ -61,14 +61,20 @@ describe("formatInboxText", () => {
     expect(formatInboxText(map)).toContain("Jan");
   });
 
-  it("handles multiple accounts in sequence", () => {
+  describe("handles multiple accounts in sequence", () => {
     const map = new Map([
       ["iCloud", []],
       ["Gmail", []],
     ]);
     const text = formatInboxText(map);
-    expect(text).toContain("=== iCloud ===");
-    expect(text).toContain("=== Gmail ===");
+
+    it("shows the iCloud section header", () => {
+      expect(text).toContain("=== iCloud ===");
+    });
+
+    it("shows the Gmail section header", () => {
+      expect(text).toContain("=== Gmail ===");
+    });
   });
 
   it("uses fromName <from> format when fromName is present", () => {

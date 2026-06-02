@@ -39,7 +39,7 @@ describe("resolveExtractionText", () => {
     expect(result).toBe("fallback body");
   });
 
-  it("emits using-pdf-content event when docling succeeds", () => {
+  describe("emits using-pdf-content event when docling succeeds", () => {
     const events = [];
     const mockFs = /** @type {any} */ ({
       exists: mock((p) => {
@@ -54,12 +54,16 @@ describe("resolveExtractionText", () => {
     });
     const mockSubprocess = /** @type {any} */ ({ execFileSync: mock(() => {}) });
     const pdfAttachments = [{ content: Buffer.from("%PDF-fake") }];
-
     resolveExtractionText(pdfAttachments, "body text", 5, mockFs, mockSubprocess, (e) => events.push(e));
-
     const event = events.find((e) => e.type === "using-pdf-content");
-    expect(event).toBeDefined();
-    expect(event.uid).toBe(5);
+
+    it("event is defined", () => {
+      expect(event).toBeDefined();
+    });
+
+    it("event carries the correct uid", () => {
+      expect(event.uid).toBe(5);
+    });
   });
 
   it("returns pdf markdown when docling succeeds", () => {

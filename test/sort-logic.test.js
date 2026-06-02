@@ -46,47 +46,77 @@ describe("planMoves", () => {
     "family@home.com": "personal",
   };
 
-  it("separates business and personal UIDs correctly", () => {
+  describe("separates business and personal UIDs correctly", () => {
     const messages = [
       { uid: 1, address: "billing@acme.com" },
       { uid: 2, address: "family@home.com" },
     ];
     const { business, personal } = planMoves(messages, classifications);
-    expect(business).toEqual([1]);
-    expect(personal).toEqual([2]);
+
+    it("business bucket contains the business UID", () => {
+      expect(business).toEqual([1]);
+    });
+
+    it("personal bucket contains the personal UID", () => {
+      expect(personal).toEqual([2]);
+    });
   });
 
-  it("puts unclassified messages into personal", () => {
+  describe("puts unclassified messages into personal", () => {
     const messages = [{ uid: 3, address: "unknown@example.com" }];
     const { business, personal } = planMoves(messages, classifications);
-    expect(business).toEqual([]);
-    expect(personal).toEqual([3]);
+
+    it("business bucket is empty", () => {
+      expect(business).toEqual([]);
+    });
+
+    it("personal bucket contains the unclassified UID", () => {
+      expect(personal).toEqual([3]);
+    });
   });
 
-  it("returns empty arrays for an empty message list", () => {
+  describe("returns empty arrays for an empty message list", () => {
     const { business, personal } = planMoves([], classifications);
-    expect(business).toEqual([]);
-    expect(personal).toEqual([]);
+
+    it("business bucket is empty", () => {
+      expect(business).toEqual([]);
+    });
+
+    it("personal bucket is empty", () => {
+      expect(personal).toEqual([]);
+    });
   });
 
-  it("handles all-business messages", () => {
+  describe("handles all-business messages", () => {
     const messages = [
       { uid: 10, address: "billing@acme.com" },
       { uid: 11, address: "billing@acme.com" },
     ];
     const { business, personal } = planMoves(messages, classifications);
-    expect(business).toEqual([10, 11]);
-    expect(personal).toEqual([]);
+
+    it("business bucket contains both UIDs", () => {
+      expect(business).toEqual([10, 11]);
+    });
+
+    it("personal bucket is empty", () => {
+      expect(personal).toEqual([]);
+    });
   });
 
-  it("handles all-personal messages", () => {
+  describe("handles all-personal messages", () => {
     const messages = [
       { uid: 20, address: "family@home.com" },
       { uid: 21, address: "another@unknown.com" },
     ];
     const { business, personal } = planMoves(messages, classifications);
-    expect(business).toEqual([]);
-    expect(personal).toEqual([20, 21]);
+
+    it("business bucket is empty", () => {
+      expect(business).toEqual([]);
+    });
+
+    it("personal bucket contains both UIDs", () => {
+      expect(personal).toEqual([20, 21]);
+    });
   });
 
   it("preserves uid ordering within each bucket", () => {

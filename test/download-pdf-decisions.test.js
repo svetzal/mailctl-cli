@@ -53,11 +53,11 @@ describe("buildManifestRecord", () => {
     expect(record.vendor).toBeUndefined();
   });
 
-  it("builds a duplicate record with hash truncated to 12 chars", () => {
+  describe("builds a duplicate record", () => {
     const hash = "a".repeat(64);
     const record = buildManifestRecord("duplicate", { hash, date: new Date("2025-01-01"), vendor: "Acme" });
-    expect(record.status).toBe("duplicate");
-    expect(record.hash).toBe("a".repeat(12));
+    it("has status duplicate", () => expect(record.status).toBe("duplicate"));
+    it("truncates hash to 12 chars", () => expect(record.hash).toBe("a".repeat(12)));
   });
 
   it("duplicate record includes vendor", () => {
@@ -66,7 +66,7 @@ describe("buildManifestRecord", () => {
     expect(record.vendor).toBe("TestVendor");
   });
 
-  it("builds a downloaded record with filename and hash truncated to 12 chars", () => {
+  describe("builds a downloaded record", () => {
     const hash = "c".repeat(64);
     const record = buildManifestRecord("downloaded", {
       filename: "Acme 2025-01-01.pdf",
@@ -74,9 +74,9 @@ describe("buildManifestRecord", () => {
       date: new Date("2025-01-01"),
       vendor: "Acme",
     });
-    expect(record.status).toBe("downloaded");
-    expect(record.filename).toBe("Acme 2025-01-01.pdf");
-    expect(record.hash).toBe("c".repeat(12));
+    it("has status downloaded", () => expect(record.status).toBe("downloaded"));
+    it("has the correct filename", () => expect(record.filename).toBe("Acme 2025-01-01.pdf"));
+    it("truncates hash to 12 chars", () => expect(record.hash).toBe("c".repeat(12)));
   });
 
   it("downloaded record includes vendor", () => {

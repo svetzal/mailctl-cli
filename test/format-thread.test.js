@@ -41,10 +41,10 @@ describe("formatThreadText", () => {
     expect(formatThreadText([makeMsg()], { fallback: false })).not.toContain("subject match");
   });
 
-  it("formats each message with 1-based index", () => {
+  describe("formats each message with 1-based index", () => {
     const text = formatThreadText([makeMsg(), makeMsg({ subject: "Re: Hello" })]);
-    expect(text).toContain("  1. ");
-    expect(text).toContain("  2. ");
+    it("includes '  1. ' for the first message", () => expect(text).toContain("  1. "));
+    it("includes '  2. ' for the second message", () => expect(text).toContain("  2. "));
   });
 
   it("shows snippet when opts.full is false", () => {
@@ -59,10 +59,10 @@ describe("formatThreadText", () => {
     expect(formatThreadText([makeMsg({ fromName: "Alice", from: "a@b.com" })])).toContain("Alice <a@b.com>");
   });
 
-  it("falls back to from address only when fromName is absent", () => {
+  describe("falls back to from address only when fromName is absent", () => {
     const text = formatThreadText([makeMsg({ fromName: undefined, from: "a@b.com" })]);
-    expect(text).toContain("a@b.com");
-    expect(text).not.toContain("undefined");
+    it("includes the from address", () => expect(text).toContain("a@b.com"));
+    it("does not contain the word 'undefined'", () => expect(text).not.toContain("undefined"));
   });
 
   it("shows 'unknown' when date is null", () => {

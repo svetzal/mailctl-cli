@@ -111,11 +111,16 @@ describe("parseAndGroupUids", () => {
     expect(() => parseAndGroupUids([], null)).toThrow("No UIDs provided.");
   });
 
-  it("returns a Map grouped by account for valid input", () => {
+  describe("returns a Map grouped by account for valid input", () => {
     const result = parseAndGroupUids(["icloud:1", "icloud:2", "gmail:3"], null);
 
-    expect(result.get("icloud")).toEqual(["1", "2"]);
-    expect(result.get("gmail")).toEqual(["3"]);
+    it("icloud group contains UIDs 1 and 2", () => {
+      expect(result.get("icloud")).toEqual(["1", "2"]);
+    });
+
+    it("gmail group contains UID 3", () => {
+      expect(result.get("gmail")).toEqual(["3"]);
+    });
   });
 
   it("uses the default account for unprefixed UIDs", () => {

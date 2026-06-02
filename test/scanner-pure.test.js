@@ -9,7 +9,7 @@ describe("aggregateBySender", () => {
     expect(aggregateBySender([])).toEqual([]);
   });
 
-  it("returns a single sender entry for a single result", () => {
+  describe("returns a single sender entry for a single result", () => {
     const results = [
       {
         address: "billing@acme.com",
@@ -20,12 +20,21 @@ describe("aggregateBySender", () => {
       },
     ];
     const senders = aggregateBySender(results);
-    expect(senders.length).toBe(1);
-    expect(senders[0].address).toBe("billing@acme.com");
-    expect(senders[0].count).toBe(1);
+
+    it("has one sender", () => {
+      expect(senders.length).toBe(1);
+    });
+
+    it("sender address is correct", () => {
+      expect(senders[0].address).toBe("billing@acme.com");
+    });
+
+    it("sender count is 1", () => {
+      expect(senders[0].count).toBe(1);
+    });
   });
 
-  it("aggregates multiple results from the same address into one entry", () => {
+  describe("aggregates multiple results from the same address into one entry", () => {
     const results = [
       {
         address: "billing@acme.com",
@@ -43,18 +52,30 @@ describe("aggregateBySender", () => {
       },
     ];
     const senders = aggregateBySender(results);
-    expect(senders.length).toBe(1);
-    expect(senders[0].count).toBe(2);
+
+    it("collapses to one sender entry", () => {
+      expect(senders.length).toBe(1);
+    });
+
+    it("count reflects both results", () => {
+      expect(senders[0].count).toBe(2);
+    });
   });
 
-  it("collects unique accounts across results for the same sender", () => {
+  describe("collects unique accounts across results for the same sender", () => {
     const results = [
       { address: "billing@acme.com", name: "Acme", account: "personal", subject: "Inv1", date: new Date() },
       { address: "billing@acme.com", name: "Acme", account: "work", subject: "Inv2", date: new Date() },
     ];
     const senders = aggregateBySender(results);
-    expect(senders[0].accounts).toContain("personal");
-    expect(senders[0].accounts).toContain("work");
+
+    it("accounts includes personal", () => {
+      expect(senders[0].accounts).toContain("personal");
+    });
+
+    it("accounts includes work", () => {
+      expect(senders[0].accounts).toContain("work");
+    });
   });
 
   it("caps sampleSubjects at 3 entries", () => {
@@ -89,7 +110,7 @@ describe("aggregateBySender", () => {
     expect(senders[0].name).toBe("Acme New");
   });
 
-  it("sorts senders by count descending", () => {
+  describe("sorts senders by count descending", () => {
     const results = [
       { address: "rare@example.com", name: "Rare", account: "a", subject: "S1", date: new Date() },
       { address: "common@example.com", name: "Common", account: "a", subject: "S2", date: new Date() },
@@ -97,14 +118,26 @@ describe("aggregateBySender", () => {
       { address: "common@example.com", name: "Common", account: "a", subject: "S4", date: new Date() },
     ];
     const senders = aggregateBySender(results);
-    expect(senders[0].address).toBe("common@example.com");
-    expect(senders[1].address).toBe("rare@example.com");
+
+    it("first sender is the common one", () => {
+      expect(senders[0].address).toBe("common@example.com");
+    });
+
+    it("second sender is the rare one", () => {
+      expect(senders[1].address).toBe("rare@example.com");
+    });
   });
 
-  it("returns arrays (not Sets) in the output objects", () => {
+  describe("returns arrays (not Sets) in the output objects", () => {
     const results = [{ address: "billing@acme.com", name: "Acme", account: "work", subject: "Inv", date: new Date() }];
     const senders = aggregateBySender(results);
-    expect(Array.isArray(senders[0].accounts)).toBe(true);
-    expect(Array.isArray(senders[0].sampleSubjects)).toBe(true);
+
+    it("accounts is an Array", () => {
+      expect(Array.isArray(senders[0].accounts)).toBe(true);
+    });
+
+    it("sampleSubjects is an Array", () => {
+      expect(Array.isArray(senders[0].sampleSubjects)).toBe(true);
+    });
   });
 });

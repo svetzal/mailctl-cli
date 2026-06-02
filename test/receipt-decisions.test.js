@@ -255,10 +255,16 @@ describe("buildReprocessedSidecar", () => {
     expect(result.downloadedAt).toBe("2026-01-01T00:00:00Z");
   });
 
-  it("includes fresh extraction fields like vendor and amount", () => {
+  describe("includes fresh extraction fields like vendor and amount", () => {
     const result = buildReprocessedSidecar(METADATA, ORIGINAL_SIDECAR, "2026-03-01T12:00:00Z");
-    expect(result.vendor).toBe("Stripe");
-    expect(result.amount).toBe(49);
+
+    it("vendor is Stripe", () => {
+      expect(result.vendor).toBe("Stripe");
+    });
+
+    it("amount is 49", () => {
+      expect(result.amount).toBe(49);
+    });
   });
 
   it("sets source_body_snippet to null when missing from both sidecar and metadata", () => {

@@ -16,18 +16,17 @@ function mockParsed(overrides = {}) {
 }
 
 describe("buildReadResult", () => {
-  it("passes numeric uid through unchanged", () => {
+  describe("passes numeric uid through unchanged", () => {
     const result = buildReadResult(mockParsed(), "icloud", 42, { maxBody: 1000, includeHeaders: false });
-    expect(result.uid).toBe(42);
-    expect(typeof result.uid).toBe("number");
+    it("has uid value 42", () => expect(result.uid).toBe(42));
+    it("has uid of type number", () => expect(typeof result.uid).toBe("number"));
   });
 });
 
 describe("buildReadJson", () => {
-  it("passes includeHeaders through to buildReadResult", () => {
+  describe("passes includeHeaders through to buildReadResult", () => {
     const parsed = mockParsed();
     parsed.headers.set("x-custom", "value");
-
     const withHeaders = buildReadJson(parsed, "icloud", "1", {
       maxBody: 1000,
       maxBodyExplicit: false,
@@ -38,9 +37,9 @@ describe("buildReadJson", () => {
       maxBodyExplicit: false,
       includeHeaders: false,
     });
-
-    expect(withHeaders).toHaveProperty("headers");
-    expect(withoutHeaders).not.toHaveProperty("headers");
+    it("includes headers property when includeHeaders is true", () => expect(withHeaders).toHaveProperty("headers"));
+    it("omits headers property when includeHeaders is false", () =>
+      expect(withoutHeaders).not.toHaveProperty("headers"));
   });
 });
 
@@ -49,14 +48,13 @@ describe("buildReadJson", () => {
 describe("formatReadOutput", () => {
   it("returns JSON string when json is true", () => {
     const result = formatReadOutput(true, mockParsed(), "icloud", "42", {});
-    const parsed = JSON.parse(result);
-    expect(parsed).toHaveProperty("account", "icloud");
+    expect(JSON.parse(result)).toHaveProperty("account", "icloud");
   });
 
-  it("returns text string when json is false", () => {
+  describe("returns text string when json is false", () => {
     const result = formatReadOutput(false, mockParsed(), "icloud", "42", {});
-    expect(typeof result).toBe("string");
-    expect(result).toContain("Body text");
+    it("result is a string", () => expect(typeof result).toBe("string"));
+    it("result contains body text", () => expect(result).toContain("Body text"));
   });
 
   it("defaults maxBody to 3000 when opts.maxBody is not set", () => {

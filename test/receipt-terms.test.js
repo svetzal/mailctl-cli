@@ -2,16 +2,28 @@ import { describe, expect, it } from "bun:test";
 import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_EXCLUSIONS, RECEIPT_SUBJECT_TERMS } from "../src/receipt-terms.js";
 
 describe("RECEIPT_SUBJECT_TERMS", () => {
-  it("is a non-empty array", () => {
-    expect(Array.isArray(RECEIPT_SUBJECT_TERMS)).toBe(true);
-    expect(RECEIPT_SUBJECT_TERMS.length).toBeGreaterThan(0);
+  describe("is a non-empty array", () => {
+    it("is an array", () => {
+      expect(Array.isArray(RECEIPT_SUBJECT_TERMS)).toBe(true);
+    });
+
+    it("has at least one entry", () => {
+      expect(RECEIPT_SUBJECT_TERMS.length).toBeGreaterThan(0);
+    });
   });
 
-  it("contains only lowercase strings", () => {
-    for (const term of RECEIPT_SUBJECT_TERMS) {
-      expect(typeof term).toBe("string");
-      expect(term).toBe(term.toLowerCase());
-    }
+  describe("contains only lowercase strings", () => {
+    it("every entry is a string", () => {
+      for (const term of RECEIPT_SUBJECT_TERMS) {
+        expect(typeof term).toBe("string");
+      }
+    });
+
+    it("every entry is already lowercase", () => {
+      for (const term of RECEIPT_SUBJECT_TERMS) {
+        expect(term).toBe(term.toLowerCase());
+      }
+    });
   });
 
   it("contains no duplicates", () => {
@@ -19,20 +31,34 @@ describe("RECEIPT_SUBJECT_TERMS", () => {
     expect(unique.size).toBe(RECEIPT_SUBJECT_TERMS.length);
   });
 
-  it("includes terms from both the scan and download lists", () => {
-    // From the old scan list (imap-client.js)
-    expect(RECEIPT_SUBJECT_TERMS).toContain("order confirmation");
-    expect(RECEIPT_SUBJECT_TERMS).toContain("billing statement");
-    // From the old download list (download-receipts.js)
-    expect(RECEIPT_SUBJECT_TERMS).toContain("payment processed");
-    expect(RECEIPT_SUBJECT_TERMS).toContain("subscription");
+  describe("includes terms from both the scan and download lists", () => {
+    it("includes 'order confirmation' from the old scan list", () => {
+      expect(RECEIPT_SUBJECT_TERMS).toContain("order confirmation");
+    });
+
+    it("includes 'billing statement' from the old scan list", () => {
+      expect(RECEIPT_SUBJECT_TERMS).toContain("billing statement");
+    });
+
+    it("includes 'payment processed' from the old download list", () => {
+      expect(RECEIPT_SUBJECT_TERMS).toContain("payment processed");
+    });
+
+    it("includes 'subscription' from the old download list", () => {
+      expect(RECEIPT_SUBJECT_TERMS).toContain("subscription");
+    });
   });
 });
 
 describe("RECEIPT_SUBJECT_EXCLUSIONS", () => {
-  it("is a non-empty array", () => {
-    expect(Array.isArray(RECEIPT_SUBJECT_EXCLUSIONS)).toBe(true);
-    expect(RECEIPT_SUBJECT_EXCLUSIONS.length).toBeGreaterThan(0);
+  describe("is a non-empty array", () => {
+    it("is an array", () => {
+      expect(Array.isArray(RECEIPT_SUBJECT_EXCLUSIONS)).toBe(true);
+    });
+
+    it("has at least one entry", () => {
+      expect(RECEIPT_SUBJECT_EXCLUSIONS.length).toBeGreaterThan(0);
+    });
   });
 
   it("contains only RegExp instances", () => {
@@ -43,9 +69,14 @@ describe("RECEIPT_SUBJECT_EXCLUSIONS", () => {
 });
 
 describe("BILLING_SENDER_PATTERNS", () => {
-  it("is a non-empty array", () => {
-    expect(Array.isArray(BILLING_SENDER_PATTERNS)).toBe(true);
-    expect(BILLING_SENDER_PATTERNS.length).toBeGreaterThan(0);
+  describe("is a non-empty array", () => {
+    it("is an array", () => {
+      expect(Array.isArray(BILLING_SENDER_PATTERNS)).toBe(true);
+    });
+
+    it("has at least one entry", () => {
+      expect(BILLING_SENDER_PATTERNS.length).toBeGreaterThan(0);
+    });
   });
 
   it("contains only strings", () => {

@@ -42,14 +42,17 @@ describe("scanAllAccounts", () => {
     expect(results.length).toBe(2);
   });
 
-  it("aggregates results from multiple accounts", async () => {
+  describe("aggregates results from multiple accounts", () => {
     const accounts = [
       { name: "Personal", user: "personal@example.com" },
       { name: "Work", user: "work@example.com" },
     ];
 
     let callCount = 0;
-    const results = await scanAllAccounts(
+    let results;
+
+    // Computed once at describe scope — mirrors the canonical pattern
+    const scanPromise = scanAllAccounts(
       {},
       {
         loadAccounts: () => accounts,
@@ -65,10 +68,19 @@ describe("scanAllAccounts", () => {
           return [makeResult("billing@vendor.com", accountName)];
         },
       },
-    );
+    ).then((r) => {
+      results = r;
+    });
 
-    expect(callCount).toBe(2);
-    expect(results.length).toBe(2);
+    it("calls scanForReceipts once per account", async () => {
+      await scanPromise;
+      expect(callCount).toBe(2);
+    });
+
+    it("collects one result per account", async () => {
+      await scanPromise;
+      expect(results.length).toBe(2);
+    });
   });
 
   it("uses the provided mailboxes override instead of listing", async () => {

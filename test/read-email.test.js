@@ -292,7 +292,7 @@ describe("buildReadJson", () => {
     expect(result.body.length).toBe(100);
   });
 
-  it("includes account and uid in the result", () => {
+  describe("includes account and uid in the result", () => {
     const parsed = mockParsed();
     const result = buildReadJson(parsed, "icloud", "42", {
       maxBody: 3000,
@@ -300,7 +300,12 @@ describe("buildReadJson", () => {
       includeHeaders: false,
     });
 
-    expect(result.account).toBe("icloud");
-    expect(result.uid).toBe(42);
+    it("account is icloud", () => {
+      expect(result.account).toBe("icloud");
+    });
+
+    it("uid is 42", () => {
+      expect(result.uid).toBe(42);
+    });
   });
 });
