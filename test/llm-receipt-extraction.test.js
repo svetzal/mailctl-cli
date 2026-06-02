@@ -57,40 +57,66 @@ describe("RECEIPT_EXTRACTION_SCHEMA", () => {
 // ── extractReceiptMetadata ────────────────────────────────────────────────────
 
 describe("extractReceiptMetadata", () => {
-  it("falls back to regex when llmBroker is null", async () => {
+  describe("falls back to regex when llmBroker is null", () => {
     const emailDate = new Date("2025-03-07");
-    const result = await extractReceiptMetadata(
-      null,
-      "Your invoice total is $49.00",
-      "Invoice #123",
-      "billing@acme.com",
-      "Acme",
-      emailDate,
-    );
+    let result;
 
-    // Should return a metadata object (from regex fallback)
-    expect(result).not.toBeNull();
-    expect(typeof result).toBe("object");
+    it("returns a non-null metadata object", async () => {
+      result = await extractReceiptMetadata(
+        null,
+        "Your invoice total is $49.00",
+        "Invoice #123",
+        "billing@acme.com",
+        "Acme",
+        emailDate,
+      );
+      expect(result).not.toBeNull();
+    });
+
+    it("returns an object type", async () => {
+      result = await extractReceiptMetadata(
+        null,
+        "Your invoice total is $49.00",
+        "Invoice #123",
+        "billing@acme.com",
+        "Acme",
+        emailDate,
+      );
+      expect(typeof result).toBe("object");
+    });
   });
 
-  it("falls back to regex when llm object is null (no broker field)", async () => {
+  describe("falls back to regex when llm object is null (no broker field)", () => {
     const emailDate = new Date("2025-03-07");
-    const result = await extractReceiptMetadata(
-      null,
-      "Your payment of $9.99 has been processed.",
-      "Payment confirmation",
-      "billing@acme.com",
-      "Acme",
-      emailDate,
-    );
 
-    expect(result).toBeDefined();
-    expect(result.source_email).toBe("billing@acme.com");
+    it("returns a defined result", async () => {
+      const result = await extractReceiptMetadata(
+        null,
+        "Your payment of $9.99 has been processed.",
+        "Payment confirmation",
+        "billing@acme.com",
+        "Acme",
+        emailDate,
+      );
+      expect(result).toBeDefined();
+    });
+
+    it("includes source_email in the result", async () => {
+      const result = await extractReceiptMetadata(
+        null,
+        "Your payment of $9.99 has been processed.",
+        "Payment confirmation",
+        "billing@acme.com",
+        "Acme",
+        emailDate,
+      );
+      expect(result.source_email).toBe("billing@acme.com");
+    });
   });
 
-  it("uses LLM result when broker succeeds", async () => {
+  describe("uses LLM result when broker succeeds", () => {
     const emailDate = new Date("2025-03-07");
-    const mockBroker = {
+    const makeMockBroker = () => ({
       generateObject: mock(async () => ({
         ok: true,
         value: {
@@ -106,44 +132,67 @@ describe("extractReceiptMetadata", () => {
           tax_type: null,
         },
       })),
-    };
+    });
 
-    const result = await extractReceiptMetadata(
-      { broker: mockBroker },
-      "Your GitHub Copilot Business invoice",
-      "Invoice GH-001",
-      "billing@github.com",
-      "GitHub",
-      emailDate,
-    );
+    it("returns a non-null result", async () => {
+      const result = await extractReceiptMetadata(
+        { broker: makeMockBroker() },
+        "Your GitHub Copilot Business invoice",
+        "Invoice GH-001",
+        "billing@github.com",
+        "GitHub",
+        emailDate,
+      );
+      expect(result).not.toBeNull();
+    });
 
-    expect(result).not.toBeNull();
-    expect(result.invoice_number).toBe("GH-001");
+    it("includes the invoice number from the LLM response", async () => {
+      const result = await extractReceiptMetadata(
+        { broker: makeMockBroker() },
+        "Your GitHub Copilot Business invoice",
+        "Invoice GH-001",
+        "billing@github.com",
+        "GitHub",
+        emailDate,
+      );
+      expect(result.invoice_number).toBe("GH-001");
+    });
   });
 
-  it("falls back to regex when LLM broker throws", async () => {
+  describe("falls back to regex when LLM broker throws", () => {
     const emailDate = new Date("2025-03-07");
-    const mockBroker = {
+    const makeBrokerThatThrows = () => ({
       generateObject: mock(async () => {
         throw new Error("LLM unavailable");
       }),
-    };
+    });
 
-    const events = [];
-    const result = await extractReceiptMetadata(
-      { broker: mockBroker },
-      "Invoice total $49.00",
-      "Invoice #TEST",
-      "billing@acme.com",
-      "Acme",
-      emailDate,
-      (e) => events.push(e),
-    );
+    it("returns a non-null fallback result", async () => {
+      const result = await extractReceiptMetadata(
+        { broker: makeBrokerThatThrows() },
+        "Invoice total $49.00",
+        "Invoice #TEST",
+        "billing@acme.com",
+        "Acme",
+        emailDate,
+        () => {},
+      );
+      expect(result).not.toBeNull();
+    });
 
-    // Should have fallen back and returned a result
-    expect(result).not.toBeNull();
-    // Should have emitted an error event
-    const errEvent = events.find((e) => e.type === "llm-extraction-failed");
-    expect(errEvent).toBeDefined();
+    it("emits an llm-extraction-failed error event", async () => {
+      const events = [];
+      await extractReceiptMetadata(
+        { broker: makeBrokerThatThrows() },
+        "Invoice total $49.00",
+        "Invoice #TEST",
+        "billing@acme.com",
+        "Acme",
+        emailDate,
+        (e) => events.push(e),
+      );
+      const errEvent = events.find((e) => e.type === "llm-extraction-failed");
+      expect(errEvent).toBeDefined();
+    });
   });
 });

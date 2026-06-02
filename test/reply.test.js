@@ -87,12 +87,12 @@ describe("buildReplyHeaders", () => {
 });
 
 describe("buildReplyBody", () => {
-  it("includes user message and quoted original", () => {
+  describe("includes user message and quoted original", () => {
     const parsed = mockParsed({ text: "Original text here." });
     const body = buildReplyBody("Thanks for the info!", parsed);
 
-    expect(body).toContain("Thanks for the info!");
-    expect(body).toContain("> Original text here.");
+    it("contains the user message", () => expect(body).toContain("Thanks for the info!"));
+    it("contains the quoted original", () => expect(body).toContain("> Original text here."));
   });
 
   it("includes attribution line with date and sender", () => {
@@ -102,15 +102,15 @@ describe("buildReplyBody", () => {
     expect(body).toContain("On 2025-06-15, Alice <alice@example.com> wrote:");
   });
 
-  it("truncates long quotes at maxQuoteLines", () => {
+  describe("truncates long quotes at maxQuoteLines", () => {
     const longText = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}`).join("\n");
     const parsed = mockParsed({ text: longText });
     const body = buildReplyBody("Short reply.", parsed, { maxQuoteLines: 10 });
-
     const quotedLines = body.split("\n").filter((l) => l.startsWith("> "));
+
     // 10 quoted lines + 1 truncation notice
-    expect(quotedLines.length).toBe(11);
-    expect(body).toContain("[... 90 more lines truncated]");
+    it("has 11 quoted lines (10 content + 1 truncation notice)", () => expect(quotedLines.length).toBe(11));
+    it("contains the truncation notice", () => expect(body).toContain("[... 90 more lines truncated]"));
   });
 
   it("handles HTML-only originals by converting to text for quoting", () => {
@@ -120,22 +120,22 @@ describe("buildReplyBody", () => {
     expect(body).toContain("> Hello from HTML");
   });
 
-  it("handles empty original body gracefully", () => {
+  describe("handles empty original body gracefully", () => {
     const parsed = mockParsed({ text: "", html: null });
     const body = buildReplyBody("Reply to empty.", parsed);
 
-    expect(body).toContain("Reply to empty.");
-    expect(body).toContain("> ");
+    it("contains the user reply", () => expect(body).toContain("Reply to empty."));
+    it("contains a quoted blank line", () => expect(body).toContain("> "));
   });
 });
 
 describe("buildEditorTemplate", () => {
-  it("includes comment lines with headers", () => {
+  describe("includes comment lines with headers", () => {
     const headers = { to: "alice@example.com", subject: "Re: Hello", inReplyTo: "", references: "" };
     const template = buildEditorTemplate(headers, "> quoted text");
 
-    expect(template).toContain("# Reply to: alice@example.com");
-    expect(template).toContain("# Subject: Re: Hello");
+    it("shows the reply-to address", () => expect(template).toContain("# Reply to: alice@example.com"));
+    it("shows the subject", () => expect(template).toContain("# Subject: Re: Hello"));
   });
 
   it("includes quoted body", () => {

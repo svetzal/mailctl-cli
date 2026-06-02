@@ -33,23 +33,25 @@ describe("sortReceipts", () => {
     ).rejects.toThrow("No accounts configured");
   });
 
-  it("moves a business-classified message to Receipts/Business", async () => {
+  describe("moves a business-classified message to Receipts/Business", () => {
     const client = makeMockClient();
+    const deps = {
+      loadClassifications: () => ({ "billing@vendor.com": "business" }),
+      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+      forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
+      listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
+      filterScanMailboxes: () => ["INBOX"],
+      scanForReceipts: () => Promise.resolve([makeMsg(1, "billing@vendor.com")]),
+    };
 
-    await sortReceipts(
-      {},
-      {
-        loadClassifications: () => ({ "billing@vendor.com": "business" }),
-        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-        forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
-        listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
-        filterScanMailboxes: () => ["INBOX"],
-        scanForReceipts: () => Promise.resolve([makeMsg(1, "billing@vendor.com")]),
-      },
-    );
+    it("calls messageMove exactly once", async () => {
+      await sortReceipts({}, deps);
+      expect(client.messageMove).toHaveBeenCalledTimes(1);
+    });
 
-    expect(client.messageMove).toHaveBeenCalledTimes(1);
-    expect(client.messageMove).toHaveBeenCalledWith(expect.stringContaining("1"), "Receipts/Business", { uid: true });
+    it("calls messageMove with the correct destination folder", async () => {
+      expect(client.messageMove).toHaveBeenCalledWith(expect.stringContaining("1"), "Receipts/Business", { uid: true });
+    });
   });
 
   it("moves a personal-classified message to Receipts/Personal", async () => {
@@ -67,27 +69,33 @@ describe("sortReceipts", () => {
       },
     );
 
-    expect(client.messageMove).toHaveBeenCalledTimes(1);
     expect(client.messageMove).toHaveBeenCalledWith(expect.anything(), "Receipts/Personal", { uid: true });
   });
 
-  it("counts unclassified messages in stats and routes them to personal", async () => {
-    const client = makeMockClient();
-
-    const stats = await sortReceipts(
-      {},
-      {
+  describe("counts unclassified messages in stats and routes them to personal", () => {
+    let client;
+    let stats;
+    const deps = () => {
+      client = makeMockClient();
+      return {
         loadClassifications: () => ({}), // no classifications
         loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
         forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
         listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
         filterScanMailboxes: () => ["INBOX"],
         scanForReceipts: () => Promise.resolve([makeMsg(3, "unknown@example.com")]),
-      },
-    );
+      };
+    };
 
-    expect(stats.unclassified).toBe(1);
-    expect(client.messageMove).toHaveBeenCalledWith(expect.anything(), "Receipts/Personal", { uid: true });
+    it("reports unclassified count of 1 in stats", async () => {
+      stats = await sortReceipts({}, deps());
+      expect(stats.unclassified).toBe(1);
+    });
+
+    it("routes unclassified messages to Receipts/Personal", async () => {
+      await sortReceipts({}, deps());
+      expect(client.messageMove).toHaveBeenCalledWith(expect.anything(), "Receipts/Personal", { uid: true });
+    });
   });
 
   it("does not call messageMove in dry-run mode", async () => {
@@ -108,24 +116,30 @@ describe("sortReceipts", () => {
     expect(client.messageMove).not.toHaveBeenCalled();
   });
 
-  it("increments skipped when messageMove throws", async () => {
-    const client = makeMockClient();
-    client.messageMove = mock(() => Promise.reject(new Error("IMAP error")));
+  describe("increments skipped when messageMove throws", () => {
+    const makeErrorClient = () => {
+      const c = makeMockClient();
+      c.messageMove = mock(() => Promise.reject(new Error("IMAP error")));
+      return c;
+    };
+    const makeDeps = (client) => ({
+      loadClassifications: () => ({ "billing@vendor.com": "business" }),
+      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+      forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
+      listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
+      filterScanMailboxes: () => ["INBOX"],
+      scanForReceipts: () => Promise.resolve([makeMsg(5, "billing@vendor.com")]),
+    });
 
-    const stats = await sortReceipts(
-      {},
-      {
-        loadClassifications: () => ({ "billing@vendor.com": "business" }),
-        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
-        forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
-        listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
-        filterScanMailboxes: () => ["INBOX"],
-        scanForReceipts: () => Promise.resolve([makeMsg(5, "billing@vendor.com")]),
-      },
-    );
+    it("reports skipped count greater than 0", async () => {
+      const stats = await sortReceipts({}, makeDeps(makeErrorClient()));
+      expect(stats.skipped).toBeGreaterThan(0);
+    });
 
-    expect(stats.skipped).toBeGreaterThan(0);
-    expect(stats.moved).toBe(0);
+    it("reports moved count of 0", async () => {
+      const stats = await sortReceipts({}, makeDeps(makeErrorClient()));
+      expect(stats.moved).toBe(0);
+    });
   });
 
   it("moves messages from two mailboxes in one account", async () => {

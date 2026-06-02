@@ -58,22 +58,22 @@ describe("saveScanResults", () => {
     expect(fs.writeJson).toHaveBeenCalledWith("/custom/path.json", []);
   });
 
-  it("returns the resolved raw path and summary path", () => {
+  describe("returns the resolved raw path and summary path", () => {
     const fs = makeMockFs();
     const result = saveScanResults("/data", { scanResults: [], senders: [] }, fs);
 
-    expect(result.rawPath).toBe("/data/scan-results.json");
-    expect(result.summaryPath).toBe("/data/senders.json");
+    it("returns the raw path", () => expect(result.rawPath).toBe("/data/scan-results.json"));
+    it("returns the summary path", () => expect(result.summaryPath).toBe("/data/senders.json"));
   });
 });
 
 describe("loadSenders", () => {
-  it("reads from senders.json in the data directory", () => {
+  describe("reads from senders.json in the data directory", () => {
     const fs = makeMockFs({ readJson: mock(() => [{ address: "test@example.com" }]) });
     const senders = loadSenders("/data", fs);
 
-    expect(fs.readJson).toHaveBeenCalledWith("/data/senders.json");
-    expect(senders).toEqual([{ address: "test@example.com" }]);
+    it("calls readJson with the senders file path", () => expect(fs.readJson).toHaveBeenCalledWith("/data/senders.json"));
+    it("returns the senders list", () => expect(senders).toEqual([{ address: "test@example.com" }]));
   });
 });
 
@@ -85,7 +85,7 @@ describe("loadClassificationsData", () => {
     expect(result).toEqual({});
   });
 
-  it("reads classifications from file when it exists", () => {
+  describe("reads classifications from file when it exists", () => {
     const data = { "bill@example.com": "business" };
     const fs = makeMockFs({
       exists: mock(() => true),
@@ -93,8 +93,9 @@ describe("loadClassificationsData", () => {
     });
     const result = loadClassificationsData("/data", fs);
 
-    expect(fs.readJson).toHaveBeenCalledWith("/data/classifications.json");
-    expect(result).toEqual(data);
+    it("calls readJson with the classifications file path", () =>
+      expect(fs.readJson).toHaveBeenCalledWith("/data/classifications.json"));
+    it("returns the classifications data", () => expect(result).toEqual(data));
   });
 });
 
@@ -117,16 +118,16 @@ describe("requireClassificationsData", () => {
     );
   });
 
-  it("reads and returns classifications when the file exists", () => {
+  describe("reads and returns classifications when the file exists", () => {
     const data = { "billing@example.com": "business" };
     const fs = makeMockFs({
       exists: mock(() => true),
       readJson: mock(() => data),
     });
-
     const result = requireClassificationsData("/data", fs);
 
-    expect(fs.readJson).toHaveBeenCalledWith("/data/classifications.json");
-    expect(result).toEqual(data);
+    it("calls readJson with the classifications file path", () =>
+      expect(fs.readJson).toHaveBeenCalledWith("/data/classifications.json"));
+    it("returns the classifications data", () => expect(result).toEqual(data));
   });
 });
