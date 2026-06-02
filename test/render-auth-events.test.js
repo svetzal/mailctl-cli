@@ -7,24 +7,16 @@ describe("renderAuthEvent", () => {
     expect(renderAuthEvent(event)).toBe("   Token refresh failed: expired");
   });
 
-  it("renders device-code-prompt with verification URI and user code", () => {
+  describe("renders device-code-prompt", () => {
     const event = {
       type: "device-code-prompt",
       verificationUri: "https://microsoft.com/devicelogin",
       userCode: "ABC123",
     };
     const result = renderAuthEvent(event);
-    expect(result).toContain("https://microsoft.com/devicelogin");
-    expect(result).toContain("ABC123");
-  });
-
-  it("starts device-code-prompt with a newline", () => {
-    const event = {
-      type: "device-code-prompt",
-      verificationUri: "https://microsoft.com/devicelogin",
-      userCode: "ABC123",
-    };
-    expect(renderAuthEvent(event)).toMatch(/^\n/);
+    it("includes the verification URI", () => expect(result).toContain("https://microsoft.com/devicelogin"));
+    it("includes the user code", () => expect(result).toContain("ABC123"));
+    it("starts with a newline", () => expect(result).toMatch(/^\n/));
   });
 
   it("renders auth-waiting message", () => {
@@ -35,11 +27,11 @@ describe("renderAuthEvent", () => {
     expect(renderAuthEvent({ type: "auth-success" })).toBe("Authentication successful. Tokens cached.");
   });
 
-  it("renders connect-error with account and error message", () => {
+  describe("renders connect-error with account and error message", () => {
     const event = { type: "connect-error", account: "Work", error: { message: "connection refused" } };
     const result = renderAuthEvent(event);
-    expect(result).toContain("Work");
-    expect(result).toContain("connection refused");
+    it("includes the account name", () => expect(result).toContain("Work"));
+    it("includes the error message", () => expect(result).toContain("connection refused"));
   });
 
   it("returns null for unknown event types", () => {

@@ -4,16 +4,16 @@ import { createEventRenderer, renderSharedEvent } from "../src/render-shared-eve
 // ── renderSharedEvent ─────────────────────────────────────────────────────────
 
 describe("renderSharedEvent", () => {
-  it("renders mailbox-lock-failed events", () => {
+  describe("renders mailbox-lock-failed events", () => {
     const result = renderSharedEvent({ type: "mailbox-lock-failed", mailbox: "INBOX", error: { message: "busy" } });
-    expect(result).toContain("INBOX");
-    expect(result).toContain("busy");
+    it("includes the mailbox name", () => expect(result).toContain("INBOX"));
+    it("includes the error message", () => expect(result).toContain("busy"));
   });
 
-  it("renders search-failed events", () => {
+  describe("renders search-failed events", () => {
     const result = renderSharedEvent({ type: "search-failed", mailbox: "Sent", error: { message: "timeout" } });
-    expect(result).toContain("Sent");
-    expect(result).toContain("timeout");
+    it("includes the mailbox name", () => expect(result).toContain("Sent"));
+    it("includes the error message", () => expect(result).toContain("timeout"));
   });
 
   it("returns null for unknown event types", () => {

@@ -57,20 +57,28 @@ describe("searchAccountForReceipts", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("returns results from a single mailbox", async () => {
-    const client = {};
-    const account = { name: "TestAccount" };
-    const since = new Date();
-    const msg = makeMsg(1, "msg-1@acme.com");
-    const fns = makeFns({
-      mailboxes: [makeMailbox("INBOX")],
-      messages: { INBOX: [msg] },
+  describe("returns results from a single mailbox", () => {
+    async function runSingleMailboxSearch() {
+      const client = {};
+      const account = { name: "TestAccount" };
+      const since = new Date();
+      const msg = makeMsg(1, "msg-1@acme.com");
+      const fns = makeFns({
+        mailboxes: [makeMailbox("INBOX")],
+        messages: { INBOX: [msg] },
+      });
+      return searchAccountForReceipts(client, account, since, fns);
+    }
+
+    it("returns exactly one result", async () => {
+      const result = await runSingleMailboxSearch();
+      expect(result).toHaveLength(1);
     });
 
-    const result = await searchAccountForReceipts(client, account, since, fns);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].uid).toBe(1);
+    it("returns the correct uid", async () => {
+      const result = await runSingleMailboxSearch();
+      expect(result[0].uid).toBe(1);
+    });
   });
 
   it("deduplicates results with the same message-id across mailboxes", async () => {

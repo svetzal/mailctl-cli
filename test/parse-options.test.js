@@ -16,10 +16,10 @@ describe("parseIntOption", () => {
 });
 
 describe("parseSinceOption", () => {
-  it("parses a string value with parseDate", () => {
+  describe("parses a string value with parseDate", () => {
     const result = parseSinceOption("2026-01-15", null);
-    expect(result).toBeInstanceOf(Date);
-    expect(result?.getFullYear()).toBe(2026);
+    it("returns a Date instance", () => expect(result).toBeInstanceOf(Date));
+    it("returns the correct year", () => expect(result?.getFullYear()).toBe(2026));
   });
 
   it("parses the fallback string when value is absent", () => {

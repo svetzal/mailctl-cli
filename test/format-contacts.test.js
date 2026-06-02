@@ -30,10 +30,10 @@ describe("formatContactsText", () => {
     ).toContain("Alice <alice@example.com>");
   });
 
-  it("formats contact without name as address only", () => {
+  describe("formats contact without name as address only", () => {
     const text = formatContactsText([makeContact({ name: "", address: "bare@example.com" })], { sinceLabel: "x" });
-    expect(text).toContain("bare@example.com");
-    expect(text).not.toContain("<bare@example.com>");
+    it("includes the address", () => expect(text).toContain("bare@example.com"));
+    it("does not wrap the address in angle brackets", () => expect(text).not.toContain("<bare@example.com>"));
   });
 
   it("shows message count per contact", () => {

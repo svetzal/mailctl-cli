@@ -45,12 +45,12 @@ describe("defineErrorEvent", () => {
     expect(factory(err).error).toBe(err);
   });
 
-  it("maps additional positional args to named params", () => {
+  describe("maps additional positional args to named params", () => {
     const factory = defineErrorEvent("test-error", "error", "uid", "filename");
     const err = new Error("boom");
     const event = factory(err, 42, "test.pdf");
-    expect(event.uid).toBe(42);
-    expect(event.filename).toBe("test.pdf");
+    it("maps uid", () => expect(event.uid).toBe(42));
+    it("maps filename", () => expect(event.filename).toBe("test.pdf"));
   });
 
   it("attaches .type to the factory function", () => {

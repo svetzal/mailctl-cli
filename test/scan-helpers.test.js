@@ -82,11 +82,11 @@ describe("buildScanResult", () => {
     expect(result.date).toBe(date);
   });
 
-  it("falls back to 'unknown' from address when from array is empty", () => {
+  describe("falls back to 'unknown' from address when from array is empty", () => {
     const result = buildScanResult("Account", "INBOX", makeMsg({ from: [] }));
-    expect(result.from).toBe("unknown");
-    expect(result.address).toBe("unknown");
-    expect(result.name).toBe("");
+    it("sets from to 'unknown'", () => expect(result.from).toBe("unknown"));
+    it("sets address to 'unknown'", () => expect(result.address).toBe("unknown"));
+    it("sets name to empty string", () => expect(result.name).toBe(""));
   });
 
   it("falls back to empty subject when subject is undefined", () => {

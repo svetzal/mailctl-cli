@@ -63,56 +63,77 @@ describe("threadCommand", () => {
     await expect(threadCommand("99", {}, deps)).rejects.toThrow("Could not find UID 99 in any account.");
   });
 
-  it("uses explicit --mailbox option without detection", async () => {
-    const deps = makeDeps({
-      forEachAccount: mock(async (_accounts, fn) => {
-        // We need a client that supports findThread operations
-        const client = {
-          getMailboxLock: mock(() => Promise.resolve(makeLock())),
-          search: mock(() => Promise.resolve([42])),
-          fetch: mock(async function* () {
-            yield {
-              uid: 42,
-              envelope: { messageId: "<msg-42@test.com>", subject: "Hello" },
-              bodyParts: new Map(),
-            };
-          }),
-        };
-        await fn(client, makeAccount());
-      }),
+  describe("uses explicit --mailbox option without detection", () => {
+    async function runWithExplicitMailbox() {
+      const deps = makeDeps({
+        forEachAccount: mock(async (_accounts, fn) => {
+          // We need a client that supports findThread operations
+          const client = {
+            getMailboxLock: mock(() => Promise.resolve(makeLock())),
+            search: mock(() => Promise.resolve([42])),
+            fetch: mock(async function* () {
+              yield {
+                uid: 42,
+                envelope: { messageId: "<msg-42@test.com>", subject: "Hello" },
+                bodyParts: new Map(),
+              };
+            }),
+          };
+          await fn(client, makeAccount());
+        }),
+      });
+
+      // When mailbox is explicit, detectMailbox (which calls search) is skipped.
+      // The thread lookup still needs listMailboxes for searchPaths.
+      return threadCommand("42", { mailbox: "INBOX" }, deps);
+    }
+
+    it("returns a defined result", async () => {
+      const result = await runWithExplicitMailbox();
+      expect(result).toBeDefined();
     });
 
-    // When mailbox is explicit, detectMailbox (which calls search) is skipped.
-    // The thread lookup still needs listMailboxes for searchPaths.
-    const result = await threadCommand("42", { mailbox: "INBOX" }, deps);
-
-    expect(result).toBeDefined();
-    expect(result[0].account).toBe("Test Account");
+    it("includes the account name in the result", async () => {
+      const result = await runWithExplicitMailbox();
+      expect(result[0].account).toBe("Test Account");
+    });
   });
 
-  it("returns thread result with account name", async () => {
-    const deps = makeDeps({
-      forEachAccount: mock(async (_accounts, fn) => {
-        const client = {
-          getMailboxLock: mock(() => Promise.resolve(makeLock())),
-          search: mock(() => Promise.resolve([42])),
-          fetch: mock(async function* () {
-            yield {
-              uid: 42,
-              envelope: { messageId: "<msg-42@test.com>", subject: "Hello", from: [] },
-              bodyParts: new Map(),
-            };
-          }),
-        };
-        await fn(client, makeAccount({ name: "My Account" }));
-      }),
+  describe("returns thread result with account name", () => {
+    async function runWithNamedAccount() {
+      const deps = makeDeps({
+        forEachAccount: mock(async (_accounts, fn) => {
+          const client = {
+            getMailboxLock: mock(() => Promise.resolve(makeLock())),
+            search: mock(() => Promise.resolve([42])),
+            fetch: mock(async function* () {
+              yield {
+                uid: 42,
+                envelope: { messageId: "<msg-42@test.com>", subject: "Hello", from: [] },
+                bodyParts: new Map(),
+              };
+            }),
+          };
+          await fn(client, makeAccount({ name: "My Account" }));
+        }),
+      });
+      return threadCommand("42", { mailbox: "INBOX" }, deps);
+    }
+
+    it("includes the account name", async () => {
+      const result = await runWithNamedAccount();
+      expect(result[0].account).toBe("My Account");
     });
 
-    const result = await threadCommand("42", { mailbox: "INBOX" }, deps);
+    it("includes a numeric threadSize", async () => {
+      const result = await runWithNamedAccount();
+      expect(typeof result[0].threadSize).toBe("number");
+    });
 
-    expect(result[0].account).toBe("My Account");
-    expect(typeof result[0].threadSize).toBe("number");
-    expect(typeof result[0].fallback).toBe("boolean");
+    it("includes a boolean fallback flag", async () => {
+      const result = await runWithNamedAccount();
+      expect(typeof result[0].fallback).toBe("boolean");
+    });
   });
 
   it("checks other accounts when UID is not on the first account", async () => {

@@ -115,8 +115,11 @@ describe("parseReferences", () => {
     expect(parseReferences(refs)).toEqual(["msg1@example.com", "msg2@example.com", "msg3@example.com"]);
   });
 
-  it("returns empty array for null/empty input", () => {
+  it("returns empty array for empty string input", () => {
     expect(parseReferences("")).toEqual([]);
+  });
+
+  it("returns empty array for null input", () => {
     expect(parseReferences(null)).toEqual([]);
   });
 });
@@ -319,21 +322,31 @@ describe("findThread", () => {
     expect(fallback).toBe(true);
   });
 
-  it("emits mailbox-lock-failed when anchor mailbox lock fails", async () => {
-    const error = new Error("lock failed");
-    const client = {
-      getMailboxLock: mock(() => Promise.reject(error)),
-    };
-    const onProgress = mock(() => {});
+  describe("emits mailbox-lock-failed when anchor mailbox lock fails", () => {
+    async function runWithLockFailure() {
+      const error = new Error("lock failed");
+      const client = {
+        getMailboxLock: mock(() => Promise.reject(error)),
+      };
+      const onProgress = mock(() => {});
 
-    const { messages } = await findThread(client, "TestAccount", "INBOX", 1, ["INBOX"], { onProgress });
+      const result = await findThread(client, "TestAccount", "INBOX", 1, ["INBOX"], { onProgress });
+      return { result, onProgress, error };
+    }
 
-    expect(messages).toHaveLength(0);
-    expect(onProgress).toHaveBeenCalledWith({
-      type: "mailbox-lock-failed",
-      severity: "error",
-      mailbox: "INBOX",
-      error,
+    it("returns empty messages array", async () => {
+      const { result } = await runWithLockFailure();
+      expect(result.messages).toHaveLength(0);
+    });
+
+    it("calls onProgress with the mailbox-lock-failed event", async () => {
+      const { onProgress, error } = await runWithLockFailure();
+      expect(onProgress).toHaveBeenCalledWith({
+        type: "mailbox-lock-failed",
+        severity: "error",
+        mailbox: "INBOX",
+        error,
+      });
     });
   });
 
