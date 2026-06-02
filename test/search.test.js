@@ -66,24 +66,48 @@ describe("searchMailbox", () => {
     expect(client.search).toHaveBeenCalledTimes(2);
   });
 
-  it("searches only the specified field when opts.from is provided", async () => {
+  describe("searches only the From field when opts.from is provided", () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", "query", { from: "alice@example.com" });
+      }
+    };
 
-    await searchMailbox(client, "Account", "INBOX", "query", { from: "alice@example.com" });
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
 
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com" }, { uid: true });
+    it("calls search with the from criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com" }, { uid: true });
+    });
   });
 
-  it("searches only the specified field when opts.subject is provided", async () => {
+  describe("searches only the Subject field when opts.subject is provided", () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", "query", { subject: "Invoice" });
+      }
+    };
 
-    await searchMailbox(client, "Account", "INBOX", "query", { subject: "Invoice" });
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
 
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ subject: "Invoice" }, { uid: true });
+    it("calls search with the subject criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ subject: "Invoice" }, { uid: true });
+    });
   });
 
   it("deduplicates UIDs across From and Subject searches", async () => {
@@ -128,51 +152,49 @@ describe("searchMailbox", () => {
         },
       ],
     });
-    let result;
 
     it("sets uid", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.uid).toBe(7);
     });
 
     it("sets account", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.account).toBe("MyAccount");
     });
 
     it("sets mailbox", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.mailbox).toBe("INBOX");
     });
 
     it("sets from", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.from).toBe("Bill@Vendor.com");
     });
 
     it("sets fromName", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.fromName).toBe("Vendor Billing");
     });
 
     it("sets subject", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.subject).toBe("Your receipt");
     });
 
     it("sets messageId", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.messageId).toBe("msg-7@vendor.com");
     });
 
     it("sets date", async () => {
-      [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
+      const [result] = await searchMailbox(client, "MyAccount", "INBOX", "receipt");
       expect(result.date).toBe(date);
     });
   });
 
-  it("limits results to the most recent N UIDs", async () => {
-    // 20 UIDs but limit = 3 → only the last 3 fetched
+  describe("limits results to the most recent N UIDs", () => {
     const searchUids = Array.from({ length: 20 }, (_, i) => i + 1);
     const client = makeClient({ searchUids, envelopes: [] });
     client.fetch = mock((_uidRange) => {
@@ -180,20 +202,30 @@ describe("searchMailbox", () => {
       async function* gen() {}
       return gen();
     });
+    let fetchedUids;
+    const setup = async () => {
+      if (!fetchedUids) {
+        await searchMailbox(client, "Account", "INBOX", "receipt", { limit: 3 });
+        const calls = /** @type {string[][]} */ (client.fetch.mock.calls);
+        const [[range]] = calls;
+        fetchedUids = range.split(",").map(Number);
+      }
+    };
 
-    await searchMailbox(client, "Account", "INBOX", "receipt", { limit: 3 });
+    it("passes only 3 UIDs to fetch", async () => {
+      await setup();
+      expect(fetchedUids).toHaveLength(3);
+    });
 
-    // The UID range passed to fetch should contain only the last 3 UIDs
-    const calls = /** @type {string[][]} */ (client.fetch.mock.calls);
-    const [[range]] = calls;
-    const fetchedUids = range.split(",").map(Number);
-    expect(fetchedUids).toHaveLength(3);
-    expect(fetchedUids).toEqual([18, 19, 20]);
+    it("passes the last 3 UIDs to fetch", async () => {
+      await setup();
+      expect(fetchedUids).toEqual([18, 19, 20]);
+    });
   });
 
   // ── null/empty query tests ───────────────────────────────────────────────
 
-  it("returns results when query is null and --from is provided", async () => {
+  describe("returns results when query is null and --from is provided", () => {
     const client = makeClient({
       searchUids: [10],
       envelopes: [
@@ -208,14 +240,25 @@ describe("searchMailbox", () => {
         },
       ],
     });
+    let results;
+    const setup = async () => {
+      if (!results) {
+        results = await searchMailbox(client, "Account", "INBOX", null, { from: "salman@example.com" });
+      }
+    };
 
-    const results = await searchMailbox(client, "Account", "INBOX", null, { from: "salman@example.com" });
+    it("returns one result", async () => {
+      await setup();
+      expect(results).toHaveLength(1);
+    });
 
-    expect(results).toHaveLength(1);
-    expect(results[0].from).toBe("salman@example.com");
+    it("maps the from address correctly", async () => {
+      await setup();
+      expect(results[0].from).toBe("salman@example.com");
+    });
   });
 
-  it("returns results when query is null and --subject is provided", async () => {
+  describe("returns results when query is null and --subject is provided", () => {
     const client = makeClient({
       searchUids: [11],
       envelopes: [
@@ -230,21 +273,44 @@ describe("searchMailbox", () => {
         },
       ],
     });
+    let results;
+    const setup = async () => {
+      if (!results) {
+        results = await searchMailbox(client, "Account", "INBOX", null, { subject: "Invoice" });
+      }
+    };
 
-    const results = await searchMailbox(client, "Account", "INBOX", null, { subject: "Invoice" });
+    it("returns one result", async () => {
+      await setup();
+      expect(results).toHaveLength(1);
+    });
 
-    expect(results).toHaveLength(1);
-    expect(results[0].subject).toBe("Invoice #123");
+    it("maps the subject correctly", async () => {
+      await setup();
+      expect(results[0].subject).toBe("Invoice #123");
+    });
   });
 
-  it("uses combined criteria when query is null and both --from and --subject are provided", async () => {
+  describe("uses combined criteria when query is null and both --from and --subject are provided", () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", null, { from: "alice@example.com", subject: "Invoice" });
+      }
+    };
 
-    await searchMailbox(client, "Account", "INBOX", null, { from: "alice@example.com", subject: "Invoice" });
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
 
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", subject: "Invoice" }, { uid: true });
+    it("calls search with combined from and subject criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", subject: "Invoice" }, { uid: true });
+    });
   });
 
   it("returns an empty array when query is null and no opts are provided", async () => {
@@ -263,87 +329,152 @@ describe("searchMailbox", () => {
     expect(results).toHaveLength(0);
   });
 
-  it("searches by criteria when query is empty string and --from is provided", async () => {
+  describe("searches by criteria when query is empty string and --from is provided", () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", "", { from: "bob@example.com" });
+      }
+    };
 
-    await searchMailbox(client, "Account", "INBOX", "", { from: "bob@example.com" });
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
 
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ from: "bob@example.com" }, { uid: true });
+    it("calls search with the from criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ from: "bob@example.com" }, { uid: true });
+    });
   });
 
-  // ── date filter tests ────────────────────────────────────────────────────
+  // ── date filter tests ────────────────────────────────────────────────────────
 
-  it("passes since and before to IMAP criteria when using field filters", async () => {
-    const client = makeClient({ searchUids: [], envelopes: [] });
-    client.search = mock(() => Promise.resolve([]));
-
+  describe("passes since and before to IMAP criteria when using field filters", () => {
     const since = new Date(2026, 0, 1);
     const before = new Date(2026, 1, 1);
-
-    await searchMailbox(client, "Account", "INBOX", null, {
-      from: "alice@example.com",
-      since,
-      before,
-    });
-
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", since, before }, { uid: true });
-  });
-
-  it("passes since and before to both From and Subject searches for general query", async () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", null, { from: "alice@example.com", since, before });
+      }
+    };
 
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls search with from, since and before criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", since, before }, { uid: true });
+    });
+  });
+
+  describe("passes since and before to both From and Subject searches for general query", () => {
     const since = new Date(2026, 0, 1);
-
-    await searchMailbox(client, "Account", "INBOX", "invoice", { since });
-
-    expect(client.search).toHaveBeenCalledTimes(2);
-    const calls = /** @type {any[][]} */ (client.search.mock.calls);
-    expect(calls[0][0]).toEqual({ from: "invoice", since });
-    expect(calls[1][0]).toEqual({ subject: "invoice", since });
-  });
-
-  it("combines since with query and field criteria", async () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let calls;
+    const setup = async () => {
+      if (!calls) {
+        await searchMailbox(client, "Account", "INBOX", "invoice", { since });
+        calls = /** @type {any[][]} */ (client.search.mock.calls);
+      }
+    };
 
+    it("calls search twice (from and subject)", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(2);
+    });
+
+    it("passes since to the from search", async () => {
+      await setup();
+      expect(calls[0][0]).toEqual({ from: "invoice", since });
+    });
+
+    it("passes since to the subject search", async () => {
+      await setup();
+      expect(calls[1][0]).toEqual({ subject: "invoice", since });
+    });
+  });
+
+  describe("combines since with query and field criteria", () => {
     const before = new Date(2026, 5, 1);
-
-    await searchMailbox(client, "Account", "INBOX", "query", {
-      subject: "Report",
-      before,
-    });
-
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ subject: "Report", before }, { uid: true });
-  });
-
-  // ── --to filter tests ───────────────────────────────────────────────────
-
-  it("searches by to criteria when opts.to is provided", async () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", "query", { subject: "Report", before });
+      }
+    };
 
-    await searchMailbox(client, "Account", "INBOX", null, { to: "bob@example.com" });
-
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com" }, { uid: true });
-  });
-
-  it("combines --from and --to criteria in a single search", async () => {
-    const client = makeClient({ searchUids: [], envelopes: [] });
-    client.search = mock(() => Promise.resolve([]));
-
-    await searchMailbox(client, "Account", "INBOX", null, {
-      from: "alice@example.com",
-      to: "bob@example.com",
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
     });
 
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", to: "bob@example.com" }, { uid: true });
+    it("calls search with subject and before criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ subject: "Report", before }, { uid: true });
+    });
+  });
+
+  // ── --to filter tests ───────────────────────────────────────────────────────
+
+  describe("searches by to criteria when opts.to is provided", () => {
+    const client = makeClient({ searchUids: [], envelopes: [] });
+    client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", null, { to: "bob@example.com" });
+      }
+    };
+
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls search with the to criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com" }, { uid: true });
+    });
+  });
+
+  describe("combines --from and --to criteria in a single search", () => {
+    const client = makeClient({ searchUids: [], envelopes: [] });
+    client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", null, {
+          from: "alice@example.com",
+          to: "bob@example.com",
+        });
+      }
+    };
+
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls search with combined from and to criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ from: "alice@example.com", to: "bob@example.com" }, { uid: true });
+    });
   });
 
   describe("includes to and toName fields in result objects", () => {
@@ -375,29 +506,49 @@ describe("searchMailbox", () => {
     });
   });
 
-  it("uses field criteria path when query and --to are both provided", async () => {
+  describe("uses field criteria path when query and --to are both provided", () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
     client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", "keyword", { to: "bob@example.com" });
+      }
+    };
 
-    await searchMailbox(client, "Account", "INBOX", "keyword", { to: "bob@example.com" });
-
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com" }, { uid: true });
-  });
-
-  it("combines --to with date filtering", async () => {
-    const client = makeClient({ searchUids: [], envelopes: [] });
-    client.search = mock(() => Promise.resolve([]));
-
-    const since = new Date(2026, 2, 1);
-
-    await searchMailbox(client, "Account", "INBOX", null, {
-      to: "bob@example.com",
-      since,
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
     });
 
-    expect(client.search).toHaveBeenCalledTimes(1);
-    expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com", since }, { uid: true });
+    it("calls search with the to criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com" }, { uid: true });
+    });
+  });
+
+  describe("combines --to with date filtering", () => {
+    const since = new Date(2026, 2, 1);
+    const client = makeClient({ searchUids: [], envelopes: [] });
+    client.search = mock(() => Promise.resolve([]));
+    let searchCalled = false;
+    const setup = async () => {
+      if (!searchCalled) {
+        searchCalled = true;
+        await searchMailbox(client, "Account", "INBOX", null, { to: "bob@example.com", since });
+      }
+    };
+
+    it("calls search exactly once", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls search with to and since criteria", async () => {
+      await setup();
+      expect(client.search).toHaveBeenCalledWith({ to: "bob@example.com", since }, { uid: true });
+    });
   });
 
   it("releases the mailbox lock after completing the search", async () => {

@@ -146,12 +146,21 @@ describe("extractForwardedSender", () => {
     expect(extractForwardedSender("Your order has been confirmed.")).toBeNull();
   });
 
-  it("detects Gmail-style forwarded marker and extracts address", () => {
+  describe("detects Gmail-style forwarded marker and extracts address", () => {
     const body = "---------- Forwarded message ----------\nFrom: Billing <billing@vendor.com>\nSubject: Invoice";
     const result = extractForwardedSender(body);
-    expect(result).not.toBeNull();
-    expect(result?.address).toBe("billing@vendor.com");
-    expect(result?.name).toBe("Billing");
+
+    it("returns a non-null result", () => {
+      expect(result).not.toBeNull();
+    });
+
+    it("extracts the email address", () => {
+      expect(result?.address).toBe("billing@vendor.com");
+    });
+
+    it("extracts the display name", () => {
+      expect(result?.name).toBe("Billing");
+    });
   });
 
   it("detects 'Begin forwarded message:' marker", () => {
@@ -359,22 +368,40 @@ describe("extractAmount", () => {
 // ── extractTax ────────────────────────────────────────────────────────────────
 
 describe("extractTax", () => {
-  it("extracts HST amount", () => {
+  describe("extracts HST amount", () => {
     const result = extractTax("HST: $1.56");
-    expect(result?.amount).toBe(1.56);
-    expect(result?.type).toBe("HST");
+
+    it("extracts the HST amount value", () => {
+      expect(result?.amount).toBe(1.56);
+    });
+
+    it("extracts the HST type", () => {
+      expect(result?.type).toBe("HST");
+    });
   });
 
-  it("extracts GST amount", () => {
+  describe("extracts GST amount", () => {
     const result = extractTax("GST: $0.50");
-    expect(result?.amount).toBe(0.5);
-    expect(result?.type).toBe("GST");
+
+    it("extracts the GST amount value", () => {
+      expect(result?.amount).toBe(0.5);
+    });
+
+    it("extracts the GST type", () => {
+      expect(result?.type).toBe("GST");
+    });
   });
 
-  it("extracts tax in 'Tax (HST): $X.XX' format", () => {
+  describe("extracts tax in 'Tax (HST): $X.XX' format", () => {
     const result = extractTax("Tax (HST): $2.30");
-    expect(result?.amount).toBe(2.3);
-    expect(result?.type).toBe("HST");
+
+    it("extracts the amount value", () => {
+      expect(result?.amount).toBe(2.3);
+    });
+
+    it("extracts the type from parenthesised label", () => {
+      expect(result?.type).toBe("HST");
+    });
   });
 
   it("returns null when no tax found", () => {
@@ -430,9 +457,13 @@ describe("extractMetadata", () => {
     expect(result.tax).toBeNull();
   });
 
-  it("leaves source_account and email_uid as null (filled by orchestration)", () => {
+  it("leaves source_account as null (filled by orchestration)", () => {
     const result = extractMetadata("", "", "billing@zoom.us", "", new Date());
     expect(result.source_account).toBeNull();
+  });
+
+  it("leaves email_uid as null (filled by orchestration)", () => {
+    const result = extractMetadata("", "", "billing@zoom.us", "", new Date());
     expect(result.email_uid).toBeNull();
   });
 });

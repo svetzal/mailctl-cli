@@ -101,131 +101,199 @@ function makeGateways(client, mockFs, llmResponse) {
 // ── Receipt classification tests ──────────────────────────────────────────────
 
 describe("receipt classification", () => {
-  it("writes sidecar for actual invoice with high confidence", async () => {
-    const client = makeEmailClient();
-    const { mockFs, written } = makeMockFs();
-    const gateways = makeGateways(client, mockFs, {
-      vendor: "GitHub",
-      amount: 39,
-      date: "2025-03-07",
-      currency: "USD",
-      is_invoice: true,
-      confidence: 0.95,
-      invoice_number: null,
-      service: null,
-      tax_amount: null,
-      tax_type: null,
+  describe("writes sidecar for actual invoice with high confidence", () => {
+    let written;
+    let sidecar;
+
+    beforeEach(async () => {
+      const client = makeEmailClient();
+      const { mockFs, written: w } = makeMockFs();
+      written = w;
+      const gateways = makeGateways(client, mockFs, {
+        vendor: "GitHub",
+        amount: 39,
+        date: "2025-03-07",
+        currency: "USD",
+        is_invoice: true,
+        confidence: 0.95,
+        invoice_number: null,
+        service: null,
+        tax_amount: null,
+        tax_type: null,
+      });
+
+      await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
+
+      const jsonKey = Object.keys(written).find((k) => k.endsWith(".json"));
+      sidecar = jsonKey ? JSON.parse(written[jsonKey]) : null;
     });
 
-    await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
+    it("writes a sidecar JSON file", () => {
+      const jsonKey = Object.keys(written).find((k) => k.endsWith(".json"));
+      expect(jsonKey).toBeDefined();
+    });
 
-    const jsonKey = Object.keys(written).find((k) => k.endsWith(".json"));
-    expect(jsonKey).toBeDefined();
-    const sidecar = JSON.parse(written[jsonKey]);
-    expect(sidecar.is_invoice).toBe(true);
-    expect(sidecar.confidence).toBe(0.95);
+    it("sets is_invoice to true in the sidecar", () => {
+      expect(sidecar.is_invoice).toBe(true);
+    });
+
+    it("sets confidence to 0.95 in the sidecar", () => {
+      expect(sidecar.confidence).toBe(0.95);
+    });
   });
 
-  it("skips payment reminder classified as non-invoice", async () => {
-    const client = makeEmailClient("Your subscription renewal");
-    const { mockFs, written } = makeMockFs();
-    const gateways = makeGateways(client, mockFs, {
-      vendor: "JetBrains",
-      amount: null,
-      date: "2025-03-07",
-      is_invoice: false,
-      confidence: 0.85,
-      invoice_number: null,
-      currency: null,
-      service: null,
-      tax_amount: null,
-      tax_type: null,
+  describe("skips payment reminder classified as non-invoice", () => {
+    let written;
+    let stats;
+
+    beforeEach(async () => {
+      const client = makeEmailClient("Your subscription renewal");
+      const { mockFs, written: w } = makeMockFs();
+      written = w;
+      const gateways = makeGateways(client, mockFs, {
+        vendor: "JetBrains",
+        amount: null,
+        date: "2025-03-07",
+        is_invoice: false,
+        confidence: 0.85,
+        invoice_number: null,
+        currency: null,
+        service: null,
+        tax_amount: null,
+        tax_type: null,
+      });
+
+      ({ stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways));
     });
 
-    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
+    it("writes no sidecar JSON file", () => {
+      const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+      expect(jsonKeys).toHaveLength(0);
+    });
 
-    const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
-    expect(jsonKeys).toHaveLength(0);
-    expect(stats.skipped).toBe(1);
+    it("increments the skipped stat", () => {
+      expect(stats.skipped).toBe(1);
+    });
   });
 
-  it("skips low confidence results even when is_invoice is true", async () => {
-    const client = makeEmailClient("Invoice");
-    const { mockFs, written } = makeMockFs();
-    const gateways = makeGateways(client, mockFs, {
-      vendor: "Unknown",
-      amount: null,
-      date: "2025-03-07",
-      is_invoice: true,
-      confidence: 0.3,
-      invoice_number: null,
-      currency: null,
-      service: null,
-      tax_amount: null,
-      tax_type: null,
+  describe("skips low confidence results even when is_invoice is true", () => {
+    let written;
+    let stats;
+
+    beforeEach(async () => {
+      const client = makeEmailClient("Invoice");
+      const { mockFs, written: w } = makeMockFs();
+      written = w;
+      const gateways = makeGateways(client, mockFs, {
+        vendor: "Unknown",
+        amount: null,
+        date: "2025-03-07",
+        is_invoice: true,
+        confidence: 0.3,
+        invoice_number: null,
+        currency: null,
+        service: null,
+        tax_amount: null,
+        tax_type: null,
+      });
+
+      ({ stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways));
     });
 
-    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
+    it("writes no sidecar JSON file", () => {
+      const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+      expect(jsonKeys).toHaveLength(0);
+    });
 
-    const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
-    expect(jsonKeys).toHaveLength(0);
-    expect(stats.skipped).toBe(1);
+    it("increments the skipped stat", () => {
+      expect(stats.skipped).toBe(1);
+    });
   });
 
-  it("skips credit order classified as non-invoice", async () => {
-    const client = makeEmailClient("Your order is complete");
-    const { mockFs, written } = makeMockFs();
-    const gateways = makeGateways(client, mockFs, {
-      vendor: "Audible",
-      amount: 0,
-      date: "2025-03-07",
-      is_invoice: false,
-      confidence: 0.9,
-      invoice_number: null,
-      currency: null,
-      service: null,
-      tax_amount: null,
-      tax_type: null,
+  describe("skips credit order classified as non-invoice", () => {
+    let written;
+    let stats;
+
+    beforeEach(async () => {
+      const client = makeEmailClient("Your order is complete");
+      const { mockFs, written: w } = makeMockFs();
+      written = w;
+      const gateways = makeGateways(client, mockFs, {
+        vendor: "Audible",
+        amount: 0,
+        date: "2025-03-07",
+        is_invoice: false,
+        confidence: 0.9,
+        invoice_number: null,
+        currency: null,
+        service: null,
+        tax_amount: null,
+        tax_type: null,
+      });
+
+      ({ stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways));
     });
 
-    const { stats } = await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
+    it("writes no sidecar JSON file", () => {
+      const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+      expect(jsonKeys).toHaveLength(0);
+    });
 
-    const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
-    expect(jsonKeys).toHaveLength(0);
-    expect(stats.skipped).toBe(1);
+    it("increments the skipped stat", () => {
+      expect(stats.skipped).toBe(1);
+    });
   });
 
-  it("passes medium confidence invoice (0.6 >= 0.4 threshold)", async () => {
-    const client = makeEmailClient("Receipt");
-    const { mockFs, written } = makeMockFs();
-    const gateways = makeGateways(client, mockFs, {
-      vendor: "Apple",
-      amount: 12.99,
-      date: "2025-03-07",
-      currency: "USD",
-      is_invoice: true,
-      confidence: 0.6,
-      invoice_number: null,
-      service: null,
-      tax_amount: null,
-      tax_type: null,
+  describe("passes medium confidence invoice (0.6 >= 0.4 threshold)", () => {
+    let written;
+    let sidecar;
+
+    beforeEach(async () => {
+      const client = makeEmailClient("Receipt");
+      const { mockFs, written: w } = makeMockFs();
+      written = w;
+      const gateways = makeGateways(client, mockFs, {
+        vendor: "Apple",
+        amount: 12.99,
+        date: "2025-03-07",
+        currency: "USD",
+        is_invoice: true,
+        confidence: 0.6,
+        invoice_number: null,
+        service: null,
+        tax_amount: null,
+        tax_type: null,
+      });
+
+      await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
+
+      const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+      sidecar = jsonKeys.length > 0 ? JSON.parse(written[jsonKeys[0]]) : null;
     });
 
-    await downloadReceiptEmails({ outputDir: tmpDir }, gateways);
+    it("writes at least one sidecar JSON file", () => {
+      const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
+      expect(jsonKeys.length).toBeGreaterThan(0);
+    });
 
-    const jsonKeys = Object.keys(written).filter((k) => k.endsWith(".json"));
-    expect(jsonKeys.length).toBeGreaterThan(0);
-    const sidecar = JSON.parse(written[jsonKeys[0]]);
-    expect(sidecar.is_invoice).toBe(true);
-    expect(sidecar.confidence).toBe(0.6);
+    it("sets is_invoice to true in the sidecar", () => {
+      expect(sidecar.is_invoice).toBe(true);
+    });
+
+    it("sets confidence to 0.6 in the sidecar", () => {
+      expect(sidecar.confidence).toBe(0.6);
+    });
   });
 });
 
 // ── Schema field assertions ───────────────────────────────────────────────────
 
 describe("RECEIPT_EXTRACTION_SCHEMA", () => {
-  it("includes is_invoice and confidence in required fields", () => {
+  it("includes is_invoice in required fields", () => {
     expect(RECEIPT_EXTRACTION_SCHEMA.required).toContain("is_invoice");
+  });
+
+  it("includes confidence in required fields", () => {
     expect(RECEIPT_EXTRACTION_SCHEMA.required).toContain("confidence");
   });
 
