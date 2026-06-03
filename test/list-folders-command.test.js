@@ -76,7 +76,6 @@ describe("listFoldersCommand", () => {
 
       const { allAccountFolders } = await listFoldersCommand({}, deps);
 
-      expect(allAccountFolders).toHaveLength(2);
       expect(allAccountFolders.map((e) => e.account)).toEqual(["Work", "Personal"]);
     });
   });
@@ -85,7 +84,6 @@ describe("listFoldersCommand", () => {
     it("returns allAccountFolders array with the account name for each entry", async () => {
       const { allAccountFolders } = await listFoldersCommand({}, makeDeps());
 
-      expect(Array.isArray(allAccountFolders)).toBe(true);
       expect(allAccountFolders[0].account).toBe("Test Account");
     });
   });

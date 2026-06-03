@@ -542,7 +542,7 @@ describe("deriveReceiptBaseName", () => {
   it("also returns vendorClean", () => {
     const metadata = { invoice_number: "INV-001", date: "2026-01-15" };
     const { vendorClean } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Invoice");
-    expect(typeof vendorClean).toBe("string");
+
     expect(vendorClean.length).toBeGreaterThan(0);
   });
 });
@@ -618,8 +618,8 @@ describe("planReceiptWrite", () => {
       ...BASE_PARAMS,
       pdfAttachments: [],
     });
-    expect((plan.writes ?? []).length).toBe(1);
-    expect((plan.writes ?? [])[0].path.endsWith(".json")).toBe(true);
+
+    expect(plan.writes).toMatchObject([{ path: expect.stringMatching(/\.json$/) }]);
   });
 
   it("noPdf plan sets receipt_file to null in metadata", () => {

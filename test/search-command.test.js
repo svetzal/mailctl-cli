@@ -70,7 +70,7 @@ describe("searchCommand", () => {
     it("returns allResults as a defined array", async () => {
       const deps = makeDeps();
       const result = await searchCommand("test", {}, deps);
-      expect(result.allResults).toBeDefined();
+
       expect(Array.isArray(result.allResults)).toBe(true);
     });
 
@@ -90,7 +90,7 @@ describe("searchCommand", () => {
     it("returns warnings as a defined array", async () => {
       const deps = makeDeps();
       const result = await searchCommand("test", {}, deps);
-      expect(result.warnings).toBeDefined();
+
       expect(Array.isArray(result.warnings)).toBe(true);
     });
   });

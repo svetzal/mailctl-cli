@@ -66,7 +66,7 @@ describe("threadCommand", () => {
 
     // When mailbox is explicit, detectMailbox (which calls search) is skipped.
     const result = await threadCommand("42", { mailbox: "INBOX" }, deps);
-    expect(result).toBeDefined();
+
     expect(result[0].account).toBe("Test Account");
   });
 
@@ -88,9 +88,12 @@ describe("threadCommand", () => {
       }),
     });
     const result = await threadCommand("42", { mailbox: "INBOX" }, deps);
-    expect(result[0].account).toBe("My Account");
-    expect(typeof result[0].threadSize).toBe("number");
-    expect(typeof result[0].fallback).toBe("boolean");
+
+    expect(result[0]).toMatchObject({
+      account: "My Account",
+      threadSize: expect.any(Number),
+      fallback: expect.any(Boolean),
+    });
   });
 
   it("checks other accounts when UID is not on the first account", async () => {

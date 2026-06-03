@@ -49,8 +49,8 @@ describe("buildManifestRecord", () => {
 
   it("no-pdf record does not include filename or vendor", () => {
     const record = buildManifestRecord("no-pdf", { date: new Date() });
-    expect(record.filename).toBeUndefined();
-    expect(record.vendor).toBeUndefined();
+
+    expect(record).toEqual({ status: "no-pdf", date: expect.any(Date) });
   });
 
   describe("builds a duplicate record", () => {

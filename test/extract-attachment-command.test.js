@@ -69,23 +69,22 @@ describe("extractAttachmentCommand", () => {
     it("returns found: true with attachment listing", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
-      expect(result.found).toBe(true);
-      expect(result.list).toBe(true);
-      expect(result.attachments).toHaveLength(1);
+
+      expect(result).toMatchObject({ found: true, list: true, attachments: [expect.any(Object)] });
     });
 
     it("includes attachment filename and contentType in listing", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
-      expect(result.attachments[0].filename).toBe("invoice.pdf");
-      expect(result.attachments[0].contentType).toBe("application/pdf");
+
+      expect(result.attachments[0]).toMatchObject({ filename: "invoice.pdf", contentType: "application/pdf" });
     });
 
     it("includes account name and uid in list result", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { list: true }, deps));
-      expect(result.account).toBe("Test Account");
-      expect(result.uid).toBe(42);
+
+      expect(result).toMatchObject({ account: "Test Account", uid: 42 });
     });
 
     it("throws when message has no parseable body structure", async () => {
@@ -104,18 +103,31 @@ describe("extractAttachmentCommand", () => {
   });
 
   describe("save mode", () => {
-    it("downloads the specified attachment and writes to disk", async () => {
+    it("returns found:true and list:false when saving attachment", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps));
-      expect(result.found).toBe(true);
-      expect(result.list).toBe(false);
+
+      expect(result).toMatchObject({ found: true, list: false });
+    });
+
+    it("calls writeFile once when saving attachment", async () => {
+      const deps = makeDeps();
+      await extractAttachmentCommand("42", 0, { output: "/tmp/out" }, deps);
+
       expect(deps.fsGateway.writeFile).toHaveBeenCalledTimes(1);
     });
 
-    it("saves to the correct output directory", async () => {
+    it("returns path containing filename when saving to output directory", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await extractAttachmentCommand("42", 0, { output: "/tmp/receipts" }, deps));
+
       expect(result.path).toContain("invoice.pdf");
+    });
+
+    it("creates output directory when saving attachment", async () => {
+      const deps = makeDeps();
+      await extractAttachmentCommand("42", 0, { output: "/tmp/receipts" }, deps);
+
       expect(deps.fsGateway.mkdir).toHaveBeenCalledTimes(1);
     });
 

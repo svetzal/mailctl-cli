@@ -68,14 +68,24 @@ describe("SmtpGateway send", () => {
     expect(result.accepted).toEqual([]);
   });
 
-  it("calls transport.close() even when sendMail throws", async () => {
-    const { gateway, closedTransport } = makeSmtp({
+  it("throws when sendMail throws", async () => {
+    const { gateway } = makeSmtp({
       sendMailFn: async () => {
         throw new Error("SMTP failure");
       },
     });
 
     await expect(gateway.send(baseAccount(), baseMessage)).rejects.toThrow("SMTP failure");
+  });
+
+  it("closes transport even when sendMail throws", async () => {
+    const { gateway, closedTransport } = makeSmtp({
+      sendMailFn: async () => {
+        throw new Error("SMTP failure");
+      },
+    });
+
+    await gateway.send(baseAccount(), baseMessage).catch(() => {});
 
     expect(closedTransport.closed).toBe(true);
   });

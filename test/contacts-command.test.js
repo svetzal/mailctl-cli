@@ -58,8 +58,8 @@ describe("contactsCommand", () => {
   it("returns contacts array and sinceLabel", async () => {
     const deps = makeDeps();
     const result = await contactsCommand({}, deps);
-    expect(result.contacts).toBeDefined();
-    expect(result.sinceLabel).toBeDefined();
+
+    expect(result).toMatchObject({ contacts: expect.anything(), sinceLabel: expect.anything() });
   });
 
   it("returns sinceLabel 'last 6 months' by default", async () => {
@@ -69,10 +69,17 @@ describe("contactsCommand", () => {
     expect(sinceLabel).toBe("last 6 months");
   });
 
-  it("includes since date in sinceLabel when --since is provided", async () => {
+  it("returns different sinceLabel when --since is provided", async () => {
     const deps = makeDeps();
     const { sinceLabel } = await contactsCommand({ since: "3m" }, deps);
+
     expect(sinceLabel).not.toBe("last 6 months");
+  });
+
+  it("includes 'since' in sinceLabel when --since is provided", async () => {
+    const deps = makeDeps();
+    const { sinceLabel } = await contactsCommand({ since: "3m" }, deps);
+
     expect(sinceLabel).toContain("since");
   });
 

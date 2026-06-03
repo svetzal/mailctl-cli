@@ -68,7 +68,7 @@ describe("EditorGateway editTempFile", () => {
     expect(commands[0]).toMatch(/^vi /);
   });
 
-  it("cleans up the temp file after editing", () => {
+  it("captures exactly one temp file path", () => {
     const paths = /** @type {string[]} */ ([]);
     const gateway = makeEditor((cmd) => {
       const match = cmd.match(/"([^"]+)"/);
@@ -78,6 +78,17 @@ describe("EditorGateway editTempFile", () => {
     gateway.editTempFile("initial content");
 
     expect(paths).toHaveLength(1);
+  });
+
+  it("deletes the temp file after editing", () => {
+    const paths = /** @type {string[]} */ ([]);
+    const gateway = makeEditor((cmd) => {
+      const match = cmd.match(/"([^"]+)"/);
+      if (match) paths.push(match[1]);
+    });
+
+    gateway.editTempFile("initial content");
+
     expect(existsSync(paths[0])).toBe(false);
   });
 });

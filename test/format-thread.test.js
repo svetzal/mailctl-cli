@@ -115,7 +115,7 @@ describe("formatThreadOutput", () => {
 
   it("returns text string in text mode", () => {
     const output = formatThreadOutput(false, results, {});
-    expect(typeof output[0].output).toBe("string");
+
     expect(output[0].output).toContain("Hello");
   });
 });

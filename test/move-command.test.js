@@ -58,17 +58,15 @@ describe("moveCommand", () => {
     it("moves UIDs and returns moved stats", async () => {
       const deps = makeDeps({ account: "Test Account" });
       const result = await moveCommand(["12345"], { to: "Archive" }, deps);
-      expect(result.stats.moved).toBe(1);
-      expect(result.stats.failed).toBe(0);
-      expect(result.stats.skipped).toBe(0);
+
+      expect(result.stats).toMatchObject({ moved: 1, failed: 0, skipped: 0 });
     });
 
     it("returns moved result entries for each UID", async () => {
       const deps = makeDeps({ account: "Test Account" });
       const result = await moveCommand(["12345", "67890"], { to: "Archive" }, deps);
-      expect(result.results).toHaveLength(2);
-      expect(result.results[0].status).toBe("moved");
-      expect(result.results[1].status).toBe("moved");
+
+      expect(result.results).toMatchObject([{ status: "moved" }, { status: "moved" }]);
     });
 
     it("calls messageMove with comma-joined UIDs", async () => {
@@ -97,8 +95,8 @@ describe("moveCommand", () => {
     it("skips all UIDs and returns skipped stats", async () => {
       const deps = makeDeps({ account: "Test Account" });
       const result = await moveCommand(["12345", "67890"], { to: "Archive", dryRun: true }, deps);
-      expect(result.stats.skipped).toBe(2);
-      expect(result.stats.moved).toBe(0);
+
+      expect(result.stats).toMatchObject({ skipped: 2, moved: 0 });
     });
 
     it("does not call messageMove in dry-run mode", async () => {
@@ -111,8 +109,8 @@ describe("moveCommand", () => {
     it("marks results with reason: dry-run and status: skipped", async () => {
       const deps = makeDeps({ account: "Test Account" });
       const result = await moveCommand(["12345"], { to: "Archive", dryRun: true }, deps);
-      expect(result.results[0].reason).toBe("dry-run");
-      expect(result.results[0].status).toBe("skipped");
+
+      expect(result.results[0]).toMatchObject({ reason: "dry-run", status: "skipped" });
     });
   });
 
@@ -120,9 +118,11 @@ describe("moveCommand", () => {
     it("records failed status when account is not found", async () => {
       const deps = makeDeps({ accounts: [makeAccount({ name: "Other Account" })], account: null });
       const result = await moveCommand(["test:12345"], { to: "Archive" }, deps);
-      expect(result.stats.failed).toBe(1);
-      expect(result.results[0].status).toBe("failed");
-      expect(result.results[0].error).toMatch(/not found/);
+
+      expect(result).toMatchObject({
+        stats: { failed: 1 },
+        results: [{ status: "failed", error: expect.stringMatching(/not found/) }],
+      });
     });
 
     it("records failed status when messageMove throws", async () => {
@@ -136,8 +136,8 @@ describe("moveCommand", () => {
         _client: failingClient,
       });
       const result = await moveCommand(["12345"], { to: "Archive" }, deps);
-      expect(result.stats.failed).toBe(1);
-      expect(result.results[0].status).toBe("failed");
+
+      expect(result).toMatchObject({ stats: { failed: 1 }, results: [{ status: "failed" }] });
     });
 
     describe("records failed status when source mailbox lock fails", () => {
@@ -159,8 +159,8 @@ describe("moveCommand", () => {
       it("increments failed count and sets result to failed", async () => {
         const { deps } = makeLockFailDeps();
         const result = await moveCommand(["12345"], { to: "Archive" }, deps);
-        expect(result.stats.failed).toBe(1);
-        expect(result.results[0].status).toBe("failed");
+
+        expect(result).toMatchObject({ stats: { failed: 1 }, results: [{ status: "failed" }] });
       });
 
       it("does not call messageMove", async () => {
@@ -191,10 +191,32 @@ describe("moveCommand", () => {
         _client: client1,
       });
 
+      await moveCommand(["icloud:111", "gmail:222"], { to: "Archive" }, deps);
+
+      expect(deps.forEachAccount).toHaveBeenCalledTimes(2);
+    });
+
+    it("moves UIDs from both accounts when using prefixed UIDs", async () => {
+      const account1 = makeAccount({ name: "iCloud" });
+      const account2 = makeAccount({ name: "Gmail" });
+      const client1 = makeClient();
+      const client2 = makeClient();
+
+      let callIndex = 0;
+      const deps = makeDeps({
+        accounts: [account1, account2],
+        account: null,
+        forEachAccount: mock(async (_targetAccts, fn) => {
+          callIndex++;
+          if (callIndex === 1) await fn(client1, account1);
+          else await fn(client2, account2);
+        }),
+        listMailboxes: mock(() => Promise.resolve([{ path: "INBOX" }, { path: "Archive" }])),
+        _client: client1,
+      });
+
       const result = await moveCommand(["icloud:111", "gmail:222"], { to: "Archive" }, deps);
 
-      // Two forEachAccount calls — one per account
-      expect(deps.forEachAccount).toHaveBeenCalledTimes(2);
       expect(result.stats.moved).toBe(2);
     });
   });

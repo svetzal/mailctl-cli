@@ -49,8 +49,8 @@ function makeDeps(overrides = {}) {
 describe("inboxCommand", () => {
   it("returns allResults and resultsByAccount", async () => {
     const result = await inboxCommand({}, makeDeps());
-    expect(result.allResults).toBeDefined();
-    expect(result.resultsByAccount).toBeDefined();
+
+    expect(result).toMatchObject({ allResults: expect.anything(), resultsByAccount: expect.anything() });
   });
 
   it("groups results by account name in resultsByAccount", async () => {
@@ -85,6 +85,32 @@ describe("inboxCommand", () => {
 
     const result = await inboxCommand({}, deps);
     expect(result.resultsByAccount.size).toBe(2);
+  });
+
+  it("includes messages from all accounts in allResults", async () => {
+    const account1 = makeAccount({ name: "Account 1" });
+    const account2 = makeAccount({ name: "Account 2" });
+
+    const deps = makeDeps({
+      targetAccounts: [account1, account2],
+      forEachAccount: mock(async (_accounts, fn) => {
+        const makeClientFn = () => ({
+          getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+          search: mock(() => Promise.resolve([1])),
+          fetch: mock(async function* () {
+            yield {
+              uid: 1,
+              flags: new Set(),
+              envelope: { subject: "Msg", from: [], date: new Date() },
+            };
+          }),
+        });
+        await fn(makeClientFn(), account1);
+        await fn(makeClientFn(), account2);
+      }),
+    });
+
+    const result = await inboxCommand({}, deps);
     expect(result.allResults.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -106,8 +132,7 @@ describe("inboxCommand", () => {
 
     await inboxCommand({ unread: true }, deps);
 
-    expect(capturedCriteria).toBeDefined();
-    expect(/** @type {any} */ (capturedCriteria).seen).toBe(false);
+    expect(/** @type {any} */ (capturedCriteria)?.seen).toBe(false);
   });
 
   it("returns empty results when no messages in inbox", async () => {

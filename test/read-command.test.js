@@ -51,9 +51,8 @@ describe("readCommand", () => {
   it("returns parsed email with account and mailbox context", async () => {
     const deps = makeDeps();
     const result = await readCommand("42", {}, deps);
-    expect(result.account.name).toBe("Test Account");
-    expect(result.uid).toBe("42");
-    expect(result.parsed).toBeDefined();
+
+    expect(result).toMatchObject({ account: { name: "Test Account" }, uid: "42", parsed: expect.anything() });
   });
 
   it("returns the detected mailbox in the result", async () => {
@@ -67,7 +66,14 @@ describe("readCommand", () => {
   it("uses explicit --mailbox option without detection when provided", async () => {
     const deps = makeDeps();
     const result = await readCommand("42", { mailbox: "Archive" }, deps);
+
     expect(result.mailbox).toBe("Archive");
+  });
+
+  it("does not call search when explicit --mailbox is provided", async () => {
+    const deps = makeDeps();
+    await readCommand("42", { mailbox: "Archive" }, deps);
+
     expect(deps._client.search).not.toHaveBeenCalled();
   });
 

@@ -109,8 +109,8 @@ describe("replyCommand", () => {
     it("sends reply with inline message and returns sent result", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await replyCommand("42", { message: "Hello back!" }, deps));
-      expect(result.sent).toBe(true);
-      expect(result.messageId).toBe("<sent-1@test.com>");
+
+      expect(result).toMatchObject({ sent: true, messageId: "<sent-1@test.com>" });
     });
 
     it("builds correct To address from original From field", async () => {
@@ -166,11 +166,19 @@ describe("replyCommand", () => {
   });
 
   describe("--message-file", () => {
-    it("reads message text from fsGateway.readText and sends", async () => {
+    it("sends when reading message from file", async () => {
       const deps = makeDeps();
       deps.fsGateway.readText = mock(() => "  File message  ");
       const result = /** @type {any} */ (await replyCommand("42", { messageFile: "/tmp/msg.txt" }, deps));
+
       expect(result.sent).toBe(true);
+    });
+
+    it("calls fsGateway.readText once for message file", async () => {
+      const deps = makeDeps();
+      deps.fsGateway.readText = mock(() => "  File message  ");
+      await replyCommand("42", { messageFile: "/tmp/msg.txt" }, deps);
+
       expect(deps.fsGateway.readText).toHaveBeenCalledTimes(1);
     });
 
@@ -235,29 +243,43 @@ describe("replyCommand", () => {
       expect(deps.confirmGateway.confirm).not.toHaveBeenCalled();
     });
 
-    it("does not send when --dry-run is set", async () => {
+    it("returns dryRun:true when --dry-run is set with --edit", async () => {
       const deps = makeDeps();
       deps.editorGateway.editTempFile = mock(() => "Real message");
       const result = /** @type {any} */ (await replyCommand("42", { edit: true, dryRun: true }, deps));
+
       expect(result.dryRun).toBe(true);
+    });
+
+    it("does not send when --dry-run is set with --edit", async () => {
+      const deps = makeDeps();
+      deps.editorGateway.editTempFile = mock(() => "Real message");
+      await replyCommand("42", { edit: true, dryRun: true }, deps);
+
       expect(deps.smtpGateway.send).not.toHaveBeenCalled();
     });
   });
 
   describe("--dry-run", () => {
-    it("returns dryRun: true with composed message, without sending", async () => {
+    it("returns dryRun:true with composed message in result", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await replyCommand("42", { message: "Preview", dryRun: true }, deps));
-      expect(result.dryRun).toBe(true);
-      expect(result.message).toBeDefined();
+
+      expect(result).toMatchObject({ dryRun: true, message: expect.anything() });
+    });
+
+    it("does not call smtpGateway.send in dry-run mode", async () => {
+      const deps = makeDeps();
+      await replyCommand("42", { message: "Preview", dryRun: true }, deps);
+
       expect(deps.smtpGateway.send).not.toHaveBeenCalled();
     });
 
     it("includes message fields in dry-run result", async () => {
       const deps = makeDeps();
       const result = /** @type {any} */ (await replyCommand("42", { message: "Hello", dryRun: true }, deps));
-      expect(result.message.from).toBe("user@test.com");
-      expect(result.message.subject).toBe("Re: Hello world");
+
+      expect(result.message).toMatchObject({ from: "user@test.com", subject: "Re: Hello world" });
     });
   });
 

@@ -82,8 +82,24 @@ describe("classifyCommand", () => {
     });
 
     const { unclassifiedList } = classifyCommand("/data/senders.json", "/data/classifications.json", deps);
-    const addresses = unclassifiedList.map((s) => s.address);
+
     expect(unclassifiedList).toHaveLength(2);
+  });
+
+  it("does not include already-classified addresses in unclassifiedList", () => {
+    const deps = makeDeps({
+      fsGateway: {
+        exists: mock(() => true),
+        readJson: mock((path) => {
+          if (path.includes("senders")) return makeSenders();
+          return { "vendor@amazon.com": "business" };
+        }),
+      },
+    });
+
+    const { unclassifiedList } = classifyCommand("/data/senders.json", "/data/classifications.json", deps);
+    const addresses = unclassifiedList.map((s) => s.address);
+
     expect(addresses).not.toContain("vendor@amazon.com");
   });
 
@@ -112,11 +128,13 @@ describe("classifyCommand", () => {
     const { unclassifiedList } = classifyCommand("/data/senders.json", "/data/classifications.json", deps);
     const entry = unclassifiedList[0];
 
-    expect(entry.address).toBeDefined();
-    expect(entry.name).toBeDefined();
-    expect(entry.count).toBeDefined();
-    expect(entry.accounts).toBeDefined();
-    expect(entry.example).toBeDefined();
+    expect(entry).toMatchObject({
+      address: expect.anything(),
+      name: expect.anything(),
+      count: expect.anything(),
+      accounts: expect.anything(),
+      example: expect.anything(),
+    });
   });
 
   it("uses first sampleSubject as example", () => {

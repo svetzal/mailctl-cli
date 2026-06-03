@@ -97,8 +97,7 @@ describe("searchAccountForReceipts", () => {
 
     const result = await searchAccountForReceipts(client, account, since, fns);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].uid).toBe(1); // first occurrence kept
+    expect(result).toMatchObject([{ uid: 1 }]);
   });
 
   it("returns results from multiple mailboxes when message-ids are unique", async () => {

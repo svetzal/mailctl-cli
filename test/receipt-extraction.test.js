@@ -111,8 +111,7 @@ describe("vendorFromDomain", () => {
 
   it("handles multi-segment unknown domain", () => {
     const result = vendorFromDomain("shop.widgets.ca");
-    // Should drop TLD and titlecase remaining parts
-    expect(typeof result).toBe("string");
+
     expect(result.length).toBeGreaterThan(0);
   });
 });
@@ -212,7 +211,7 @@ describe("cleanVendorForFilename", () => {
   it("detects forwarded sender and extracts vendor from forwarded body", () => {
     const body = "---------- Forwarded message ----------\nFrom: Vendor <billing@vendor.com>\nYour receipt";
     const result = cleanVendorForFilename("self@example.com", "Self", body, "Fwd: Receipt", overrides);
-    expect(typeof result).toBe("string");
+
     expect(result.length).toBeGreaterThan(0);
   });
 });

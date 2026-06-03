@@ -107,8 +107,10 @@ describe("importClassificationsCommand", () => {
 
     importClassificationsCommand("/tmp/input.json", "/tmp/output.json", deps);
 
-    expect(/** @type {any} */ (writtenData)["existing@vendor.com"]).toBe("business");
-    expect(/** @type {any} */ (writtenData)["new@vendor.com"]).toBe("personal");
+    expect(/** @type {any} */ (writtenData)).toMatchObject({
+      "existing@vendor.com": "business",
+      "new@vendor.com": "personal",
+    });
   });
 
   it("calls writeJson once to persist the merged store", () => {

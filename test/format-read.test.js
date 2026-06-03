@@ -18,27 +18,34 @@ function mockParsed(overrides = {}) {
 describe("buildReadResult", () => {
   it("passes numeric uid through unchanged as a number", () => {
     const result = buildReadResult(mockParsed(), "icloud", 42, { maxBody: 1000, includeHeaders: false });
+
     expect(result.uid).toBe(42);
-    expect(typeof result.uid).toBe("number");
   });
 });
 
 describe("buildReadJson", () => {
-  it("passes includeHeaders through to buildReadResult", () => {
+  it("includes headers when includeHeaders is true", () => {
     const parsed = mockParsed();
     parsed.headers.set("x-custom", "value");
-    const withHeaders = buildReadJson(parsed, "icloud", "1", {
+    const result = buildReadJson(parsed, "icloud", "1", {
       maxBody: 1000,
       maxBodyExplicit: false,
       includeHeaders: true,
     });
-    const withoutHeaders = buildReadJson(parsed, "icloud", "1", {
+
+    expect(result).toHaveProperty("headers");
+  });
+
+  it("omits headers when includeHeaders is false", () => {
+    const parsed = mockParsed();
+    parsed.headers.set("x-custom", "value");
+    const result = buildReadJson(parsed, "icloud", "1", {
       maxBody: 1000,
       maxBodyExplicit: false,
       includeHeaders: false,
     });
-    expect(withHeaders).toHaveProperty("headers");
-    expect(withoutHeaders).not.toHaveProperty("headers");
+
+    expect(result).not.toHaveProperty("headers");
   });
 });
 
@@ -52,7 +59,7 @@ describe("formatReadOutput", () => {
 
   it("returns text string containing body text when json is false", () => {
     const result = formatReadOutput(false, mockParsed(), "icloud", "42", {});
-    expect(typeof result).toBe("string");
+
     expect(result).toContain("Body text");
   });
 
