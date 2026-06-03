@@ -87,7 +87,7 @@ describe("importClassificationsCommand", () => {
     expect(result.imported).toBe(1);
   });
 
-  describe("merges with existing classifications when store file exists", () => {
+  it("merges with existing classifications when store file exists", () => {
     const existing = { "existing@vendor.com": "business" };
     const newEntries = [{ address: "new@vendor.com", classification: "personal" }];
 
@@ -107,13 +107,8 @@ describe("importClassificationsCommand", () => {
 
     importClassificationsCommand("/tmp/input.json", "/tmp/output.json", deps);
 
-    it("preserves existing entry", () => {
-      expect(/** @type {any} */ (writtenData)["existing@vendor.com"]).toBe("business");
-    });
-
-    it("adds new entry", () => {
-      expect(/** @type {any} */ (writtenData)["new@vendor.com"]).toBe("personal");
-    });
+    expect(/** @type {any} */ (writtenData)["existing@vendor.com"]).toBe("business");
+    expect(/** @type {any} */ (writtenData)["new@vendor.com"]).toBe("personal");
   });
 
   it("calls writeJson once to persist the merged store", () => {

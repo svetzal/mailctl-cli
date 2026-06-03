@@ -4,16 +4,6 @@ import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function makeThreadResult() {
-  return {
-    messages: [
-      { uid: 42, subject: "Hello", from: "alice@example.com" },
-      { uid: 43, subject: "Re: Hello", from: "bob@example.com" },
-    ],
-    fallback: false,
-  };
-}
-
 function makeClient({ searchResult = [42] } = {}) {
   return {
     getMailboxLock: mock(() => Promise.resolve(makeLock())),
@@ -25,22 +15,15 @@ function makeClient({ searchResult = [42] } = {}) {
 function makeDeps(overrides = {}) {
   const account = makeAccount();
   const client = makeClient();
-  const threadResult = makeThreadResult();
 
   const forEachAccount = makeForEachAccount(client, account);
   const listMailboxes = makeListMailboxes();
-
-  // Mock findThread — it's an internal module call, but we control it by
-  // mocking findThread via the dep pattern would require injection.
-  // Since threadCommand imports findThread directly, we test behavior
-  // at the integration level using a real (but deterministic) mock client.
 
   return {
     targetAccounts: [account],
     forEachAccount,
     listMailboxes,
     _client: client,
-    _threadResult: threadResult,
     ...overrides,
   };
 }
@@ -63,77 +46,51 @@ describe("threadCommand", () => {
     await expect(threadCommand("99", {}, deps)).rejects.toThrow("Could not find UID 99 in any account.");
   });
 
-  describe("uses explicit --mailbox option without detection", () => {
-    async function runWithExplicitMailbox() {
-      const deps = makeDeps({
-        forEachAccount: mock(async (_accounts, fn) => {
-          // We need a client that supports findThread operations
-          const client = {
-            getMailboxLock: mock(() => Promise.resolve(makeLock())),
-            search: mock(() => Promise.resolve([42])),
-            fetch: mock(async function* () {
-              yield {
-                uid: 42,
-                envelope: { messageId: "<msg-42@test.com>", subject: "Hello" },
-                bodyParts: new Map(),
-              };
-            }),
-          };
-          await fn(client, makeAccount());
-        }),
-      });
-
-      // When mailbox is explicit, detectMailbox (which calls search) is skipped.
-      // The thread lookup still needs listMailboxes for searchPaths.
-      return threadCommand("42", { mailbox: "INBOX" }, deps);
-    }
-
-    it("returns a defined result", async () => {
-      const result = await runWithExplicitMailbox();
-      expect(result).toBeDefined();
+  it("uses explicit --mailbox option without detection", async () => {
+    const deps = makeDeps({
+      forEachAccount: mock(async (_accounts, fn) => {
+        const client = {
+          getMailboxLock: mock(() => Promise.resolve(makeLock())),
+          search: mock(() => Promise.resolve([42])),
+          fetch: mock(async function* () {
+            yield {
+              uid: 42,
+              envelope: { messageId: "<msg-42@test.com>", subject: "Hello" },
+              bodyParts: new Map(),
+            };
+          }),
+        };
+        await fn(client, makeAccount());
+      }),
     });
 
-    it("includes the account name in the result", async () => {
-      const result = await runWithExplicitMailbox();
-      expect(result[0].account).toBe("Test Account");
-    });
+    // When mailbox is explicit, detectMailbox (which calls search) is skipped.
+    const result = await threadCommand("42", { mailbox: "INBOX" }, deps);
+    expect(result).toBeDefined();
+    expect(result[0].account).toBe("Test Account");
   });
 
-  describe("returns thread result with account name", () => {
-    async function runWithNamedAccount() {
-      const deps = makeDeps({
-        forEachAccount: mock(async (_accounts, fn) => {
-          const client = {
-            getMailboxLock: mock(() => Promise.resolve(makeLock())),
-            search: mock(() => Promise.resolve([42])),
-            fetch: mock(async function* () {
-              yield {
-                uid: 42,
-                envelope: { messageId: "<msg-42@test.com>", subject: "Hello", from: [] },
-                bodyParts: new Map(),
-              };
-            }),
-          };
-          await fn(client, makeAccount({ name: "My Account" }));
-        }),
-      });
-      return threadCommand("42", { mailbox: "INBOX" }, deps);
-    }
-
-    it("includes the account name", async () => {
-      const result = await runWithNamedAccount();
-      expect(result[0].account).toBe("My Account");
+  it("returns thread result with account name, threadSize, and fallback flag", async () => {
+    const deps = makeDeps({
+      forEachAccount: mock(async (_accounts, fn) => {
+        const client = {
+          getMailboxLock: mock(() => Promise.resolve(makeLock())),
+          search: mock(() => Promise.resolve([42])),
+          fetch: mock(async function* () {
+            yield {
+              uid: 42,
+              envelope: { messageId: "<msg-42@test.com>", subject: "Hello", from: [] },
+              bodyParts: new Map(),
+            };
+          }),
+        };
+        await fn(client, makeAccount({ name: "My Account" }));
+      }),
     });
-
-    it("includes a numeric threadSize", async () => {
-      const result = await runWithNamedAccount();
-      expect(typeof result[0].threadSize).toBe("number");
-    });
-
-    it("includes a boolean fallback flag", async () => {
-      const result = await runWithNamedAccount();
-      expect(typeof result[0].fallback).toBe("boolean");
-    });
+    const result = await threadCommand("42", { mailbox: "INBOX" }, deps);
+    expect(result[0].account).toBe("My Account");
+    expect(typeof result[0].threadSize).toBe("number");
+    expect(typeof result[0].fallback).toBe("boolean");
   });
 
   it("checks other accounts when UID is not on the first account", async () => {

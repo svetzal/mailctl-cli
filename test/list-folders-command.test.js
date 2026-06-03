@@ -60,7 +60,7 @@ describe("listFoldersCommand", () => {
   });
 
   describe("multiple accounts", () => {
-    it("collects folders from each account into allAccountFolders", async () => {
+    it("collects folders from each account with correct names", async () => {
       const account1 = makeAccount({ name: "Work" });
       const account2 = makeAccount({ name: "Personal" });
 
@@ -77,38 +77,15 @@ describe("listFoldersCommand", () => {
       const { allAccountFolders } = await listFoldersCommand({}, deps);
 
       expect(allAccountFolders).toHaveLength(2);
-    });
-
-    it("stores account name in each entry", async () => {
-      const account1 = makeAccount({ name: "Work" });
-      const account2 = makeAccount({ name: "Personal" });
-
-      const forEachAccount = mock(async (_accounts, fn) => {
-        await fn({}, account1);
-        await fn({}, account2);
-      });
-
-      const deps = makeDeps({
-        targetAccounts: [account1, account2],
-        forEachAccount,
-      });
-
-      const { allAccountFolders } = await listFoldersCommand({}, deps);
-
       expect(allAccountFolders.map((e) => e.account)).toEqual(["Work", "Personal"]);
     });
   });
 
   describe("return value", () => {
-    it("returns allAccountFolders array", async () => {
+    it("returns allAccountFolders array with the account name for each entry", async () => {
       const { allAccountFolders } = await listFoldersCommand({}, makeDeps());
 
       expect(Array.isArray(allAccountFolders)).toBe(true);
-    });
-
-    it("includes the account name for each entry", async () => {
-      const { allAccountFolders } = await listFoldersCommand({}, makeDeps());
-
       expect(allAccountFolders[0].account).toBe("Test Account");
     });
   });

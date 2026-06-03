@@ -11,119 +11,84 @@ import {
 } from "../src/sort-event-factories.js";
 
 describe("accountStart", () => {
-  it("has type account-start", () => {
-    expect(accountStart("TestAccount", "user@example.com").type).toBe("account-start");
-  });
-
-  it("has name field", () => {
-    expect(accountStart("TestAccount", "user@example.com").name).toBe("TestAccount");
-  });
-
-  it("has user field", () => {
-    expect(accountStart("TestAccount", "user@example.com").user).toBe("user@example.com");
+  it("builds the account-start event", () => {
+    expect(accountStart("TestAccount", "user@example.com")).toEqual({
+      type: "account-start",
+      name: "TestAccount",
+      user: "user@example.com",
+    });
   });
 });
 
 describe("folderExists", () => {
-  it("has type folder-exists", () => {
-    expect(folderExists("INBOX").type).toBe("folder-exists");
-  });
-
-  it("has folder field", () => {
-    expect(folderExists("INBOX").folder).toBe("INBOX");
+  it("builds the folder-exists event", () => {
+    expect(folderExists("INBOX")).toEqual({
+      type: "folder-exists",
+      folder: "INBOX",
+    });
   });
 });
 
 describe("folderCreated", () => {
-  it("has type folder-created", () => {
-    expect(folderCreated("Business").type).toBe("folder-created");
-  });
-
-  it("has folder field", () => {
-    expect(folderCreated("Business").folder).toBe("Business");
+  it("builds the folder-created event", () => {
+    expect(folderCreated("Business")).toEqual({
+      type: "folder-created",
+      folder: "Business",
+    });
   });
 });
 
 describe("folderError", () => {
-  it("has type folder-error", () => {
-    expect(folderError(new Error("failed"), "Business").type).toBe("folder-error");
-  });
-
-  it("has severity error", () => {
-    expect(folderError(new Error("failed"), "Business").severity).toBe("error");
-  });
-
-  it("has error field", () => {
+  it("builds the folder-error event", () => {
     const err = new Error("failed");
-    expect(folderError(err, "Business").error).toBe(err);
-  });
-
-  it("has folder field", () => {
-    expect(folderError(new Error("failed"), "Business").folder).toBe("Business");
+    expect(folderError(err, "Business")).toEqual({
+      type: "folder-error",
+      severity: "error",
+      error: err,
+      folder: "Business",
+    });
   });
 });
 
 describe("scanComplete", () => {
-  it("has type scan-complete", () => {
-    expect(scanComplete(10).type).toBe("scan-complete");
-  });
-
-  it("has count field", () => {
-    expect(scanComplete(10).count).toBe(10);
+  it("builds the scan-complete event", () => {
+    expect(scanComplete(10)).toEqual({
+      type: "scan-complete",
+      count: 10,
+    });
   });
 });
 
 describe("moveDryRun", () => {
-  it("has type move-dry-run", () => {
-    expect(moveDryRun("->", 5, "Business").type).toBe("move-dry-run");
-  });
-
-  it("has icon field", () => {
-    expect(moveDryRun("->", 5, "Business").icon).toBe("->");
-  });
-
-  it("has count field", () => {
-    expect(moveDryRun("->", 5, "Business").count).toBe(5);
-  });
-
-  it("has label field", () => {
-    expect(moveDryRun("->", 5, "Business").label).toBe("Business");
+  it("builds the move-dry-run event", () => {
+    expect(moveDryRun("->", 5, "Business")).toEqual({
+      type: "move-dry-run",
+      icon: "->",
+      count: 5,
+      label: "Business",
+    });
   });
 });
 
 describe("moveError", () => {
-  it("has type move-error", () => {
-    expect(moveError(new Error("failed"), "INBOX → Business").type).toBe("move-error");
-  });
-
-  it("has severity error", () => {
-    expect(moveError(new Error("failed"), "INBOX → Business").severity).toBe("error");
-  });
-
-  it("has error field", () => {
+  it("builds the move-error event", () => {
     const err = new Error("failed");
-    expect(moveError(err, "INBOX → Business").error).toBe(err);
-  });
-
-  it("has label field", () => {
-    expect(moveError(new Error("failed"), "INBOX → Business").label).toBe("INBOX → Business");
+    expect(moveError(err, "INBOX → Business")).toEqual({
+      type: "move-error",
+      severity: "error",
+      error: err,
+      label: "INBOX → Business",
+    });
   });
 });
 
 describe("moved", () => {
-  it("has type moved", () => {
-    expect(moved("->", 3, "Personal").type).toBe("moved");
-  });
-
-  it("has icon field", () => {
-    expect(moved("->", 3, "Personal").icon).toBe("->");
-  });
-
-  it("has count field", () => {
-    expect(moved("->", 3, "Personal").count).toBe(3);
-  });
-
-  it("has label field", () => {
-    expect(moved("->", 3, "Personal").label).toBe("Personal");
+  it("builds the moved event", () => {
+    expect(moved("->", 3, "Personal")).toEqual({
+      type: "moved",
+      icon: "->",
+      count: 3,
+      label: "Personal",
+    });
   });
 });

@@ -70,37 +70,21 @@ describe("classifyCommand", () => {
     expect(unclassifiedList).toHaveLength(3);
   });
 
-  describe("excludes already-classified senders from unclassifiedList", () => {
-    function makeClassifiedDeps() {
-      return makeDeps({
-        fsGateway: {
-          exists: mock(() => true),
-          readJson: mock((path) => {
-            if (path.includes("senders")) return makeSenders();
-            return { "vendor@amazon.com": "business" };
-          }),
-        },
-      });
-    }
-
-    it("returns two unclassified entries", () => {
-      const { unclassifiedList } = classifyCommand(
-        "/data/senders.json",
-        "/data/classifications.json",
-        makeClassifiedDeps(),
-      );
-      expect(unclassifiedList).toHaveLength(2);
+  it("excludes already-classified senders from unclassifiedList", () => {
+    const deps = makeDeps({
+      fsGateway: {
+        exists: mock(() => true),
+        readJson: mock((path) => {
+          if (path.includes("senders")) return makeSenders();
+          return { "vendor@amazon.com": "business" };
+        }),
+      },
     });
 
-    it("does not include the already-classified address", () => {
-      const { unclassifiedList } = classifyCommand(
-        "/data/senders.json",
-        "/data/classifications.json",
-        makeClassifiedDeps(),
-      );
-      const addresses = unclassifiedList.map((s) => s.address);
-      expect(addresses).not.toContain("vendor@amazon.com");
-    });
+    const { unclassifiedList } = classifyCommand("/data/senders.json", "/data/classifications.json", deps);
+    const addresses = unclassifiedList.map((s) => s.address);
+    expect(unclassifiedList).toHaveLength(2);
+    expect(addresses).not.toContain("vendor@amazon.com");
   });
 
   it("sets classification to null for all entries in unclassifiedList", () => {
@@ -118,7 +102,7 @@ describe("classifyCommand", () => {
     }
   });
 
-  describe("includes correct fields in each unclassifiedList entry", () => {
+  it("includes correct fields in each unclassifiedList entry", () => {
     const deps = makeDeps({
       fsGateway: {
         exists: mock((path) => path.includes("senders")),
@@ -128,25 +112,11 @@ describe("classifyCommand", () => {
     const { unclassifiedList } = classifyCommand("/data/senders.json", "/data/classifications.json", deps);
     const entry = unclassifiedList[0];
 
-    it("has address field", () => {
-      expect(entry.address).toBeDefined();
-    });
-
-    it("has name field", () => {
-      expect(entry.name).toBeDefined();
-    });
-
-    it("has count field", () => {
-      expect(entry.count).toBeDefined();
-    });
-
-    it("has accounts field", () => {
-      expect(entry.accounts).toBeDefined();
-    });
-
-    it("has example field", () => {
-      expect(entry.example).toBeDefined();
-    });
+    expect(entry.address).toBeDefined();
+    expect(entry.name).toBeDefined();
+    expect(entry.count).toBeDefined();
+    expect(entry.accounts).toBeDefined();
+    expect(entry.example).toBeDefined();
   });
 
   it("uses first sampleSubject as example", () => {

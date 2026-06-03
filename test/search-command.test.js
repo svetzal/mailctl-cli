@@ -67,18 +67,11 @@ describe("searchCommand", () => {
   });
 
   describe("result collection", () => {
-    describe("returns allResults array", () => {
-      it("allResults is defined", async () => {
-        const deps = makeDeps();
-        const result = await searchCommand("test", {}, deps);
-        expect(result.allResults).toBeDefined();
-      });
-
-      it("allResults is an array", async () => {
-        const deps = makeDeps();
-        const result = await searchCommand("test", {}, deps);
-        expect(Array.isArray(result.allResults)).toBe(true);
-      });
+    it("returns allResults as a defined array", async () => {
+      const deps = makeDeps();
+      const result = await searchCommand("test", {}, deps);
+      expect(result.allResults).toBeDefined();
+      expect(Array.isArray(result.allResults)).toBe(true);
     });
 
     it("returns empty results when no messages match", async () => {
@@ -94,18 +87,11 @@ describe("searchCommand", () => {
       expect(result.allResults).toHaveLength(0);
     });
 
-    describe("returns warnings array (possibly empty)", () => {
-      it("warnings is defined", async () => {
-        const deps = makeDeps();
-        const result = await searchCommand("test", {}, deps);
-        expect(result.warnings).toBeDefined();
-      });
-
-      it("warnings is an array", async () => {
-        const deps = makeDeps();
-        const result = await searchCommand("test", {}, deps);
-        expect(Array.isArray(result.warnings)).toBe(true);
-      });
+    it("returns warnings as a defined array", async () => {
+      const deps = makeDeps();
+      const result = await searchCommand("test", {}, deps);
+      expect(result.warnings).toBeDefined();
+      expect(Array.isArray(result.warnings)).toBe(true);
     });
   });
 

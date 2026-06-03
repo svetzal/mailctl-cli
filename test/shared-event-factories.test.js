@@ -10,115 +10,77 @@ import {
 } from "../src/shared-event-factories.js";
 
 describe("mailboxStart", () => {
-  it("has type mailbox-start", () => {
-    expect(mailboxStart("INBOX", 50).type).toBe("mailbox-start");
-  });
-
-  it("has mailbox field", () => {
-    expect(mailboxStart("INBOX", 50).mailbox).toBe("INBOX");
-  });
-
-  it("has count field", () => {
-    expect(mailboxStart("INBOX", 50).count).toBe(50);
+  it("builds the mailbox-start event", () => {
+    expect(mailboxStart("INBOX", 50)).toEqual({
+      type: "mailbox-start",
+      mailbox: "INBOX",
+      count: 50,
+    });
   });
 });
 
 describe("mailboxEmpty", () => {
-  it("has type mailbox-empty", () => {
-    expect(mailboxEmpty("Sent").type).toBe("mailbox-empty");
-  });
-
-  it("has mailbox field", () => {
-    expect(mailboxEmpty("Sent").mailbox).toBe("Sent");
+  it("builds the mailbox-empty event", () => {
+    expect(mailboxEmpty("Sent")).toEqual({
+      type: "mailbox-empty",
+      mailbox: "Sent",
+    });
   });
 });
 
 describe("mailboxMatches", () => {
-  it("has type mailbox-matches", () => {
-    expect(mailboxMatches("INBOX", 3).type).toBe("mailbox-matches");
-  });
-
-  it("has mailbox field", () => {
-    expect(mailboxMatches("INBOX", 3).mailbox).toBe("INBOX");
-  });
-
-  it("has count field", () => {
-    expect(mailboxMatches("INBOX", 3).count).toBe(3);
+  it("builds the mailbox-matches event", () => {
+    expect(mailboxMatches("INBOX", 3)).toEqual({
+      type: "mailbox-matches",
+      mailbox: "INBOX",
+      count: 3,
+    });
   });
 });
 
 describe("mailboxLockFailed", () => {
-  const err = new Error("lock timeout");
-
-  it("has type mailbox-lock-failed", () => {
-    expect(mailboxLockFailed(err, "INBOX").type).toBe("mailbox-lock-failed");
-  });
-
-  it("has error severity", () => {
-    expect(mailboxLockFailed(err, "INBOX").severity).toBe("error");
-  });
-
-  it("has error field", () => {
-    expect(mailboxLockFailed(err, "INBOX").error).toBe(err);
-  });
-
-  it("has mailbox field", () => {
-    expect(mailboxLockFailed(err, "INBOX").mailbox).toBe("INBOX");
+  it("builds the mailbox-lock-failed event", () => {
+    const err = new Error("lock timeout");
+    expect(mailboxLockFailed(err, "INBOX")).toEqual({
+      type: "mailbox-lock-failed",
+      severity: "error",
+      error: err,
+      mailbox: "INBOX",
+    });
   });
 });
 
 describe("searchFailed", () => {
-  const err = new Error("connection reset");
-
-  it("has type search-failed", () => {
-    expect(searchFailed(err, "Sent").type).toBe("search-failed");
-  });
-
-  it("has warning severity", () => {
-    expect(searchFailed(err, "Sent").severity).toBe("warning");
-  });
-
-  it("has error field", () => {
-    expect(searchFailed(err, "Sent").error).toBe(err);
-  });
-
-  it("has mailbox field", () => {
-    expect(searchFailed(err, "Sent").mailbox).toBe("Sent");
+  it("builds the search-failed event", () => {
+    const err = new Error("connection reset");
+    expect(searchFailed(err, "Sent")).toEqual({
+      type: "search-failed",
+      severity: "warning",
+      error: err,
+      mailbox: "Sent",
+    });
   });
 });
 
 describe("searchError", () => {
-  const err = new Error("bad search term");
-
-  it("has type search-error", () => {
-    expect(searchError(err, "invoice").type).toBe("search-error");
-  });
-
-  it("has warning severity", () => {
-    expect(searchError(err, "invoice").severity).toBe("warning");
-  });
-
-  it("has error field", () => {
-    expect(searchError(err, "invoice").error).toBe(err);
-  });
-
-  it("has term field", () => {
-    expect(searchError(err, "invoice").term).toBe("invoice");
+  it("builds the search-error event", () => {
+    const err = new Error("bad search term");
+    expect(searchError(err, "invoice")).toEqual({
+      type: "search-error",
+      severity: "warning",
+      error: err,
+      term: "invoice",
+    });
   });
 });
 
 describe("fetchError", () => {
-  const err = new Error("fetch timeout");
-
-  it("has type fetch-error", () => {
-    expect(fetchError(err).type).toBe("fetch-error");
-  });
-
-  it("has warning severity", () => {
-    expect(fetchError(err).severity).toBe("warning");
-  });
-
-  it("has error field", () => {
-    expect(fetchError(err).error).toBe(err);
+  it("builds the fetch-error event", () => {
+    const err = new Error("fetch timeout");
+    expect(fetchError(err)).toEqual({
+      type: "fetch-error",
+      severity: "warning",
+      error: err,
+    });
   });
 });

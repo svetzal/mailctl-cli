@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { inboxCommand } from "../src/inbox-command.js";
 import { makeAccount } from "./helpers.js";
 
@@ -47,19 +47,10 @@ function makeDeps(overrides = {}) {
 // ── inboxCommand ───────────────────────────────────────────────────────────────
 
 describe("inboxCommand", () => {
-  describe("returns allResults and resultsByAccount", () => {
-    let result;
-    beforeAll(async () => {
-      result = await inboxCommand({}, makeDeps());
-    });
-
-    it("allResults is defined", async () => {
-      expect(result.allResults).toBeDefined();
-    });
-
-    it("resultsByAccount is defined", async () => {
-      expect(result.resultsByAccount).toBeDefined();
-    });
+  it("returns allResults and resultsByAccount", async () => {
+    const result = await inboxCommand({}, makeDeps());
+    expect(result.allResults).toBeDefined();
+    expect(result.resultsByAccount).toBeDefined();
   });
 
   it("groups results by account name in resultsByAccount", async () => {
@@ -69,7 +60,7 @@ describe("inboxCommand", () => {
     expect(result.resultsByAccount.has("Test Account")).toBe(true);
   });
 
-  describe("aggregates messages into allResults across accounts", () => {
+  it("aggregates messages into allResults across accounts", async () => {
     const account1 = makeAccount({ name: "Account 1" });
     const account2 = makeAccount({ name: "Account 2" });
 
@@ -92,21 +83,12 @@ describe("inboxCommand", () => {
       }),
     });
 
-    let result;
-    beforeAll(async () => {
-      result = await inboxCommand({}, deps);
-    });
-
-    it("resultsByAccount has 2 accounts", async () => {
-      expect(result.resultsByAccount.size).toBe(2);
-    });
-
-    it("allResults has at least 2 messages", async () => {
-      expect(result.allResults.length).toBeGreaterThanOrEqual(2);
-    });
+    const result = await inboxCommand({}, deps);
+    expect(result.resultsByAccount.size).toBe(2);
+    expect(result.allResults.length).toBeGreaterThanOrEqual(2);
   });
 
-  describe("passes unreadOnly: true when --unread option is set", () => {
+  it("passes unreadOnly: true when --unread option is set", async () => {
     let capturedCriteria;
     const deps = makeDeps({
       forEachAccount: mock(async (_accounts, fn) => {
@@ -122,17 +104,10 @@ describe("inboxCommand", () => {
       }),
     });
 
-    beforeAll(async () => {
-      await inboxCommand({ unread: true }, deps);
-    });
+    await inboxCommand({ unread: true }, deps);
 
-    it("capturedCriteria is defined", async () => {
-      expect(capturedCriteria).toBeDefined();
-    });
-
-    it("criteria.seen is false", async () => {
-      expect(/** @type {any} */ (capturedCriteria).seen).toBe(false);
-    });
+    expect(capturedCriteria).toBeDefined();
+    expect(/** @type {any} */ (capturedCriteria).seen).toBe(false);
   });
 
   it("returns empty results when no messages in inbox", async () => {

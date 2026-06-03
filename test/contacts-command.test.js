@@ -55,18 +55,11 @@ function makeDeps(overrides = {}) {
 // ── contactsCommand ────────────────────────────────────────────────────────────
 
 describe("contactsCommand", () => {
-  describe("returns contacts array and sinceLabel", () => {
-    it("contacts is defined", async () => {
-      const deps = makeDeps();
-      const result = await contactsCommand({}, deps);
-      expect(result.contacts).toBeDefined();
-    });
-
-    it("sinceLabel is defined", async () => {
-      const deps = makeDeps();
-      const result = await contactsCommand({}, deps);
-      expect(result.sinceLabel).toBeDefined();
-    });
+  it("returns contacts array and sinceLabel", async () => {
+    const deps = makeDeps();
+    const result = await contactsCommand({}, deps);
+    expect(result.contacts).toBeDefined();
+    expect(result.sinceLabel).toBeDefined();
   });
 
   it("returns sinceLabel 'last 6 months' by default", async () => {
@@ -76,18 +69,11 @@ describe("contactsCommand", () => {
     expect(sinceLabel).toBe("last 6 months");
   });
 
-  describe("includes since date in sinceLabel when --since is provided", () => {
-    it("sinceLabel is not the default", async () => {
-      const deps = makeDeps();
-      const { sinceLabel } = await contactsCommand({ since: "3m" }, deps);
-      expect(sinceLabel).not.toBe("last 6 months");
-    });
-
-    it("sinceLabel contains since", async () => {
-      const deps = makeDeps();
-      const { sinceLabel } = await contactsCommand({ since: "3m" }, deps);
-      expect(sinceLabel).toContain("since");
-    });
+  it("includes since date in sinceLabel when --since is provided", async () => {
+    const deps = makeDeps();
+    const { sinceLabel } = await contactsCommand({ since: "3m" }, deps);
+    expect(sinceLabel).not.toBe("last 6 months");
+    expect(sinceLabel).toContain("since");
   });
 
   it("excludes self addresses from contacts", async () => {

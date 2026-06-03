@@ -16,15 +16,15 @@ function mockParsed(overrides = {}) {
 }
 
 describe("buildReadResult", () => {
-  describe("passes numeric uid through unchanged", () => {
+  it("passes numeric uid through unchanged as a number", () => {
     const result = buildReadResult(mockParsed(), "icloud", 42, { maxBody: 1000, includeHeaders: false });
-    it("has uid value 42", () => expect(result.uid).toBe(42));
-    it("has uid of type number", () => expect(typeof result.uid).toBe("number"));
+    expect(result.uid).toBe(42);
+    expect(typeof result.uid).toBe("number");
   });
 });
 
 describe("buildReadJson", () => {
-  describe("passes includeHeaders through to buildReadResult", () => {
+  it("passes includeHeaders through to buildReadResult", () => {
     const parsed = mockParsed();
     parsed.headers.set("x-custom", "value");
     const withHeaders = buildReadJson(parsed, "icloud", "1", {
@@ -37,9 +37,8 @@ describe("buildReadJson", () => {
       maxBodyExplicit: false,
       includeHeaders: false,
     });
-    it("includes headers property when includeHeaders is true", () => expect(withHeaders).toHaveProperty("headers"));
-    it("omits headers property when includeHeaders is false", () =>
-      expect(withoutHeaders).not.toHaveProperty("headers"));
+    expect(withHeaders).toHaveProperty("headers");
+    expect(withoutHeaders).not.toHaveProperty("headers");
   });
 });
 
@@ -51,10 +50,10 @@ describe("formatReadOutput", () => {
     expect(JSON.parse(result)).toHaveProperty("account", "icloud");
   });
 
-  describe("returns text string when json is false", () => {
+  it("returns text string containing body text when json is false", () => {
     const result = formatReadOutput(false, mockParsed(), "icloud", "42", {});
-    it("result is a string", () => expect(typeof result).toBe("string"));
-    it("result contains body text", () => expect(result).toContain("Body text"));
+    expect(typeof result).toBe("string");
+    expect(result).toContain("Body text");
   });
 
   it("defaults maxBody to 3000 when opts.maxBody is not set", () => {
