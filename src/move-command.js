@@ -24,7 +24,6 @@ import { parseAndGroupUids } from "./move-logic.js";
  * @param {string[]} uids - raw UID arguments from the CLI
  * @param {object} opts - CLI options (to, mailbox, dryRun)
  * @param {MoveCommandDeps} deps - injected dependencies
- * @throws {Error} when the destination folder does not exist on an account
  * @returns {Promise<{ stats: { moved: number, failed: number, skipped: number }, results: Array }>}
  */
 export async function moveCommand(uids, opts, deps) {
@@ -57,7 +56,12 @@ export async function moveCommand(uids, opts, deps) {
       const folderExists = folders.some((f) => f.path === destination);
       if (!folderExists) {
         const available = folders.map((f) => f.path).join(", ");
-        throw new Error(`Destination folder "${destination}" does not exist on ${acct.name}. Available: ${available}`);
+        const msg = `Destination folder "${destination}" does not exist on ${acct.name}. Available: ${available}`;
+        for (const uid of acctUids) {
+          stats.failed++;
+          results.push({ account: acct.name, uid, status: "failed", error: msg });
+        }
+        return;
       }
 
       // Lock source mailbox

@@ -45,13 +45,6 @@ describe("moveCommand", () => {
         'UID "12345" has no account prefix',
       );
     });
-
-    it("throws when destination folder does not exist", async () => {
-      const deps = makeDeps({ account: "Test Account" });
-      await expect(moveCommand(["12345"], { to: "NonExistent" }, deps)).rejects.toThrow(
-        'Destination folder "NonExistent" does not exist',
-      );
-    });
   });
 
   describe("happy path", () => {
@@ -115,6 +108,44 @@ describe("moveCommand", () => {
   });
 
   describe("error handling", () => {
+    it("records failed status when destination folder does not exist", async () => {
+      const deps = makeDeps({ account: "Test Account" });
+      const result = await moveCommand(["12345"], { to: "NonExistent" }, deps);
+
+      expect(result).toMatchObject({
+        stats: { failed: 1 },
+        results: [{ status: "failed", error: expect.stringMatching(/does not exist/) }],
+      });
+    });
+
+    it("continues to next account when one account is missing the destination folder", async () => {
+      const account1 = makeAccount({ name: "iCloud" });
+      const account2 = makeAccount({ name: "Gmail" });
+      const client1 = makeClient();
+      const client2 = makeClient();
+
+      let callIndex = 0;
+      const deps = makeDeps({
+        accounts: [account1, account2],
+        account: null,
+        forEachAccount: mock(async (_targetAccts, fn) => {
+          callIndex++;
+          if (callIndex === 1) await fn(client1, account1);
+          else await fn(client2, account2);
+        }),
+        listMailboxes: mock((client) => {
+          if (client === client1) return Promise.resolve([{ path: "INBOX" }, { path: "Archive" }]);
+          return Promise.resolve([{ path: "INBOX" }]);
+        }),
+        _client: client1,
+      });
+
+      const result = await moveCommand(["icloud:111", "gmail:222"], { to: "Archive" }, deps);
+
+      expect(result.stats.moved).toBeGreaterThanOrEqual(1);
+      expect(result.stats.failed).toBeGreaterThanOrEqual(1);
+    });
+
     it("records failed status when account is not found", async () => {
       const deps = makeDeps({ accounts: [makeAccount({ name: "Other Account" })], account: null });
       const result = await moveCommand(["test:12345"], { to: "Archive" }, deps);
