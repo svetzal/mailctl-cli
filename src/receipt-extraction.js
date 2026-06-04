@@ -4,6 +4,8 @@
  */
 
 import { getConfigCanadianDomains, getConfigInvoiceBlocklist, getConfigSelfAddresses } from "./config.js";
+import { getDomain, getLocalPart } from "./email-address.js";
+import { CORPORATE_SUFFIX_PATTERN, stripVendorSuffixes } from "./receipt-terms.js";
 import { getVendorDomainMap, getVendorFilenameNames } from "./vendor-map.js";
 
 /** Local parts that indicate a generic/no-reply sender. */
@@ -68,9 +70,6 @@ export const MAX_SERVICE_LENGTH = 60;
 
 /** Byte window after a forwarded-message marker to scan for the original sender. */
 export const FORWARDED_SCAN_WINDOW = 1000;
-
-/** Regex to strip corporate suffixes from display names. Safe to share: only used with .replace(). */
-const CORPORATE_SUFFIX_PATTERN = /,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi;
 
 /** Forwarded message markers. */
 export const FORWARDED_MARKERS = [
@@ -209,7 +208,7 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
     const fwdSender = extractForwardedSender(bodyText);
     if (fwdSender) {
       if (vendorDomains[fwdSender.address]) return vendorDomains[fwdSender.address];
-      const fwdDomain = fwdSender.address.split("@")[1];
+      const fwdDomain = getDomain(fwdSender.address);
       if (fwdDomain && vendorDomainMap[fwdDomain]) return vendorDomainMap[fwdDomain];
       if (fwdSender.name) {
         const cleaned = sanitizeFilename(fwdSender.name.replace(CORPORATE_SUFFIX_PATTERN, "").trim());
@@ -225,8 +224,8 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
     if (contentVendor) return contentVendor;
   }
 
-  const domain = addrLower.split("@")[1] || "";
-  const localPart = addrLower.split("@")[0] || "";
+  const domain = getDomain(addrLower);
+  const localPart = getLocalPart(addrLower);
 
   // Check domain map
   if (vendorDomainMap[domain]) return vendorDomainMap[domain];
@@ -244,10 +243,7 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
 
   // Use fromName, cleaning corporate suffixes
   let clean = name || localPart;
-  clean = clean
-    .replace(CORPORATE_SUFFIX_PATTERN, "")
-    .replace(/\s*(via Stripe|via Clover|via FastSpring Checkout)\s*/gi, "")
-    .trim();
+  clean = stripVendorSuffixes(clean);
 
   let result = sanitizeFilename(clean) || sanitizeFilename(localPart);
 
@@ -294,7 +290,7 @@ export function inferCurrency(text) {
  */
 export function isCanadianMerchant(fromAddress, bodyText, overrides = {}) {
   const canadianDomains = new Set(overrides.canadianDomains || getConfigCanadianDomains());
-  const domain = (fromAddress || "").split("@")[1]?.toLowerCase() || "";
+  const domain = getDomain(fromAddress || "").toLowerCase();
 
   if (canadianDomains.has(domain)) return true;
 

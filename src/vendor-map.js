@@ -5,6 +5,7 @@
  * Functions return plain objects for bracket-access lookups.
  */
 import { getConfigVendorAddressMap, getConfigVendorDomainMap } from "./config.js";
+import { getDomain } from "./email-address.js";
 
 /**
  * Values use spaces (e.g. "Springer Nature").
@@ -61,7 +62,7 @@ export function matchesVendor(filter, fromAddress, fromName) {
   if (addressMap[addr]?.toLowerCase().includes(f)) return true;
 
   // Check if sender domain is in the domain map and the vendor name matches
-  const domain = addr.includes("@") ? addr.split("@").pop() : "";
+  const domain = getDomain(addr);
   if (domain) {
     // Check exact domain match in domain map
     if (domainMap[domain]?.toLowerCase().includes(f)) return true;

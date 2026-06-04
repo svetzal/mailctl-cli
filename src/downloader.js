@@ -14,6 +14,7 @@ import {
   hashReadError,
   invalidPdf,
 } from "./download-event-factories.js";
+import { getLocalPart } from "./email-address.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -22,6 +23,7 @@ import {
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
+import { stripVendorSuffixes } from "./receipt-terms.js";
 import { requireClassificationsData } from "./scan-data.js";
 import { getVendorDisplayNames } from "./vendor-map.js";
 
@@ -52,11 +54,8 @@ export function vendorName(address, senderName) {
   if (vendorNames[addrLower]) return vendorNames[addrLower];
 
   // Try to clean up the sender name
-  let name = senderName || address.split("@")[0];
-  // Remove common suffixes
-  name = name
-    .replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi, "")
-    .replace(/\s*(via Stripe|via Clover|via FastSpring Checkout)\s*/gi, "")
+  let name = senderName || getLocalPart(address);
+  name = stripVendorSuffixes(name)
     .replace(/[^\w\s.-]/g, "")
     .trim();
 
@@ -68,7 +67,7 @@ export function vendorName(address, senderName) {
       .trim();
   }
 
-  return name || address.split("@")[0];
+  return name || getLocalPart(address);
 }
 
 /**

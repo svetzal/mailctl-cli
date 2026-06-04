@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_EXCLUSIONS, RECEIPT_SUBJECT_TERMS } from "../src/receipt-terms.js";
+import {
+  BILLING_SENDER_PATTERNS,
+  RECEIPT_SUBJECT_EXCLUSIONS,
+  RECEIPT_SUBJECT_TERMS,
+  stripVendorSuffixes,
+} from "../src/receipt-terms.js";
 
 describe("RECEIPT_SUBJECT_TERMS", () => {
   describe("is a non-empty array", () => {
@@ -83,5 +88,27 @@ describe("BILLING_SENDER_PATTERNS", () => {
     for (const pattern of BILLING_SENDER_PATTERNS) {
       expect(typeof pattern).toBe("string");
     }
+  });
+});
+
+describe("stripVendorSuffixes", () => {
+  it("strips Inc suffix", () => {
+    expect(stripVendorSuffixes("Acme Inc")).toBe("Acme");
+  });
+
+  it("strips via Stripe", () => {
+    expect(stripVendorSuffixes("Foo via Stripe")).toBe("Foo");
+  });
+
+  it("strips LLC suffix", () => {
+    expect(stripVendorSuffixes("Widgets LLC")).toBe("Widgets");
+  });
+
+  it("strips via Clover", () => {
+    expect(stripVendorSuffixes("Bar via Clover")).toBe("Bar");
+  });
+
+  it("leaves a plain name unchanged", () => {
+    expect(stripVendorSuffixes("GitHub")).toBe("GitHub");
   });
 });

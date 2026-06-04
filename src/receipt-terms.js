@@ -55,3 +55,18 @@ export const RECEIPT_SUBJECT_EXCLUSIONS = [
  * against the From address).
  */
 export const BILLING_SENDER_PATTERNS = ["stripe.com", "paddle.com", "billing@", "invoice@", "noreply@orders."];
+
+/** Regex to strip corporate suffixes from vendor display names. */
+export const CORPORATE_SUFFIX_PATTERN = /,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\s*/gi;
+
+/** Regex to strip payment processor attribution from vendor display names. */
+export const PAYMENT_PROCESSOR_PATTERN = /\s*(via Stripe|via Clover|via FastSpring Checkout)\s*/gi;
+
+/**
+ * Strip corporate suffixes and payment-processor attribution from a vendor name.
+ * @param {string} name
+ * @returns {string}
+ */
+export function stripVendorSuffixes(name) {
+  return name.replace(CORPORATE_SUFFIX_PATTERN, "").replace(PAYMENT_PROCESSOR_PATTERN, "").trim();
+}

@@ -7,6 +7,7 @@ import { isOk, LlmBroker, Message, OpenAIGateway } from "mojentic";
 import { buildLlmEmailContext, sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { llmExtractionFailed, llmNotConfigured } from "./download-receipts-event-factories.js";
 import { cleanVendorForFilename, extractMetadata, formatDate, sanitizeFilename } from "./receipt-extraction.js";
+import { CORPORATE_SUFFIX_PATTERN } from "./receipt-terms.js";
 
 /** JSON schema for LLM-based receipt data extraction. */
 export const RECEIPT_EXTRACTION_SCHEMA = {
@@ -149,9 +150,8 @@ export async function extractMetadataWithLLM(broker, bodyText, subject, fromAddr
 
   // Use LLM vendor for metadata, but cleanVendorForFilename is still used for filenames
   const vendor = data.vendor
-    ? sanitizeFilename(
-        data.vendor.replace(/,?\s*\b(Inc\.?|LLC|Ltd\.?|Corp\.?|PBC|Limited|Co\.?)\b\.?\s*/gi, "").trim(),
-      ) || cleanVendorForFilename(fromAddress, fromName, bodyText, subject)
+    ? sanitizeFilename(data.vendor.replace(CORPORATE_SUFFIX_PATTERN, "").trim()) ||
+      cleanVendorForFilename(fromAddress, fromName, bodyText, subject)
     : cleanVendorForFilename(fromAddress, fromName, bodyText, subject);
 
   return {
