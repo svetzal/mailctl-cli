@@ -30,6 +30,29 @@ function makeDeps(overrides = {}) {
   };
 }
 
+function makeMixedAccountsDeps() {
+  const account1 = makeAccount({ name: "iCloud" });
+  const account2 = makeAccount({ name: "Gmail" });
+  const client1 = makeClient();
+  const client2 = makeClient();
+
+  let callIndex = 0;
+  return makeDeps({
+    accounts: [account1, account2],
+    account: null,
+    forEachAccount: mock(async (_targetAccts, fn) => {
+      callIndex++;
+      if (callIndex === 1) await fn(client1, account1);
+      else await fn(client2, account2);
+    }),
+    listMailboxes: mock((client) => {
+      if (client === client1) return Promise.resolve([{ path: "INBOX" }, { path: "Archive" }]);
+      return Promise.resolve([{ path: "INBOX" }]);
+    }),
+    _client: client1,
+  });
+}
+
 // ── moveCommand ────────────────────────────────────────────────────────────────
 
 describe("moveCommand", () => {
@@ -118,31 +141,17 @@ describe("moveCommand", () => {
       });
     });
 
-    it("continues to next account when one account is missing the destination folder", async () => {
-      const account1 = makeAccount({ name: "iCloud" });
-      const account2 = makeAccount({ name: "Gmail" });
-      const client1 = makeClient();
-      const client2 = makeClient();
-
-      let callIndex = 0;
-      const deps = makeDeps({
-        accounts: [account1, account2],
-        account: null,
-        forEachAccount: mock(async (_targetAccts, fn) => {
-          callIndex++;
-          if (callIndex === 1) await fn(client1, account1);
-          else await fn(client2, account2);
-        }),
-        listMailboxes: mock((client) => {
-          if (client === client1) return Promise.resolve([{ path: "INBOX" }, { path: "Archive" }]);
-          return Promise.resolve([{ path: "INBOX" }]);
-        }),
-        _client: client1,
-      });
-
+    it("moves at least one message when one account has the destination folder", async () => {
+      const deps = makeMixedAccountsDeps();
       const result = await moveCommand(["icloud:111", "gmail:222"], { to: "Archive" }, deps);
 
       expect(result.stats.moved).toBeGreaterThanOrEqual(1);
+    });
+
+    it("records at least one failure when one account is missing the destination folder", async () => {
+      const deps = makeMixedAccountsDeps();
+      const result = await moveCommand(["icloud:111", "gmail:222"], { to: "Archive" }, deps);
+
       expect(result.stats.failed).toBeGreaterThanOrEqual(1);
     });
 

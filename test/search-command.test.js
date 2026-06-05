@@ -16,17 +16,22 @@ function _makeSearchResult(uid = 42, account = "Test Account") {
 }
 
 function makeClient({ searchUids = [42] } = {}) {
+  let currentMailbox = null;
   return {
-    getMailboxLock: mock(() => Promise.resolve(makeLock())),
+    getMailboxLock: mock((mailbox) => {
+      currentMailbox = mailbox;
+      return Promise.resolve(makeLock());
+    }),
     search: mock(() => Promise.resolve(searchUids)),
     fetch: mock(async function* () {
+      const uid = searchUids[0];
       yield {
-        uid: searchUids[0],
+        uid,
         envelope: {
           subject: "Test email",
           from: [{ name: "Alice", address: "alice@example.com" }],
           date: new Date("2025-01-15"),
-          messageId: `<msg-${searchUids[0]}@test.com>`,
+          messageId: `<msg-${uid}-${currentMailbox}@test.com>`,
         },
       };
     }),
@@ -97,18 +102,17 @@ describe("searchCommand", () => {
 
   describe("mailbox selection", () => {
     it("uses explicit mailbox list when provided", async () => {
-      const deps = makeDeps();
-      await searchCommand("test", { mailbox: ["INBOX"] }, deps);
+      const deps = makeDeps({ listMailboxes: makeListMailboxes([{ path: "Sent" }]) });
+      const result = await searchCommand("test", { mailbox: ["INBOX"] }, deps);
 
-      // listMailboxes should NOT be called when explicit mailboxes are given
-      expect(deps.listMailboxes).not.toHaveBeenCalled();
+      expect(result.allResults.map((r) => r.mailbox)).toEqual(["INBOX"]);
     });
 
     it("lists mailboxes and filters when no explicit mailbox given", async () => {
       const deps = makeDeps();
-      await searchCommand("test", {}, deps);
+      const result = await searchCommand("test", {}, deps);
 
-      expect(deps.listMailboxes).toHaveBeenCalledTimes(1);
+      expect(result.allResults.map((r) => r.mailbox).sort()).toEqual(["INBOX", "Sent"]);
     });
   });
 
