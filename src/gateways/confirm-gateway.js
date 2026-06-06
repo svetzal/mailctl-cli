@@ -1,7 +1,7 @@
 /**
  * Confirm Gateway — thin wrapper around readline for yes/no confirmation prompts.
  * Isolates terminal I/O so tests can inject a mock instead.
- * Contains no logic to test.
+ * The promise-resolution and prompt-forwarding contract is covered by tests.
  */
 import { createInterface } from "node:readline";
 
