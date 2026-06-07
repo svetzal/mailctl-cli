@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-07
+
 ### Fixed
 
 - `extract-attachment` now saves the PDF (or first non-signature attachment) instead of `smime.p7s` on S/MIME-signed emails (e.g. Anthropic, Paddle receipts). The BODYSTRUCTURE walker now skips `application/pkcs7-signature` parts; the no-index default selects the document attachment rather than the first part.
