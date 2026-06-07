@@ -1,20 +1,8 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
-import { findPdfParts } from "./attachment-parts.js";
 import { resolveAccounts } from "./cli-helpers.js";
-import {
-  downloadAccountStart,
-  downloadBizCount,
-  downloadDryRun,
-  downloaded,
-  downloadFailed,
-  duplicateContent,
-  fetchStructureError,
-  hashReadError,
-  invalidPdf,
-} from "./download-event-factories.js";
-import { getLocalPart } from "./email-address.js";
+import { downloadAccountStart, downloadBizCount, hashReadError } from "./download-event-factories.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -23,79 +11,16 @@ import {
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
-import { MAX_VENDOR_NAME_LENGTH } from "./receipt-extraction.js";
-import { stripVendorSuffixes } from "./receipt-terms.js";
+import { processDownloadMessage } from "./process-download-message.js";
 import { requireClassificationsData } from "./scan-data.js";
-import { getVendorDisplayNames } from "./vendor-map.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
 import { getConfigDownloadDir } from "./config.js";
-import { buildManifestRecord, contentHash, isValidPdf } from "./download-pdf-decisions.js";
+import { contentHash } from "./download-pdf-decisions.js";
 
-/**
- * Loaded from config via vendor-map.js.
- * @returns {Record<string, string>}
- */
-export function getVendorNames() {
-  return getVendorDisplayNames();
-}
-
-/**
- * @param {string} address - sender email address
- * @param {string} [senderName] - sender display name
- * @returns {string}
- */
-export function vendorName(address, senderName) {
-  const addrLower = (address || "").toLowerCase();
-  const vendorNames = getVendorNames();
-  if (vendorNames[addrLower]) return vendorNames[addrLower];
-
-  // Try to clean up the sender name
-  let name = senderName || getLocalPart(address);
-  name = stripVendorSuffixes(name)
-    .replace(/[^\w\s.-]/g, "")
-    .trim();
-
-  // Truncate at word boundary if too long
-  if (name.length > MAX_VENDOR_NAME_LENGTH) {
-    name = name
-      .slice(0, MAX_VENDOR_NAME_LENGTH)
-      .replace(/\s+\S*$/, "")
-      .trim();
-  }
-
-  return name || getLocalPart(address);
-}
-
-/**
- * Build a predictable filename: "Vendor YYYY-MM-DD[_N].pdf"
- * Matches the convention in the 2025 receipts folder.
- * @param {string} vendor
- * @param {Date|string} date
- * @param {string|null} _attachmentName
- * @param {Set<string>} existingFiles - lowercase filenames already used
- * @returns {string}
- */
-export function buildFilename(vendor, date, _attachmentName, existingFiles) {
-  const d = date instanceof Date ? date : new Date(date);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-
-  const base = `${vendor} ${yyyy}-${mm}-${dd}`;
-  let filename = `${base}.pdf`;
-
-  // Handle duplicates with incrementing suffix
-  let n = 1;
-  while (existingFiles.has(filename.toLowerCase())) {
-    n++;
-    filename = `${base}_${n}.pdf`;
-  }
-
-  return filename;
-}
+export { buildFilename, getVendorNames, vendorName } from "./download-filename.js";
 
 const _defaultFs = new FileSystemGateway();
 
@@ -201,83 +126,20 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
 
     await forEachMailboxGroup(client, groupByMailbox(bizResults), async (mailbox, messages) => {
       for (const msg of messages) {
-        const manifestKey = `${account.user}:${mailbox}:${msg.uid}`;
-
-        if (manifest[manifestKey]) {
-          stats.alreadyHave++;
-          continue;
-        }
-
-        // Fetch body structure to find PDF attachments
-        let bodyStructure;
-        try {
-          for await (const fetched of client.fetch(String(msg.uid), { bodyStructure: true }, { uid: true })) {
-            bodyStructure = fetched.bodyStructure;
-          }
-        } catch (err) {
-          onProgress(fetchStructureError(err, msg.uid));
-          continue;
-        }
-
-        if (!bodyStructure) continue;
-
-        // Find PDF parts
-        const pdfParts = findPdfParts(bodyStructure);
-
-        if (pdfParts.length === 0) {
-          stats.noPdf++;
-          manifest[manifestKey] = buildManifestRecord("no-pdf", { date: msg.date });
-          continue;
-        }
-
-        const vendor = vendorName(msg.address, msg.name);
-
-        for (const part of pdfParts) {
-          const filename = buildFilename(vendor, msg.date, part.filename, existingFiles);
-
-          if (dryRun) {
-            onProgress(downloadDryRun(filename));
-            stats.downloaded++;
-          } else {
-            try {
-              // Download the attachment
-              const { content } = await client.download(String(msg.uid), part.part, { uid: true });
-
-              const chunks = [];
-              for await (const chunk of content) {
-                chunks.push(chunk);
-              }
-              const buffer = Buffer.concat(chunks);
-
-              // Verify it's actually a PDF
-              if (!isValidPdf(buffer)) {
-                onProgress(invalidPdf(new Error("Invalid PDF content"), filename));
-                continue;
-              }
-
-              // Content-level dedup: skip if we already have this exact file
-              const hash = contentHash(buffer);
-              if (existingHashes.has(hash)) {
-                onProgress(duplicateContent(filename));
-                stats.alreadyHave++;
-                manifest[manifestKey] = buildManifestRecord("duplicate", { hash, date: msg.date, vendor });
-                continue;
-              }
-              existingHashes.add(hash);
-
-              const outPath = join(outputDir, filename);
-              fs.writeFile(outPath, buffer);
-              existingFiles.add(filename.toLowerCase());
-              onProgress(downloaded(filename, buffer.length));
-              stats.downloaded++;
-
-              manifest[manifestKey] = buildManifestRecord("downloaded", { filename, hash, date: msg.date, vendor });
-            } catch (err) {
-              onProgress(downloadFailed(err, filename));
-              stats.skipped++;
-            }
-          }
-        }
+        const { action } = await processDownloadMessage(client, msg, mailbox, {
+          account,
+          manifest,
+          dryRun,
+          outputDir,
+          existingFiles,
+          existingHashes,
+          fs,
+          onProgress,
+        });
+        if (action === "downloaded") stats.downloaded++;
+        else if (action === "noPdf") stats.noPdf++;
+        else if (action === "alreadyHave") stats.alreadyHave++;
+        else if (action === "skipped") stats.skipped++;
       }
     });
   });

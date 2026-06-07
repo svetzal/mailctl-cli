@@ -18,7 +18,6 @@ import {
   reprocessSummary,
   reprocessUpdated,
   reprocessUsingBody,
-  searchAccount,
   subjectExclusions,
   uniqueReceipts,
   vendorFilterApplied,
@@ -39,7 +38,7 @@ import {
 } from "./receipt-decisions.js";
 import { applyReceiptFilters } from "./receipt-filters.js";
 import { collectSidecarFiles, loadExistingHashes, loadExistingInvoiceNumbers } from "./receipt-output-tree.js";
-import { searchAccountForReceipts, searchMailboxForReceipts } from "./receipt-search-pipeline.js";
+import { forEachReceiptSearchAccount } from "./receipt-search-pipeline.js";
 import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 import { matchesVendor } from "./vendor-map.js";
 
@@ -117,55 +116,52 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     onProgress(llmDisabled());
   }
 
-  await forEachAccount(targetAccounts, async (client, account) => {
-    onProgress(searchAccount(account.name, account.user));
+  await forEachReceiptSearchAccount(
+    targetAccounts,
+    since,
+    { forEachAccount, listMailboxes, onProgress },
+    async (client, account, searchResults) => {
+      const {
+        filtered: unique,
+        vendorExcluded,
+        subjectExcluded,
+      } = applyReceiptFilters(searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS);
 
-    // Phase 1: discover receipt emails across all mailboxes
-    const searchResults = await searchAccountForReceipts(client, account, since, {
-      listMailboxes,
-      searchMailboxForReceipts: (client, accountName, mbPath, since) =>
-        searchMailboxForReceipts(client, accountName, mbPath, since, onProgress),
-    });
-    const {
-      filtered: unique,
-      vendorExcluded,
-      subjectExcluded,
-    } = applyReceiptFilters(searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS);
-
-    if (vendorExcluded > 0) {
-      onProgress(vendorFilterApplied(unique.length, vendorExcluded, opts.vendor || null));
-    }
-    if (subjectExcluded > 0) {
-      onProgress(subjectExclusions(subjectExcluded));
-    }
-    onProgress(uniqueReceipts(unique.length));
-    stats.found += unique.length;
-
-    // Phase 2: process each email (grouped by mailbox for IMAP efficiency)
-    const byMailbox = groupByMailbox(unique);
-    await forEachMailboxGroup(client, byMailbox, async (_mailbox, messages) => {
-      for (const msg of messages) {
-        const context = {
-          accountName: account.name,
-          outputDir,
-          dryRun,
-          includeEmpty,
-          llm,
-          existingInvoiceNumbers,
-          existingHashes,
-          usedPaths,
-          fs,
-          subprocess,
-          onProgress,
-        };
-        const { action, metadata } = await processReceiptMessage(client, msg, context);
-        stats = tallyReceiptAction(stats, action);
-        if (action === "downloaded" || action === "noPdf") {
-          records.push(/** @type {object} */ (metadata));
-        }
+      if (vendorExcluded > 0) {
+        onProgress(vendorFilterApplied(unique.length, vendorExcluded, opts.vendor || null));
       }
-    });
-  });
+      if (subjectExcluded > 0) {
+        onProgress(subjectExclusions(subjectExcluded));
+      }
+      onProgress(uniqueReceipts(unique.length));
+      stats.found += unique.length;
+
+      // Phase 2: process each email (grouped by mailbox for IMAP efficiency)
+      const byMailbox = groupByMailbox(unique);
+      await forEachMailboxGroup(client, byMailbox, async (_mailbox, messages) => {
+        for (const msg of messages) {
+          const context = {
+            accountName: account.name,
+            outputDir,
+            dryRun,
+            includeEmpty,
+            llm,
+            existingInvoiceNumbers,
+            existingHashes,
+            usedPaths,
+            fs,
+            subprocess,
+            onProgress,
+          };
+          const { action, metadata } = await processReceiptMessage(client, msg, context);
+          stats = tallyReceiptAction(stats, action);
+          if (action === "downloaded" || action === "noPdf") {
+            records.push(/** @type {object} */ (metadata));
+          }
+        }
+      });
+    },
+  );
 
   onProgress(downloadSummary(stats));
 
@@ -195,29 +191,26 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
   /** @type {Map<string, { vendor: string, address: string, count: number }>} */
   const vendorCounts = new Map();
 
-  await forEachAccount(targetAccounts, async (client, account) => {
-    onProgress(searchAccount(account.name, account.user));
-
-    const unique = await searchAccountForReceipts(client, account, since, {
-      listMailboxes,
-      searchMailboxForReceipts: (client, accountName, mbPath, since) =>
-        searchMailboxForReceipts(client, accountName, mbPath, since, onProgress),
-    });
-
-    for (const msg of unique) {
-      const key = msg.fromAddress;
-      const existing = vendorCounts.get(key);
-      if (existing) {
-        existing.count++;
-      } else {
-        vendorCounts.set(key, {
-          vendor: msg.fromName || msg.fromAddress,
-          address: msg.fromAddress,
-          count: 1,
-        });
+  await forEachReceiptSearchAccount(
+    targetAccounts,
+    since,
+    { forEachAccount, listMailboxes, onProgress },
+    async (_client, _account, unique) => {
+      for (const msg of unique) {
+        const key = msg.fromAddress;
+        const existing = vendorCounts.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          vendorCounts.set(key, {
+            vendor: msg.fromName || msg.fromAddress,
+            address: msg.fromAddress,
+            count: 1,
+          });
+        }
       }
-    }
-  });
+    },
+  );
 
   return [...vendorCounts.values()].sort((a, b) => b.count - a.count);
 }

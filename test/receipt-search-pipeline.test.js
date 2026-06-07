@@ -1,5 +1,9 @@
 import { describe, expect, it, mock } from "bun:test";
-import { searchAccountForReceipts, searchMailboxForReceipts } from "../src/receipt-search-pipeline.js";
+import {
+  forEachReceiptSearchAccount,
+  searchAccountForReceipts,
+  searchMailboxForReceipts,
+} from "../src/receipt-search-pipeline.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -153,6 +157,79 @@ describe("searchAccountForReceipts", () => {
     await searchAccountForReceipts(client, account, since, fns);
 
     expect(capturedNames[0]).toBe("MyAccount");
+  });
+});
+
+// ── forEachReceiptSearchAccount ───────────────────────────────────────────────
+
+describe("forEachReceiptSearchAccount", () => {
+  it("emits one search-account event per account", async () => {
+    const accounts = [
+      { name: "Account1", user: "a1@example.com" },
+      { name: "Account2", user: "a2@example.com" },
+    ];
+    const events = [];
+    const lock = { release: mock(() => {}) };
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve(lock)),
+      search: mock(() => Promise.resolve([])),
+      mailbox: { exists: 0 },
+      fetch: mock(() => (async function* () {})()),
+    };
+    await forEachReceiptSearchAccount(
+      accounts,
+      new Date(),
+      {
+        forEachAccount: async (accs, fn) => {
+          for (const a of accs) await fn(client, a);
+        },
+        listMailboxes: mock(() => Promise.resolve([])),
+        onProgress: (e) => events.push(e),
+      },
+      async () => {},
+    );
+    const searchEvents = events.filter((e) => e.type === "search-account");
+    expect(searchEvents).toHaveLength(2);
+  });
+
+  it("passes deduplicated results to the per-account callback", async () => {
+    const account = { name: "TestAccount", user: "test@example.com" };
+    const lock = { release: mock(() => {}) };
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve(lock)),
+      search: mock(() => Promise.resolve([1])),
+      mailbox: { exists: 1 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 1,
+            envelope: {
+              date: new Date("2025-03-01"),
+              from: [{ address: "billing@acme.com", name: "Acme" }],
+              subject: "Invoice",
+              messageId: "same-id@acme.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+    const received = [];
+    await forEachReceiptSearchAccount(
+      [account],
+      new Date(),
+      {
+        forEachAccount: async (accs, fn) => {
+          for (const a of accs) await fn(client, a);
+        },
+        listMailboxes: mock(() => Promise.resolve([makeMailbox("INBOX"), makeMailbox("Archive")])),
+        onProgress: () => {},
+      },
+      async (_client, _account, results) => {
+        received.push(...results);
+      },
+    );
+    expect(received).toHaveLength(1);
   });
 });
 

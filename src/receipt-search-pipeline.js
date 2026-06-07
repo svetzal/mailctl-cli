@@ -9,6 +9,7 @@ import {
   mailboxCandidates,
   mailboxFetchError,
   mailboxSearchStart,
+  searchAccount,
   searchTermError,
 } from "./download-receipts-event-factories.js";
 import { filterSearchMailboxes } from "./imap-client.js";
@@ -96,6 +97,37 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
       { onProgress },
     )) ?? []
   );
+}
+
+/**
+ * Shared per-account driver used by downloadReceiptEmails and listReceiptVendors.
+ * Iterates accounts via forEachAccount, emits a search-account progress event,
+ * runs the full receipt search pipeline, then delegates per-account work to perAccountFn.
+ *
+ * @param {Array} targetAccounts
+ * @param {Date} since - search cutoff date
+ * @param {object} fns
+ * @param {Function} fns.forEachAccount
+ * @param {Function} fns.listMailboxes
+ * @param {function(object): void} fns.onProgress
+ * @param {function(object, object, Array): Promise<void>} perAccountFn - (client, account, uniqueResults) => Promise<void>
+ * @returns {Promise<void>}
+ */
+export async function forEachReceiptSearchAccount(
+  targetAccounts,
+  since,
+  { forEachAccount, listMailboxes, onProgress },
+  perAccountFn,
+) {
+  await forEachAccount(targetAccounts, async (client, account) => {
+    onProgress(searchAccount(account.name, account.user));
+    const uniqueResults = await searchAccountForReceipts(client, account, since, {
+      listMailboxes,
+      searchMailboxForReceipts: (c, accountName, mbPath, s) =>
+        searchMailboxForReceipts(c, accountName, mbPath, s, onProgress),
+    });
+    await perAccountFn(client, account, uniqueResults);
+  });
 }
 
 /**
