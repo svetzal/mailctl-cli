@@ -32,7 +32,7 @@ mailctl read <uid>              # read a specific email by UID
 mailctl list-folders            # list all IMAP folders per account
 mailctl list-folders --json     # JSON output for scripting
 mailctl extract-attachment <uid> --list           # list attachments
-mailctl extract-attachment <uid> [index]          # save attachment
+mailctl extract-attachment <uid> [index]          # save attachment (PDF preferred; smime.p7s skipped)
 mailctl extract-attachment <uid> -o ~/Desktop     # save to directory
 
 # Receipt operations
@@ -43,6 +43,11 @@ mailctl sort --dry-run          # preview without moving
 mailctl download                # download business receipt PDFs
 mailctl download --dry-run
 mailctl classify                # output unclassified senders
+mailctl download-receipts --since 2026-01-01 -o <dir>       # download with date filter
+mailctl download-receipts --since 2026-01-01 --dry-run       # preview, no writes
+mailctl download-receipts --since 2026-01-01 --max 10        # cap at 10 messages
+mailctl download-receipts --since 2026-01-01 --timeout 60    # 60 s per-message timeout
+mailctl download-receipts --since 2026-01-01 --budget 300    # 5-minute overall cap
 ```
 
 ### Project Structure
@@ -81,6 +86,7 @@ src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachment
 src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
 src/define-event.js            — defineEvent() — shared event factory builder, eliminates type-string duplication
 src/format-bytes.js            — formatKB() — shared byte-to-KB formatter
+src/with-timeout.js            — withTimeout(promiseFactory, ms, label) — races a promise against a timer; rejects with err.code="ETIMEDOUT" if ms elapses first; used by download-receipts for per-message timeouts
 src/format-scan.js             — formatScanText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
 src/format-search.js           — formatSearchText(), buildSearchJson() — pure search result formatter
 src/format-move.js             — formatMoveText(), buildMoveJson() — pure move summary formatter
@@ -108,7 +114,7 @@ src/shared-event-factories.js  — factories for shared IMAP scan lifecycle even
 src/scan-event-factories.js    — factories for scan progress events (`scanAccountStart`, `scanAccountComplete`)
 src/sort-event-factories.js    — factories for sort progress events (`accountStart`, `folderExists`, `folderCreated`, `scanComplete`, `moveDryRun`, `moved`)
 src/download-event-factories.js — factories for download progress events (`downloadAccountStart`, `downloadBizCount`, etc.)
-src/download-receipts-event-factories.js — factories for download-receipts progress events (28 factories covering all phases)
+src/download-receipts-event-factories.js — factories for download-receipts progress events (32 factories covering all phases, including messageStart, messageTimeout, maxReached, budgetExceeded)
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
 src/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors

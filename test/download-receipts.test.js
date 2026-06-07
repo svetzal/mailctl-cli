@@ -1362,3 +1362,349 @@ describe("listReceiptVendors", () => {
     expect(vendor?.address).toBe("billing@vendor.com");
   });
 });
+
+// ── downloadReceiptEmails — timeout, progress, and --max ──────────────────────
+
+describe("downloadReceiptEmails — per-message timeout", () => {
+  it("emits a message-timeout event when a message takes too long", async () => {
+    const emailDate = new Date("2026-01-15");
+    // Build a client that yields one envelope so the search pipeline finds a message
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([42])),
+      mailbox: { exists: 1 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 42,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice #001",
+              messageId: "msg-42@vendor.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+
+    const events = [];
+    // processMessage that never resolves → will time out
+    const neverResolves = () => new Promise(() => {});
+
+    const { mockFs } = makeMockFs();
+    await downloadReceiptEmails(
+      { outputDir: tmpDir, timeoutMs: 20 },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: neverResolves,
+      },
+      (evt) => events.push(evt),
+    );
+
+    const timeoutEvents = events.filter((e) => e.type === "message-timeout");
+    expect(timeoutEvents.length).toBe(1);
+  });
+
+  it("continues processing subsequent messages after a timeout", async () => {
+    const emailDate = new Date("2026-01-15");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1, 2])),
+      mailbox: { exists: 2 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 1,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice #001",
+              messageId: "msg-1@vendor.com",
+            },
+          };
+          yield {
+            uid: 2,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice #002",
+              messageId: "msg-2@vendor.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+
+    const events = [];
+    let callCount = 0;
+    const neverResolves = () => {
+      callCount++;
+      return new Promise(() => {});
+    };
+
+    const { mockFs } = makeMockFs();
+    await downloadReceiptEmails(
+      { outputDir: tmpDir, timeoutMs: 20 },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: neverResolves,
+      },
+      (evt) => events.push(evt),
+    );
+
+    // Both messages should be attempted (timed out on both)
+    expect(callCount).toBe(2);
+  });
+
+  it("increments timedOut stat for each timed-out message", async () => {
+    const emailDate = new Date("2026-01-15");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1])),
+      mailbox: { exists: 1 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 1,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice",
+              messageId: "msg-1@vendor.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+
+    const { mockFs } = makeMockFs();
+    const { stats } = await downloadReceiptEmails(
+      { outputDir: tmpDir, timeoutMs: 20 },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: () => new Promise(() => {}),
+      },
+    );
+
+    expect(stats.timedOut).toBe(1);
+  });
+});
+
+describe("downloadReceiptEmails — incremental progress", () => {
+  it("emits a message-start event before processing each message", async () => {
+    const emailDate = new Date("2026-01-15");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1, 2])),
+      mailbox: { exists: 2 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 1,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice #001",
+              messageId: "msg-1@vendor.com",
+            },
+          };
+          yield {
+            uid: 2,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice #002",
+              messageId: "msg-2@vendor.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+
+    const events = [];
+    const fastProcess = mock(() => Promise.resolve({ action: "skipped" }));
+
+    const { mockFs } = makeMockFs();
+    await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: fastProcess,
+      },
+      (evt) => events.push(evt),
+    );
+
+    const startEvents = events.filter((e) => e.type === "message-start");
+    expect(startEvents.length).toBe(2);
+  });
+
+  it("message-start event carries index and total", async () => {
+    const emailDate = new Date("2026-01-15");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1, 2])),
+      mailbox: { exists: 2 },
+      fetch: mock(() => {
+        async function* gen() {
+          yield {
+            uid: 1,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice #001",
+              messageId: "msg-1@vendor.com",
+            },
+          };
+          yield {
+            uid: 2,
+            envelope: {
+              date: emailDate,
+              from: [{ address: "billing@vendor.com", name: "Vendor" }],
+              subject: "Invoice #002",
+              messageId: "msg-2@vendor.com",
+            },
+          };
+        }
+        return gen();
+      }),
+    };
+
+    const events = [];
+
+    const { mockFs } = makeMockFs();
+    await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: mock(() => Promise.resolve({ action: "skipped" })),
+      },
+      (evt) => events.push(evt),
+    );
+
+    const startEvents = events.filter((e) => e.type === "message-start");
+    expect(startEvents[0].total).toBe(2);
+  });
+});
+
+describe("downloadReceiptEmails — --max cap", () => {
+  it("stops after processing max messages", async () => {
+    const emailDate = new Date("2026-01-15");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1, 2, 3])),
+      mailbox: { exists: 3 },
+      fetch: mock(() => {
+        async function* gen() {
+          for (const uid of [1, 2, 3]) {
+            yield {
+              uid,
+              envelope: {
+                date: emailDate,
+                from: [{ address: "billing@vendor.com", name: "Vendor" }],
+                subject: `Invoice #00${uid}`,
+                messageId: `msg-${uid}@vendor.com`,
+              },
+            };
+          }
+        }
+        return gen();
+      }),
+    };
+
+    const events = [];
+    const processMessage = mock(() => Promise.resolve({ action: "skipped" }));
+
+    const { mockFs } = makeMockFs();
+    await downloadReceiptEmails(
+      { outputDir: tmpDir, max: 1 },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage,
+      },
+      (evt) => events.push(evt),
+    );
+
+    const startEvents = events.filter((e) => e.type === "message-start");
+    expect(startEvents.length).toBe(1);
+  });
+
+  it("emits a max-reached event when the cap is hit", async () => {
+    const emailDate = new Date("2026-01-15");
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.resolve([1, 2])),
+      mailbox: { exists: 2 },
+      fetch: mock(() => {
+        async function* gen() {
+          for (const uid of [1, 2]) {
+            yield {
+              uid,
+              envelope: {
+                date: emailDate,
+                from: [{ address: "billing@vendor.com", name: "Vendor" }],
+                subject: `Invoice #00${uid}`,
+                messageId: `msg-${uid}@vendor.com`,
+              },
+            };
+          }
+        }
+        return gen();
+      }),
+    };
+
+    const events = [];
+
+    const { mockFs } = makeMockFs();
+    await downloadReceiptEmails(
+      { outputDir: tmpDir, max: 1 },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: mock(() => Promise.resolve({ action: "skipped" })),
+      },
+      (evt) => events.push(evt),
+    );
+
+    const maxEvents = events.filter((e) => e.type === "max-reached");
+    expect(maxEvents.length).toBe(1);
+  });
+});

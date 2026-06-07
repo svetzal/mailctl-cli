@@ -23,12 +23,19 @@ export async function connect(account, onProgress = () => {}) {
     auth = { user: account.user, pass: account.pass };
   }
 
+  // Generous inactivity-based socket timeout — keeps the connection from hanging
+  // silently on a stalled network, without aborting legitimately slow searches
+  // (imapflow resets the timer on each received chunk, so a large-mailbox search
+  // that keeps data flowing will not hit this limit).
+  const SOCKET_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
   const client = new ImapFlow({
     host: account.host,
     port: account.port,
     secure: true,
     auth,
     logger: false,
+    socketTimeout: SOCKET_TIMEOUT_MS,
   });
 
   await client.connect();

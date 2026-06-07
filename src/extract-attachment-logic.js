@@ -49,3 +49,31 @@ export function validateAttachmentIndex(attachments, index, uid) {
 
   return attachments[index];
 }
+
+/**
+ * Select the best default attachment when no explicit index is given.
+ *
+ * Preference order:
+ * 1. First `application/pdf` part (most likely the document the user wants)
+ * 2. First non-signature part (smime.p7s is the canonical filename for detached S/MIME signatures)
+ * 3. First part (fallback — only when everything else is a signature)
+ *
+ * @param {AttachmentListing[]} attachments
+ * @returns {AttachmentListing}
+ * @throws {Error} when the listing is empty
+ */
+export function selectDefaultAttachment(attachments) {
+  if (attachments.length === 0) {
+    throw new Error("No attachments found.");
+  }
+
+  const pdf = attachments.find((a) => a.contentType === "application/pdf");
+  if (pdf) return pdf;
+
+  const nonSignature = attachments.find(
+    (a) => a.filename?.toLowerCase() !== "smime.p7s" && a.contentType !== "application/pkcs7-signature",
+  );
+  if (nonSignature) return nonSignature;
+
+  return attachments[0];
+}

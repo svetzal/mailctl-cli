@@ -2,9 +2,13 @@ import { resolve } from "node:path";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
 import {
+  budgetExceeded,
   downloadSummary,
   llmDisabled,
   llmEnabled,
+  maxReached,
+  messageStart,
+  messageTimeout,
   outputTreeError,
   processError,
   reprocessDoclingFailed,
@@ -41,6 +45,7 @@ import { collectSidecarFiles, loadExistingHashes, loadExistingInvoiceNumbers } f
 import { forEachReceiptSearchAccount } from "./receipt-search-pipeline.js";
 import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 import { matchesVendor } from "./vendor-map.js";
+import { withTimeout } from "./with-timeout.js";
 
 export { RECEIPT_EXTRACTION_SCHEMA } from "./llm-receipt-extraction.js";
 export { searchMailboxForReceipts } from "./receipt-search-pipeline.js";
@@ -49,6 +54,9 @@ export { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 /** Singleton gateway instances used in production. */
 const _defaultFs = new FileSystemGateway();
 const _defaultSubprocess = new SubprocessGateway();
+
+/** Default per-message timeout: 2 minutes. */
+const DEFAULT_PER_MESSAGE_TIMEOUT_MS = 120_000;
 
 /**
  * Default production gateways. Tests override individual keys.
@@ -60,6 +68,7 @@ const defaultGateways = {
   forEachAccount: _forEachAccount,
   listMailboxes: _listMailboxes,
   createLlmBroker,
+  processMessage: processReceiptMessage,
   openAiKey: /** @type {string|null} */ (null),
 };
 
@@ -72,6 +81,9 @@ const defaultGateways = {
  * @param {string}  [opts.vendor] - filter to a specific vendor (substring match)
  * @param {boolean} [opts.dryRun=false] - show what would be done
  * @param {boolean} [opts.includeEmpty=false] - also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)
+ * @param {number|null} [opts.max] - stop after processing this many messages (null = unlimited)
+ * @param {number}  [opts.timeoutMs] - per-message timeout in milliseconds (default: 120000)
+ * @param {number|null} [opts.budgetMs] - overall wall-clock budget in milliseconds (null = unlimited)
  * @param {object} [gateways] - injectable implementations for testing
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ stats: object, records: Array }>}
@@ -84,6 +96,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     forEachAccount,
     listMailboxes,
     createLlmBroker: _createLlmBroker,
+    processMessage: _processMessage,
     openAiKey,
   } = { ...defaultGateways, ...gateways };
 
@@ -92,6 +105,10 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   const months = opts.months ?? 12;
   const outputDir = resolve(opts.outputDir || ".");
   const accountFilter = opts.account || null;
+  const maxMessages = opts.max ?? null;
+  const perMessageTimeoutMs = opts.timeoutMs ?? DEFAULT_PER_MESSAGE_TIMEOUT_MS;
+  const budgetMs = opts.budgetMs ?? null;
+  const startedAt = performance.now();
 
   const since = opts.since ? new Date(opts.since) : monthsAgo(months);
 
@@ -105,7 +122,18 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   );
   const usedPaths = new Set();
 
-  let stats = { found: 0, downloaded: 0, noPdf: 0, skipped: 0, skippedEmpty: 0, alreadyHave: 0, errors: 0 };
+  let stats = {
+    found: 0,
+    downloaded: 0,
+    noPdf: 0,
+    skipped: 0,
+    skippedEmpty: 0,
+    alreadyHave: 0,
+    errors: 0,
+    timedOut: 0,
+  };
+  let processedCount = 0;
+  let stopped = false;
   const records = [];
 
   // Initialize LLM broker for receipt data extraction (null if no API key available)
@@ -138,8 +166,14 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
 
       // Phase 2: process each email (grouped by mailbox for IMAP efficiency)
       const byMailbox = groupByMailbox(unique);
+      const total = unique.length;
       await forEachMailboxGroup(client, byMailbox, async (_mailbox, messages) => {
         for (const msg of messages) {
+          if (stopped) break;
+
+          processedCount++;
+          onProgress(messageStart(processedCount, total, msg.fromName || msg.fromAddress, msg.subject || ""));
+
           const context = {
             accountName: account.name,
             outputDir,
@@ -153,10 +187,41 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
             subprocess,
             onProgress,
           };
-          const { action, metadata } = await processReceiptMessage(client, msg, context);
-          stats = tallyReceiptAction(stats, action);
-          if (action === "downloaded" || action === "noPdf") {
-            records.push(/** @type {object} */ (metadata));
+
+          try {
+            const { action, metadata } = await withTimeout(
+              () => _processMessage(client, msg, context),
+              perMessageTimeoutMs,
+              `UID ${msg.uid} (${msg.fromName || msg.fromAddress})`,
+            );
+            stats = tallyReceiptAction(stats, action);
+            if (action === "downloaded" || action === "noPdf") {
+              records.push(/** @type {object} */ (metadata));
+            }
+          } catch (err) {
+            if (/** @type {any} */ (err).code === "ETIMEDOUT") {
+              onProgress(messageTimeout(msg.uid, perMessageTimeoutMs));
+              stats.timedOut++;
+            } else {
+              // Non-timeout errors are already handled inside processReceiptMessage;
+              // re-throwing here would be unexpected, but guard defensively.
+              onProgress(processError(err, msg.uid));
+              stats.errors++;
+            }
+          }
+
+          // Check --max cap
+          if (maxMessages !== null && processedCount >= maxMessages) {
+            onProgress(maxReached(maxMessages));
+            stopped = true;
+            break;
+          }
+
+          // Check wall-clock budget
+          if (budgetMs !== null && performance.now() - startedAt >= budgetMs) {
+            onProgress(budgetExceeded(budgetMs));
+            stopped = true;
+            break;
           }
         }
       });

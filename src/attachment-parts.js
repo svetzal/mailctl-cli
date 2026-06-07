@@ -27,6 +27,27 @@ function isInlineImage(part) {
 }
 
 /**
+ * Determine whether a BODYSTRUCTURE part is an S/MIME cryptographic signature.
+ * These should never be treated as user-facing attachments — users want the
+ * actual document (PDF/etc.), not the detached signature.
+ * @param {object} part
+ * @returns {boolean}
+ */
+export function isSignaturePart(part) {
+  if (!part.type) return false;
+  if (part.type === "application/pkcs7-signature" || part.type === "application/x-pkcs7-signature") {
+    return true;
+  }
+  // Some MTAs encode the signature as application/pkcs7-mime with smime-type=signed-data,
+  // or simply name it smime.p7s — match by filename as a safety net.
+  const filename = getPartFilename(part);
+  if (filename && filename.toLowerCase() === "smime.p7s") {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Recursively find all user-facing attachment parts from a BODYSTRUCTURE tree.
  * Excludes inline CID images (embedded in HTML body).
  *
@@ -53,6 +74,9 @@ function collectAttachmentParts(node, parts) {
 
   // Skip inline CID images
   if (isInlineImage(node)) return;
+
+  // Skip S/MIME signature parts — users want the document, not the detached signature
+  if (isSignaturePart(node)) return;
 
   // Skip text/plain and text/html body parts (unless explicitly attached)
   if ((node.type === "text/plain" || node.type === "text/html") && node.disposition !== "attachment") {

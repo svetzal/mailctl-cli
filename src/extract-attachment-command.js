@@ -6,7 +6,11 @@
  */
 import { join, resolve } from "node:path";
 import { findAttachmentParts } from "./attachment-parts.js";
-import { buildAttachmentListing, validateAttachmentIndex } from "./extract-attachment-logic.js";
+import {
+  buildAttachmentListing,
+  selectDefaultAttachment,
+  validateAttachmentIndex,
+} from "./extract-attachment-logic.js";
 import { uidNotFoundError, withMessage } from "./find-message.js";
 import { streamToBuffer } from "./imap-orchestration.js";
 
@@ -23,7 +27,8 @@ import { streamToBuffer } from "./imap-orchestration.js";
  * In save mode: downloads the specified attachment and writes it to disk.
  *
  * @param {string} uid
- * @param {number} attachmentIndex - 0-based attachment index to save (ignored in list mode)
+ * @param {number|undefined} attachmentIndex - 0-based attachment index to save (ignored in list mode).
+ *   When undefined, the best document attachment is chosen automatically (PDF preferred, smime.p7s excluded).
  * @param {object} opts - CLI options (list, mailbox, output)
  * @param {ExtractAttachmentCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
@@ -65,9 +70,13 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
         };
       }
 
-      // Save mode — validateAttachmentIndex throws on invalid index
-      const att = validateAttachmentIndex(listing, attachmentIndex, uid);
-      const filename = att.filename !== "(unnamed)" ? att.filename : `attachment_${attachmentIndex}`;
+      // Save mode — choose attachment by explicit index or smart default
+      const att =
+        attachmentIndex === undefined || attachmentIndex === null
+          ? selectDefaultAttachment(listing)
+          : validateAttachmentIndex(listing, attachmentIndex, uid);
+      const displayIndex = attachmentIndex ?? att.index;
+      const filename = att.filename !== "(unnamed)" ? att.filename : `attachment_${displayIndex}`;
 
       // Download just the specific MIME part, not the entire message
       const { content } = await client.download(String(uid), att.part, { uid: true });

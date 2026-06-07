@@ -1,4 +1,5 @@
 import {
+  budgetExceeded,
   doclingFailed,
   downloadedPdf,
   downloadSummary,
@@ -13,6 +14,9 @@ import {
   mailboxCandidates,
   mailboxFetchError,
   mailboxSearchStart,
+  maxReached,
+  messageStart,
+  messageTimeout,
   processError,
   reprocessDoclingFailed,
   reprocessDryRun,
@@ -42,6 +46,10 @@ import { createEventRenderer } from "./render-shared-events.js";
 
 /** @type {(event: object) => string | null} */
 export const renderDownloadReceiptsEvent = createEventRenderer({
+  [messageStart.type]: (e) => `[${e.index}/${e.total}] ${e.vendor} — ${e.subject}`,
+  [messageTimeout.type]: (e) => `   ⚠ Timed out after ${e.ms}ms (UID ${e.uid}) — skipping`,
+  [maxReached.type]: (e) => `\nStopped after ${e.max} messages (--max limit reached)`,
+  [budgetExceeded.type]: (e) => `\nStopped: wall-clock budget of ${Math.round(e.ms / 1000)}s exceeded`,
   [llmEnabled.type]: () => "Using LLM (gpt-5-mini) for receipt data extraction",
   [llmDisabled.type]: () => "OPENAI_API_KEY not set — using pattern-based extraction",
   [llmNotConfigured.type]: (e) => `   Warning: Could not initialize LLM broker: ${e.error.message}`,
@@ -81,6 +89,7 @@ export const renderDownloadReceiptsEvent = createEventRenderer({
       `Empty:       ${s.skippedEmpty ?? 0} (no amount, no invoice number, no PDF)`,
       `Duplicates:  ${s.alreadyHave}`,
       `Errors:      ${s.errors}`,
+      `Timed out:   ${s.timedOut ?? 0}`,
     ].join("\n");
   },
   [reprocessStart.type]: (e) => `Reprocessing receipts in ${e.outputDir}...`,

@@ -6,6 +6,16 @@
 
 import { defineErrorEvent, defineEvent } from "./define-event.js";
 
+// From download-receipts.js — per-message progress and flow control
+/** @type {((index: number, total: number, vendor: string, subject: string) => { type: "message-start" } & Record<string, any>) & { type: "message-start" }} */
+export const messageStart = defineEvent("message-start", "index", "total", "vendor", "subject");
+/** @type {((uid: string | number, ms: number) => { type: "message-timeout" } & Record<string, any>) & { type: "message-timeout" }} */
+export const messageTimeout = defineEvent("message-timeout", "uid", "ms");
+/** @type {((max: number) => { type: "max-reached" } & Record<string, any>) & { type: "max-reached" }} */
+export const maxReached = defineEvent("max-reached", "max");
+/** @type {((ms: number) => { type: "budget-exceeded" } & Record<string, any>) & { type: "budget-exceeded" }} */
+export const budgetExceeded = defineEvent("budget-exceeded", "ms");
+
 // From download-receipts.js and listReceiptVendors
 /** @type {((name: string, user: string) => { type: "search-account" } & Record<string, any>) & { type: "search-account" }} */
 export const searchAccount = defineEvent("search-account", "name", "user");

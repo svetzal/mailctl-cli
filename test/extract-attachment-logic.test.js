@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { buildAttachmentListing, validateAttachmentIndex } from "../src/extract-attachment-logic.js";
+import {
+  buildAttachmentListing,
+  selectDefaultAttachment,
+  validateAttachmentIndex,
+} from "../src/extract-attachment-logic.js";
 
 /** @param {Partial<{filename: string|null, type: string, size: number, part: string}>} overrides */
 function makePart(overrides = {}) {
@@ -88,5 +92,51 @@ describe("validateAttachmentIndex", () => {
 
   it("includes the uid in the 'no attachments' error message", () => {
     expect(() => validateAttachmentIndex([], 0, "999")).toThrow("999");
+  });
+});
+
+describe("selectDefaultAttachment", () => {
+  it("returns the PDF part when one is present", () => {
+    const listing = buildAttachmentListing([
+      { filename: "smime.p7s", type: "application/pkcs7-signature", size: 4096, part: "2" },
+      { filename: "receipt.pdf", type: "application/pdf", size: 72000, part: "1.2" },
+    ]);
+    const att = selectDefaultAttachment(listing);
+    expect(att.contentType).toBe("application/pdf");
+  });
+
+  it("prefers PDF even when smime.p7s is listed first", () => {
+    const listing = buildAttachmentListing([
+      { filename: "smime.p7s", type: "application/pkcs7-signature", size: 4096, part: "1" },
+      { filename: "receipt.pdf", type: "application/pdf", size: 72000, part: "2" },
+    ]);
+    const att = selectDefaultAttachment(listing);
+    expect(att.filename).toBe("receipt.pdf");
+  });
+
+  it("falls back to first non-signature part when no PDF exists", () => {
+    const listing = buildAttachmentListing([
+      { filename: "smime.p7s", type: "application/pkcs7-signature", size: 4096, part: "1" },
+      {
+        filename: "document.docx",
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        size: 50000,
+        part: "2",
+      },
+    ]);
+    const att = selectDefaultAttachment(listing);
+    expect(att.filename).toBe("document.docx");
+  });
+
+  it("falls back to attachments[0] when every part is a signature", () => {
+    const listing = buildAttachmentListing([
+      { filename: "smime.p7s", type: "application/pkcs7-signature", size: 4096, part: "1" },
+    ]);
+    const att = selectDefaultAttachment(listing);
+    expect(att.filename).toBe("smime.p7s");
+  });
+
+  it("throws when the listing is empty", () => {
+    expect(() => selectDefaultAttachment([])).toThrow("No attachments found");
   });
 });

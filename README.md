@@ -130,6 +130,8 @@ mailctl extract-attachment 12345 -o ~/Desktop     # save to custom directory
 
 Lists or extracts individual attachments from a specific email. Prints the saved file path to stdout for piping to downstream tools.
 
+**S/MIME-signed emails:** When no index is given, the command prefers the PDF attachment and skips `smime.p7s` (S/MIME signature parts). Explicit numeric indexes still work and can reach any part.
+
 #### Download — Get business receipt PDFs
 
 ```bash
@@ -155,9 +157,16 @@ mailctl download-receipts --vendor Stripe   # filter to a specific vendor
 mailctl download-receipts --include-empty   # also write sidecars with no amount/invoice/PDF
 mailctl download-receipts --list-vendors    # list vendors seen in recent receipts
 mailctl download-receipts --reprocess       # re-run LLM on existing sidecars
+mailctl download-receipts --max 20          # stop after processing 20 messages
+mailctl download-receipts --timeout 60      # per-message timeout in seconds (default 120)
+mailctl download-receipts --budget 300      # overall wall-clock cap in seconds
 ```
 
 Downloads receipt PDFs and writes a JSON sidecar alongside each one with extracted metadata (vendor, amount, invoice number, date). Uses LLM (gpt-5-mini via mojentic) when an OpenAI API key is available; falls back to pattern-based extraction.
+
+**Incremental progress:** Per-message progress (`[i/total] vendor — subject`) is emitted to stderr immediately as each message begins, so long runs are observable and `--dry-run` never appears frozen.
+
+**Per-message timeout:** If a single IMAP fetch or LLM call exceeds `--timeout` seconds (default 120), that message is skipped with a warning and the run continues. The final summary includes a `Timed out:` count.
 
 **Empty extractions:** By default, sidecars are skipped when extraction yields no amount, no invoice number, and no PDF attachment — these carry no bookkeeping value. Pass `--include-empty` to write sidecars for all processed emails regardless.
 

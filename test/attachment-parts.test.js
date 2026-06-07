@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { findAttachmentParts, findPdfParts, getPartFilename } from "../src/attachment-parts.js";
+import { findAttachmentParts, findPdfParts, getPartFilename, isSignaturePart } from "../src/attachment-parts.js";
 
 /**
  * Simulates an M365 Cleverbridge/Parallels message BODYSTRUCTURE:
@@ -95,6 +95,68 @@ function multipleInlineImages() {
       { type: "text/html", part: "1", size: 5000 },
       { type: "image/png", part: "2", size: 3000, disposition: "inline", id: "<img1@example.com>" },
       { type: "image/jpeg", part: "3", size: 6000, disposition: "inline", id: "<img2@example.com>" },
+    ],
+  };
+}
+
+/**
+ * Simulates an S/MIME-signed receipt email (e.g. Anthropic "Your receipt …"):
+ * multipart/signed
+ *   ├── multipart/mixed
+ *   │   ├── text/plain  (part 1.1)
+ *   │   └── application/pdf  (part 1.2) — the actual receipt PDF
+ *   └── application/pkcs7-signature  smime.p7s  (part 2)
+ */
+function smimeSignedWithPdf() {
+  return {
+    type: "multipart/signed",
+    childNodes: [
+      {
+        type: "multipart/mixed",
+        childNodes: [
+          { type: "text/plain", part: "1.1", size: 500 },
+          {
+            type: "application/pdf",
+            part: "1.2",
+            size: 72000,
+            disposition: "attachment",
+            dispositionParameters: { filename: "receipt.pdf" },
+            parameters: { name: "receipt.pdf" },
+          },
+        ],
+      },
+      {
+        type: "application/pkcs7-signature",
+        part: "2",
+        size: 4096,
+        disposition: "attachment",
+        dispositionParameters: { filename: "smime.p7s" },
+        parameters: { name: "smime.p7s" },
+      },
+    ],
+  };
+}
+
+/**
+ * Same structure but with the signature listed before the PDF — tests that
+ * the default-selection logic always prefers the document.
+ */
+function smimeSignedSignatureFirst() {
+  return {
+    type: "multipart/signed",
+    childNodes: [
+      {
+        type: "application/pkcs7-signature",
+        part: "1",
+        size: 4096,
+        dispositionParameters: { filename: "smime.p7s" },
+      },
+      {
+        type: "application/pdf",
+        part: "2",
+        size: 72000,
+        dispositionParameters: { filename: "receipt.pdf" },
+      },
     ],
   };
 }
@@ -208,6 +270,61 @@ describe("findPdfParts", () => {
 
   it("returns empty array for null structure", () => {
     expect(findPdfParts(null).length).toBe(0);
+  });
+});
+
+describe("findAttachmentParts — S/MIME signed messages", () => {
+  describe("returns only the PDF from a multipart/signed message", () => {
+    const parts = findAttachmentParts(smimeSignedWithPdf());
+
+    it("returns exactly one part", () => {
+      expect(parts.length).toBe(1);
+    });
+
+    it("the part has type application/pdf", () => {
+      expect(parts[0].type).toBe("application/pdf");
+    });
+
+    it("does not include smime.p7s", () => {
+      const hasSignature = parts.some((p) => p.filename === "smime.p7s");
+      expect(hasSignature).toBe(false);
+    });
+  });
+
+  describe("excludes smime.p7s even when listed before the PDF", () => {
+    const parts = findAttachmentParts(smimeSignedSignatureFirst());
+
+    it("returns exactly one part", () => {
+      expect(parts.length).toBe(1);
+    });
+
+    it("the part has type application/pdf", () => {
+      expect(parts[0].type).toBe("application/pdf");
+    });
+  });
+});
+
+describe("isSignaturePart", () => {
+  it("returns true for application/pkcs7-signature", () => {
+    expect(isSignaturePart({ type: "application/pkcs7-signature" })).toBe(true);
+  });
+
+  it("returns true for application/x-pkcs7-signature", () => {
+    expect(isSignaturePart({ type: "application/x-pkcs7-signature" })).toBe(true);
+  });
+
+  it("returns true when filename is smime.p7s (case-insensitive)", () => {
+    expect(
+      isSignaturePart({ type: "application/octet-stream", dispositionParameters: { filename: "smime.p7s" } }),
+    ).toBe(true);
+  });
+
+  it("returns false for application/pdf", () => {
+    expect(isSignaturePart({ type: "application/pdf" })).toBe(false);
+  });
+
+  it("returns false when type is absent", () => {
+    expect(isSignaturePart({})).toBe(false);
   });
 });
 

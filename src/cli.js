@@ -215,6 +215,9 @@ program
     "also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)",
     false,
   )
+  .option("--max <n>", "stop after processing this many messages")
+  .option("--timeout <seconds>", "per-message timeout in seconds (default: 120)")
+  .option("--budget <seconds>", "overall wall-clock budget in seconds; stop cleanly when exceeded")
   .action(
     wrapAction(async (opts) => {
       const json = resolveJson(opts);
@@ -310,7 +313,7 @@ program
   .command("extract-attachment")
   .description("List or save attachments from a specific email by UID")
   .argument("<uid>", "message UID")
-  .argument("[index]", "attachment index to save (0-based)", "0")
+  .argument("[index]", "attachment index to save (0-based); omit to auto-select PDF or first non-signature")
   .option("--mailbox <name>", "mailbox containing the message (auto-detects if omitted)")
   .option("-o, --output <dir>", "output directory", ".")
   .option("--list", "list attachments without downloading")
@@ -318,7 +321,7 @@ program
     wrapAction(async (uid, index, opts) => {
       const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-      const result = await extractAttachmentCommand(uid, parseInt(index, 10), opts, {
+      const result = await extractAttachmentCommand(uid, index === undefined ? undefined : parseInt(index, 10), opts, {
         targetAccounts,
         forEachAccount,
         listMailboxes,
