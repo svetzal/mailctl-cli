@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 
+// Short hash prefix stored in the manifest for human readability
+const MANIFEST_HASH_PREFIX_LENGTH = 12;
+
 /**
  * @param {Buffer} buffer
  * @returns {boolean}
@@ -23,7 +26,8 @@ export function contentHash(buffer) {
  */
 export function buildManifestRecord(status, { filename, hash, date, vendor } = {}) {
   if (status === "no-pdf") return { status, date };
-  if (status === "duplicate") return { status, hash: (hash ?? "").slice(0, 12), date, vendor };
-  if (status === "downloaded") return { status, filename, hash: (hash ?? "").slice(0, 12), date, vendor };
+  if (status === "duplicate") return { status, hash: (hash ?? "").slice(0, MANIFEST_HASH_PREFIX_LENGTH), date, vendor };
+  if (status === "downloaded")
+    return { status, filename, hash: (hash ?? "").slice(0, MANIFEST_HASH_PREFIX_LENGTH), date, vendor };
   return { status, date };
 }

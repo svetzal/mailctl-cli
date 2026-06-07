@@ -23,11 +23,10 @@ import {
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
+import { MAX_VENDOR_NAME_LENGTH } from "./receipt-extraction.js";
 import { stripVendorSuffixes } from "./receipt-terms.js";
 import { requireClassificationsData } from "./scan-data.js";
 import { getVendorDisplayNames } from "./vendor-map.js";
-
-const MAX_VENDOR_NAME_LENGTH = 30;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");

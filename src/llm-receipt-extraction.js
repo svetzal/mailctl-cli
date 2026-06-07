@@ -9,6 +9,9 @@ import { llmExtractionFailed, llmNotConfigured } from "./download-receipts-event
 import { cleanVendorForFilename, extractMetadata, formatDate, sanitizeFilename } from "./receipt-extraction.js";
 import { CORPORATE_SUFFIX_PATTERN } from "./receipt-terms.js";
 
+// First N chars is plenty for receipts; bounds token usage
+const LLM_BODY_CHAR_LIMIT = 4000;
+
 /** JSON schema for LLM-based receipt data extraction. */
 export const RECEIPT_EXTRACTION_SCHEMA = {
   type: "object",
@@ -120,8 +123,8 @@ export function createLlmBroker(openAiKey = null, onProgress = () => {}) {
  * @returns {Promise<object|null>} Extracted metadata or null on failure
  */
 export async function extractMetadataWithLLM(broker, bodyText, subject, fromAddress, fromName, emailDate) {
-  // Truncate body to avoid exceeding token limits — first 4000 chars is plenty for receipts
-  const truncatedBody = bodyText.length > 4000 ? bodyText.slice(0, 4000) : bodyText;
+  // Truncate body to avoid exceeding token limits — first N chars is plenty for receipts
+  const truncatedBody = bodyText.length > LLM_BODY_CHAR_LIMIT ? bodyText.slice(0, LLM_BODY_CHAR_LIMIT) : bodyText;
 
   const userContent = buildLlmEmailContext({
     from: fromName,

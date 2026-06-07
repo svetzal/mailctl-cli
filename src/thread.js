@@ -9,6 +9,9 @@ import { htmlToText } from "./html-to-text.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { searchFailed } from "./shared-event-factories.js";
 
+// Preview snippet length for thread listing
+const THREAD_SNIPPET_LENGTH = 150;
+
 /**
  * @param {string} subject
  * @returns {string}
@@ -146,7 +149,7 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
             bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
           }
 
-          const snippet = bodyText.substring(0, 150).replace(/\n/g, " ").trim();
+          const snippet = bodyText.substring(0, THREAD_SNIPPET_LENGTH).replace(/\n/g, " ").trim();
 
           results.push({
             uid: msg.uid,

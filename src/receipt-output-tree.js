@@ -17,6 +17,9 @@ import {
 } from "./download-receipts-event-factories.js";
 import { cleanVendorForFilename } from "./receipt-extraction.js";
 
+// Cap derived filename base length
+const MAX_RECEIPT_BASENAME_LENGTH = 60;
+
 /**
  * Pure: computes the month subdirectory path for the given email date.
  * @param {string} outputDir
@@ -52,8 +55,8 @@ export function deriveReceiptBaseName(metadata, msg, bodyText, subject) {
   } else {
     rawBase = `${vendorClean}-${metadata.date}`;
   }
-  if (rawBase.length > 60) {
-    rawBase = rawBase.slice(0, 60).replace(/[-_][^-_]*$/, "");
+  if (rawBase.length > MAX_RECEIPT_BASENAME_LENGTH) {
+    rawBase = rawBase.slice(0, MAX_RECEIPT_BASENAME_LENGTH).replace(/[-_][^-_]*$/, "");
     rawBase = rawBase.replace(/[-._]+$/, "");
   }
   return { rawBase, vendorClean };
