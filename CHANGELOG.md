@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-06-07
+
+### Fixed
+
+- `formatDatetime` now builds its output string deterministically from `formatShortDate` plus zero-padded hours/minutes instead of relying on `toLocaleString('en-US')`, whose date/time separator varies across ICU versions (local: `at`, CI: `,`).
+
 ## [1.1.0] - 2026-06-07
 
 ### Fixed
