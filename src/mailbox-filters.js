@@ -48,7 +48,10 @@ export function filterSearchMailboxes(mailboxes, opts = {}) {
   return mailboxes
     .filter((mb) => {
       if (mb.specialUse && SEARCH_EXCLUDED_SPECIAL_USE.has(mb.specialUse)) return false;
-      if (mb.path.startsWith("_")) return false;
+      // Underscore-prefixed folders are tool-internal (e.g. Apple Mail, _lma-shield) and
+      // excluded by default — EXCEPT the screening quarantine, which holds legitimate
+      // misrouted mail (e.g. vendor invoices) and must remain searchable.
+      if (mb.path.startsWith("_") && !mb.path.endsWith("/screened")) return false;
       if (mb.path === "Notes") return false;
       for (const prefix of excludePaths) {
         if (mb.path === prefix || mb.path.startsWith(`${prefix}/`)) return false;

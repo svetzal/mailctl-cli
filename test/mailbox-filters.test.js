@@ -100,6 +100,12 @@ describe("filterSearchMailboxes", () => {
     expect(result).not.toContain("_Hidden");
   });
 
+  it("includes the screening quarantine despite its underscore prefix (holds misrouted real mail)", () => {
+    const result = filterSearchMailboxes([mb("_lma-shield/screened"), mb("_lma-shield")]);
+    expect(result).toContain("_lma-shield/screened");
+    expect(result).not.toContain("_lma-shield");
+  });
+
   it("excludes Notes mailbox", () => {
     const result = filterSearchMailboxes([mb("Notes")]);
     expect(result).not.toContain("Notes");
