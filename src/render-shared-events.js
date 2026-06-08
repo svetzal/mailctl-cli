@@ -1,3 +1,7 @@
+import { renderSharedEvent } from "./shared-event-factories.js";
+
+export { renderSharedEvent };
+
 const ANSI_RED = "\x1b[31m";
 const ANSI_YELLOW = "\x1b[33m";
 const ANSI_RESET = "\x1b[0m";
@@ -14,26 +18,6 @@ function applySeverityColor(text, severity) {
   if (severity === "error") return `${ANSI_RED}${text}${ANSI_RESET}`;
   if (severity === "warning") return `${ANSI_YELLOW}${text}${ANSI_RESET}`;
   return text;
-}
-
-import { mailboxLockFailed, searchFailed } from "./shared-event-factories.js";
-
-const sharedEventMap = {
-  [mailboxLockFailed.type]: (e) => `   Could not lock mailbox ${e.mailbox}: ${e.error.message}`,
-  [searchFailed.type]: (e) => `   Search failed in ${e.mailbox}: ${e.error.message}`,
-};
-
-/**
- * Handles event types that are emitted by multiple commands:
- * - mailbox-lock-failed
- * - search-failed
- *
- * @param {object} event
- * @returns {string | null}
- */
-export function renderSharedEvent(event) {
-  const handler = sharedEventMap[event.type];
-  return handler ? handler(event) : null;
 }
 
 /**

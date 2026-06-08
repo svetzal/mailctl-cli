@@ -1,16 +1,34 @@
 /**
  * Event factories for auth progress events emitted by src/m365-auth.js.
+ *
+ * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineErrorEvent, defineEvent } from "./define-event.js";
+import { defineEventTable } from "./event-table.js";
 
-/** @type {((verificationUri: string, userCode: string) => { type: "device-code-prompt" } & Record<string, any>) & { type: "device-code-prompt" }} */
-export const deviceCodePrompt = defineEvent("device-code-prompt", "verificationUri", "userCode");
-/** @type {(() => { type: "auth-waiting" }) & { type: "auth-waiting" }} */
-export const authWaiting = defineEvent("auth-waiting");
-/** @type {(() => { type: "auth-success" }) & { type: "auth-success" }} */
-export const authSuccess = defineEvent("auth-success");
-/** @type {((error: Error) => { type: "token-refresh-failed", severity: string, error: Error }) & { type: "token-refresh-failed" }} */
-export const tokenRefreshFailed = defineErrorEvent("token-refresh-failed", "error");
-/** @type {((error: Error, account: string) => { type: "connect-error", severity: string, error: Error } & Record<string, any>) & { type: "connect-error" }} */
-export const connectError = defineErrorEvent("connect-error", "error", "account");
+const TABLE = {
+  deviceCodePrompt: {
+    params: ["verificationUri", "userCode"],
+    render: (e) => `\nTo authenticate Microsoft 365, visit: ${e.verificationUri}\nEnter code: ${e.userCode}`,
+  },
+  authWaiting: {
+    render: () => `Waiting for authentication...`,
+  },
+  authSuccess: {
+    render: () => `Authentication successful. Tokens cached.`,
+  },
+  tokenRefreshFailed: {
+    severity: "error",
+    render: (e) => `   Token refresh failed: ${e.error?.message ?? "unknown error"}`,
+  },
+  connectError: {
+    severity: "error",
+    params: ["account"],
+    render: (e) => `   ❌ Failed to connect to ${e.account}: ${e.error?.message ?? "unknown error"}`,
+  },
+};
+
+const { factories, renderEvent } = defineEventTable(TABLE, { fallback: false });
+
+export const { deviceCodePrompt, authWaiting, authSuccess, tokenRefreshFailed, connectError } = factories;
+export const renderAuthEvent = renderEvent;

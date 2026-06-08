@@ -1,10 +1,23 @@
 /**
  * Event factories for scan progress events emitted by src/scanner.js.
+ *
+ * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineEvent } from "./define-event.js";
+import { defineEventTable } from "./event-table.js";
 
-/** @type {((name: string, user: string) => { type: "scan-account-start" } & Record<string, any>) & { type: "scan-account-start" }} */
-export const scanAccountStart = defineEvent("scan-account-start", "name", "user");
-/** @type {((name: string, count: number) => { type: "scan-account-complete" } & Record<string, any>) & { type: "scan-account-complete" }} */
-export const scanAccountComplete = defineEvent("scan-account-complete", "name", "count");
+const TABLE = {
+  scanAccountStart: {
+    params: ["name", "user"],
+    render: (e) => `🔍 Scanning ${e.name} (${e.user})...`,
+  },
+  scanAccountComplete: {
+    params: ["name", "count"],
+    render: (e) => `   ✅ Found ${e.count} receipt-like messages`,
+  },
+};
+
+const { factories, renderEvent } = defineEventTable(TABLE);
+
+export const { scanAccountStart, scanAccountComplete } = factories;
+export const renderScanEvent = renderEvent;

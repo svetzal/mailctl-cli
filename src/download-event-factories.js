@@ -1,24 +1,65 @@
 /**
  * Event factories for download progress events emitted by src/downloader.js.
+ *
+ * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineErrorEvent, defineEvent } from "./define-event.js";
+import { defineEventTable } from "./event-table.js";
+import { formatKB } from "./format-bytes.js";
 
-/** @type {((name: string, user: string) => { type: "download-account-start" } & Record<string, any>) & { type: "download-account-start" }} */
-export const downloadAccountStart = defineEvent("download-account-start", "name", "user");
-/** @type {((count: number) => { type: "download-biz-count" } & Record<string, any>) & { type: "download-biz-count" }} */
-export const downloadBizCount = defineEvent("download-biz-count", "count");
-/** @type {((filename: string) => { type: "download-dry-run" } & Record<string, any>) & { type: "download-dry-run" }} */
-export const downloadDryRun = defineEvent("download-dry-run", "filename");
-/** @type {((filename: string) => { type: "duplicate-content" } & Record<string, any>) & { type: "duplicate-content" }} */
-export const duplicateContent = defineEvent("duplicate-content", "filename");
-/** @type {((filename: string, size: number) => { type: "downloaded" } & Record<string, any>) & { type: "downloaded" }} */
-export const downloaded = defineEvent("downloaded", "filename", "size");
-/** @type {((error: Error, uid: string | number) => { type: "fetch-structure-error", severity: string, error: Error } & Record<string, any>) & { type: "fetch-structure-error" }} */
-export const fetchStructureError = defineErrorEvent("fetch-structure-error", "error", "uid");
-/** @type {((error: Error, filename: string) => { type: "invalid-pdf", severity: string, error: Error } & Record<string, any>) & { type: "invalid-pdf" }} */
-export const invalidPdf = defineErrorEvent("invalid-pdf", "warning", "filename");
-/** @type {((error: Error, filename: string) => { type: "download-failed", severity: string, error: Error } & Record<string, any>) & { type: "download-failed" }} */
-export const downloadFailed = defineErrorEvent("download-failed", "error", "filename");
-/** @type {((error: Error, file: string) => { type: "hash-read-error", severity: string, error: Error } & Record<string, any>) & { type: "hash-read-error" }} */
-export const hashReadError = defineErrorEvent("hash-read-error", "warning", "file");
+const TABLE = {
+  downloadAccountStart: {
+    params: ["name", "user"],
+    render: (e) => `\n📎 Downloading from ${e.name} (${e.user})...`,
+  },
+  downloadBizCount: {
+    params: ["count"],
+    render: (e) => `   🏢 ${e.count} business receipt emails to check for PDFs`,
+  },
+  downloadDryRun: {
+    params: ["filename"],
+    render: (e) => `   📄 [DRY RUN] Would download: ${e.filename}`,
+  },
+  duplicateContent: {
+    params: ["filename"],
+    render: (e) => `      ⏭️  Skipping ${e.filename} — duplicate content`,
+  },
+  downloaded: {
+    params: ["filename", "size"],
+    render: (e) => `   📄 Downloaded: ${e.filename} (${formatKB(e.size)})`,
+  },
+  fetchStructureError: {
+    severity: "error",
+    params: ["uid"],
+    render: (e) => `      ⚠️  Could not fetch structure for UID ${e.uid}: ${e.error.message}`,
+  },
+  invalidPdf: {
+    severity: "warning",
+    params: ["filename"],
+    render: (e) => `      ⚠️  Skipping ${e.filename} — not a valid PDF`,
+  },
+  downloadFailed: {
+    severity: "error",
+    params: ["filename"],
+    render: (e) => `      ⚠️  Download failed for ${e.filename}: ${e.error.message}`,
+  },
+  hashReadError: {
+    severity: "warning",
+    params: ["file"],
+  },
+};
+
+const { factories, renderEvent } = defineEventTable(TABLE);
+
+export const {
+  downloadAccountStart,
+  downloadBizCount,
+  downloadDryRun,
+  duplicateContent,
+  downloaded,
+  fetchStructureError,
+  invalidPdf,
+  downloadFailed,
+  hashReadError,
+} = factories;
+export const renderDownloadEvent = renderEvent;

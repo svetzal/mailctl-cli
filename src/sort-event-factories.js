@@ -1,22 +1,50 @@
 /**
  * Event factories for sort progress events emitted by src/sorter.js.
+ *
+ * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineErrorEvent, defineEvent } from "./define-event.js";
+import { defineEventTable } from "./event-table.js";
 
-/** @type {((name: string, user: string) => { type: "account-start" } & Record<string, any>) & { type: "account-start" }} */
-export const accountStart = defineEvent("account-start", "name", "user");
-/** @type {((folder: string) => { type: "folder-exists" } & Record<string, any>) & { type: "folder-exists" }} */
-export const folderExists = defineEvent("folder-exists", "folder");
-/** @type {((folder: string) => { type: "folder-created" } & Record<string, any>) & { type: "folder-created" }} */
-export const folderCreated = defineEvent("folder-created", "folder");
-/** @type {((error: Error, folder: string) => { type: "folder-error", severity: string, error: Error } & Record<string, any>) & { type: "folder-error" }} */
-export const folderError = defineErrorEvent("folder-error", "error", "folder");
-/** @type {((count: number) => { type: "scan-complete" } & Record<string, any>) & { type: "scan-complete" }} */
-export const scanComplete = defineEvent("scan-complete", "count");
-/** @type {((icon: string, count: number, label: string) => { type: "move-dry-run" } & Record<string, any>) & { type: "move-dry-run" }} */
-export const moveDryRun = defineEvent("move-dry-run", "icon", "count", "label");
-/** @type {((icon: string, count: number, label: string) => { type: "moved" } & Record<string, any>) & { type: "moved" }} */
-export const moved = defineEvent("moved", "icon", "count", "label");
-/** @type {((error: Error, label: string) => { type: "move-error", severity: string, error: Error } & Record<string, any>) & { type: "move-error" }} */
-export const moveError = defineErrorEvent("move-error", "error", "label");
+const TABLE = {
+  accountStart: {
+    params: ["name", "user"],
+    render: (e) => `\n📬 Sorting ${e.name} (${e.user})...`,
+  },
+  folderExists: {
+    params: ["folder"],
+    render: (e) => `   ✅ Folder exists: ${e.folder}`,
+  },
+  folderCreated: {
+    params: ["folder"],
+    render: (e) => `   📁 Created folder: ${e.folder}`,
+  },
+  folderError: {
+    severity: "error",
+    params: ["folder"],
+    render: (e) => `   ❌ Failed to create ${e.folder}: ${e.error.message}`,
+  },
+  scanComplete: {
+    params: ["count"],
+    render: (e) => `   🔍 Found ${e.count} receipt messages to sort`,
+  },
+  moveDryRun: {
+    params: ["icon", "count", "label"],
+    render: (e) => `   ${e.icon} [DRY RUN] Would move ${e.count} messages: ${e.label}`,
+  },
+  moved: {
+    params: ["icon", "count", "label"],
+    render: (e) => `   ${e.icon} Moved ${e.count} messages: ${e.label}`,
+  },
+  moveError: {
+    severity: "error",
+    params: ["label"],
+    render: (e) => `   ⚠️  Move failed (${e.label}): ${e.error.message}`,
+  },
+};
+
+const { factories, renderEvent } = defineEventTable(TABLE);
+
+export const { accountStart, folderExists, folderCreated, folderError, scanComplete, moveDryRun, moved, moveError } =
+  factories;
+export const renderSortEvent = renderEvent;

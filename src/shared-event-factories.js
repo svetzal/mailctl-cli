@@ -21,3 +21,21 @@ export const searchFailed = defineErrorEvent("search-failed", "warning", "mailbo
 export const searchError = defineErrorEvent("search-error", "warning", "term");
 /** @type {((error: Error) => { type: "fetch-error", severity: string, error: Error }) & { type: "fetch-error" }} */
 export const fetchError = defineErrorEvent("fetch-error", "warning");
+
+const sharedRenderMap = {
+  [mailboxLockFailed.type]: (e) => `   Could not lock mailbox ${e.mailbox}: ${e.error.message}`,
+  [searchFailed.type]: (e) => `   Search failed in ${e.mailbox}: ${e.error.message}`,
+};
+
+/**
+ * Handles event types that are emitted by multiple commands:
+ * - mailbox-lock-failed
+ * - search-failed
+ *
+ * @param {object} event
+ * @returns {string | null}
+ */
+export function renderSharedEvent(event) {
+  const handler = sharedRenderMap[event.type];
+  return handler ? handler(event) : null;
+}
