@@ -105,7 +105,7 @@ const renderDownloadReceiptsProgress = createProgressRenderer(renderDownloadRece
 program
   .name("mailctl")
   .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-  .version("1.1.1")
+  .version("1.1.2")
   .option("--account <name>", "email account to use (searches all if omitted)")
   .option("--json", "output results as JSON");
 
