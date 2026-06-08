@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- `search` now includes the screening quarantine folder (`_lma-shield/screened`) instead of silently skipping it. The underscore-prefix exclusion (meant for tool-internal folders like Apple Mail's) was hiding legitimately misrouted mail — e.g. a vendor invoice routed to the screening folder was invisible to `search` from every mailbox. Other `_`-prefixed folders remain excluded; only `*/screened` is now searchable.
+- `search` now includes the screening quarantine folder (`_lma-shield/screened`, created by the Leave Me Alone unsubscribe service) instead of silently skipping it. The underscore-prefix exclusion (meant for tool-internal folders like Apple Mail's) was hiding legitimately screened mail — e.g. a vendor invoice that Leave Me Alone parked in the screening folder was invisible to `search` from every mailbox. Other `_`-prefixed folders remain excluded; only `*/screened` is now searchable.
 
 ## [1.1.1] - 2026-06-07
 

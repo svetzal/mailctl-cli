@@ -48,9 +48,11 @@ export function filterSearchMailboxes(mailboxes, opts = {}) {
   return mailboxes
     .filter((mb) => {
       if (mb.specialUse && SEARCH_EXCLUDED_SPECIAL_USE.has(mb.specialUse)) return false;
-      // Underscore-prefixed folders are tool-internal (e.g. Apple Mail, _lma-shield) and
-      // excluded by default — EXCEPT the screening quarantine, which holds legitimate
-      // misrouted mail (e.g. vendor invoices) and must remain searchable.
+      // Underscore-prefixed folders are tool-internal (e.g. Apple Mail's, or the
+      // Leave Me Alone unsubscribe service's `_lma-shield`) and excluded by default —
+      // EXCEPT the screening quarantine (`_lma-shield/screened`), where Leave Me Alone
+      // parks screened mail that can include legitimate vendor invoices, so it must
+      // remain searchable.
       if (mb.path.startsWith("_") && !mb.path.endsWith("/screened")) return false;
       if (mb.path === "Notes") return false;
       for (const prefix of excludePaths) {
