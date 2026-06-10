@@ -53,7 +53,7 @@ mailctl download-receipts --since 2026-01-01 --budget 300    # 5-minute overall 
 ### Project Structure
 
 ```text
-src/cli.js                     — CLI entry point: true thin dispatcher (~604 lines), each .action() is 5–15 lines with no inline event rendering logic
+src/cli.js                     — CLI entry point: true thin dispatcher; `buildProgram(deps)` factory is dependency-injected and unit-tested in `test/cli.test.js`; each .action() is 5–15 lines with no inline event rendering logic
 
 Command orchestrators (testable, injected deps):
 src/search-command.js          — Search orchestration (cross-account, date filters, dedup)
