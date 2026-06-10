@@ -426,6 +426,12 @@ describe("extractService", () => {
   it("returns null when no service pattern found", () => {
     expect(extractService("Just a plain email with no label")).toBeNull();
   });
+
+  it("returns service names between 41 and 60 chars from labeled-price pattern", () => {
+    expect(extractService("Extended Professional Cloud Storage Service $9.99")).toBe(
+      "Extended Professional Cloud Storage Service",
+    );
+  });
 });
 
 // ── extractMetadata (integration) ────────────────────────────────────────────

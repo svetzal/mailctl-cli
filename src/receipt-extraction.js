@@ -65,8 +65,17 @@ export const MIN_INVOICE_DIGITS = 3;
 /** Maximum characters for a derived vendor or filename name. */
 export const MAX_VENDOR_NAME_LENGTH = 30;
 
+/** Minimum characters for a derived vendor or filename name. */
+export const MIN_VENDOR_NAME_LENGTH = 3;
+
 /** Maximum characters for an extracted service or product name. */
 export const MAX_SERVICE_LENGTH = 60;
+
+/** Minimum characters for an extracted service or product name. */
+export const MIN_SERVICE_LENGTH = 3;
+
+/** Minimum total character count for a valid invoice code. */
+export const MIN_INVOICE_CODE_LENGTH = 4;
 
 /** Byte window after a forwarded-message marker to scan for the original sender. */
 export const FORWARDED_SCAN_WINDOW = 1000;
@@ -138,17 +147,18 @@ export function vendorFromDomain(domain, vendorDomainMap) {
  * @returns {string|null}
  */
 export function extractVendorFromContent(subject, _bodyText) {
+  const tail = `{${MIN_VENDOR_NAME_LENGTH - 1},}`;
   const patterns = [
-    /(?:from|by)\s+([A-Z][A-Za-z0-9 &.-]{2,30})(?:\s*[-–|]|\n)/i,
-    /^(?:Fwd?:\s*)?(?:Receipt|Invoice|Order)\s+(?:from|for)\s+([A-Za-z][A-Za-z0-9 &.-]{2,30})/i,
-    /(?:Your\s+)?([A-Z][A-Za-z0-9 &.-]{2,30})\s+(?:receipt|invoice|order)/i,
+    new RegExp(`(?:from|by)\\s+([A-Z][A-Za-z0-9 &.-]${tail})(?:\\s*[-–|]|\\n)`, "i"),
+    new RegExp(`^(?:Fwd?:\\s*)?(?:Receipt|Invoice|Order)\\s+(?:from|for)\\s+([A-Za-z][A-Za-z0-9 &.-]${tail})`, "i"),
+    new RegExp(`(?:Your\\s+)?([A-Z][A-Za-z0-9 &.-]${tail})\\s+(?:receipt|invoice|order)`, "i"),
   ];
 
   for (const pat of patterns) {
     const match = subject.match(pat);
     if (match) {
       const name = match[1].trim();
-      if (name.length >= 3 && name.length <= MAX_VENDOR_NAME_LENGTH) return sanitizeFilename(name);
+      if (name.length >= MIN_VENDOR_NAME_LENGTH && name.length <= MAX_VENDOR_NAME_LENGTH) return sanitizeFilename(name);
     }
   }
   return null;
@@ -345,14 +355,15 @@ export function isValidInvoiceNumber(s, overrides = {}) {
  */
 export function extractInvoiceNumber(subject, bodyText, overrides = {}) {
   const combined = `${subject}\n${bodyText}`;
+  const codeTail = `{${MIN_INVOICE_CODE_LENGTH - 1},}`;
   const patterns = [
-    /#\s*([A-Z0-9][-A-Z0-9]{3,})\b/,
-    /Invoice\s*#?\s*:?\s*([A-Z0-9][-A-Z0-9]{3,})/i,
-    /INV[-_]?([A-Z0-9]{4,})/i,
-    /Receipt\s*#?\s*:?\s*([A-Z0-9][-A-Z0-9]{3,})/i,
-    /Order\s*(?:ID|#)\s*:?\s*([A-Z0-9][-A-Z0-9]{3,})/i,
-    /Transaction\s*(?:ID|#)\s*:?\s*([A-Z0-9][-A-Z0-9]{3,})/i,
-    /Reference\s*#?\s*:?\s*([A-Z0-9][-A-Z0-9]{3,})/i,
+    new RegExp(`#\\s*([A-Z0-9][-A-Z0-9]${codeTail})\\b`),
+    new RegExp(`Invoice\\s*#?\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    new RegExp(`INV[-_]?([A-Z0-9]{${MIN_INVOICE_CODE_LENGTH},})`, "i"),
+    new RegExp(`Receipt\\s*#?\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    new RegExp(`Order\\s*(?:ID|#)\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    new RegExp(`Transaction\\s*(?:ID|#)\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    new RegExp(`Reference\\s*#?\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
   ];
 
   for (const pat of patterns) {
@@ -432,9 +443,10 @@ export function extractTax(text) {
  * @returns {string|null}
  */
 export function extractService(text) {
+  const serviceTail = `{${MIN_SERVICE_LENGTH - 1},}`;
   const patterns = [
-    /(?:Plan|Product|Subscription)\s*:\s*([A-Za-z][A-Za-z0-9 .&+-]{1,60})(?:\n|$)/i,
-    /^[ \t]*([A-Za-z][A-Za-z0-9 .&+-]{2,40})\s+\$[\d,]+\.\d{2}/m,
+    new RegExp(`(?:Plan|Product|Subscription)\\s*:\\s*([A-Za-z][A-Za-z0-9 .&+-]${serviceTail})(?:\\n|$)`, "i"),
+    new RegExp(`^[ \\t]*([A-Za-z][A-Za-z0-9 .&+-]${serviceTail})\\s+\\$[\\d,]+\\.\\d{2}`, "m"),
   ];
 
   const GARBAGE_PATTERNS = [
@@ -453,7 +465,7 @@ export function extractService(text) {
     const match = text.match(pat);
     if (match) {
       const service = match[1].trim();
-      if (service.length < 3 || service.length > MAX_SERVICE_LENGTH) continue;
+      if (service.length < MIN_SERVICE_LENGTH || service.length > MAX_SERVICE_LENGTH) continue;
       if (GARBAGE_PATTERNS.some((gp) => gp.test(service))) continue;
       return service;
     }
