@@ -164,6 +164,27 @@ describe("formatDownloadReceiptsText", () => {
       const text = formatDownloadReceiptsText(result, {});
       expect(text).toContain("Errors:        1");
     });
+
+    it("shows search failures warning when searchFailures > 0", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats: { ...stats, searchFailures: 3 } };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("3 mailbox searches failed");
+    });
+
+    it("omits search failures warning when searchFailures is 0", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats: { ...stats, searchFailures: 0 } };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).not.toContain("mailbox search");
+    });
+
+    it("uses singular form for one search failure", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats: { ...stats, searchFailures: 1 } };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("1 mailbox search failed");
+    });
   });
 });
 

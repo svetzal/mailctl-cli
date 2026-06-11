@@ -125,7 +125,7 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
       excludePaths: ["Receipts/"],
     });
 
-    const results = await scanForReceipts(client, account.name, mailboxes, { since });
+    const { results } = await scanForReceipts(client, account.name, mailboxes, { since });
     onProgress(scanComplete(results.length));
 
     await forEachMailboxGroup(client, groupByMailbox(results), async (mailbox, messages) => {

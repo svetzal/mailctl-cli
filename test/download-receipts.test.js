@@ -1707,4 +1707,73 @@ describe("downloadReceiptEmails — --max cap", () => {
     const maxEvents = events.filter((e) => e.type === "max-reached");
     expect(maxEvents.length).toBe(1);
   });
+
+  it("counts searchFailures when a mailbox search throws", async () => {
+    // Client whose search rejects — simulates a partially-failed IMAP search
+    const client = {
+      getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+      search: mock(() => Promise.reject(new Error("IMAP search error"))),
+      mailbox: { exists: 1 },
+      fetch: mock(() => (async function* () {})()),
+    };
+
+    const { mockFs } = makeMockFs();
+    const { stats } = await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+      },
+    );
+
+    expect(stats.searchFailures).toBeGreaterThan(0);
+  });
+
+  it("increments stats.errors once when processMessage returns { action: 'error' }", async () => {
+    const client = makeEmailClient();
+    const { mockFs } = makeMockFs();
+
+    const { stats } = await downloadReceiptEmails(
+      { outputDir: tmpDir },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: mock(() => Promise.resolve({ action: "error" })),
+      },
+    );
+
+    expect(stats.errors).toBe(1);
+    expect(stats.timedOut).toBe(0);
+  });
+
+  it("increments stats.timedOut and not stats.errors when withTimeout rejects with ETIMEDOUT", async () => {
+    const client = makeEmailClient();
+    const { mockFs } = makeMockFs();
+    const timeoutErr = new Error("timed out");
+    /** @type {any} */ (timeoutErr).code = "ETIMEDOUT";
+
+    const { stats } = await downloadReceiptEmails(
+      { outputDir: tmpDir, timeoutMs: 1 },
+      {
+        fs: mockFs,
+        subprocess: { execFileSync: mock(() => {}) },
+        loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+        forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+        listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+        createLlmBroker: () => null,
+        processMessage: () => new Promise(() => {}),
+      },
+    );
+
+    expect(stats.timedOut).toBe(1);
+    expect(stats.errors).toBe(0);
+  });
 });

@@ -49,10 +49,11 @@ export async function connect(account, onProgress = () => {}) {
  * @param {object} [opts]
  * @param {Date}   [opts.since] - only messages after this date
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<Array>}
+ * @returns {Promise<{ results: Array, failures: Array<{ mailbox: string, phase: string, term?: string, error: Error }> }>}
  */
 export async function scanForReceipts(client, accountName, mailboxes, opts = {}, onProgress = () => {}) {
   const results = [];
+  const failures = [];
 
   // Deduplicate UIDs per mailbox to avoid fetching the same message twice
   for (const mailbox of mailboxes) {
@@ -78,6 +79,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
             uids = await client.search(searchCriteria, { uid: true });
           } catch (err) {
             onProgress(searchError(err, term));
+            failures.push({ mailbox, phase: "search", term, error: err });
             continue;
           }
 
@@ -100,6 +102,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
           }
         } catch (err) {
           onProgress(fetchError(err));
+          failures.push({ mailbox, phase: "fetch", error: err });
         }
 
         return mailboxResults;
@@ -109,7 +112,7 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
     if (perMailbox) results.push(...perMailbox);
   }
 
-  return results;
+  return { results, failures };
 }
 
 /**

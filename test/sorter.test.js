@@ -41,7 +41,7 @@ describe("sortReceipts", () => {
       forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
       listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
       filterScanMailboxes: () => ["INBOX"],
-      scanForReceipts: () => Promise.resolve([makeMsg(1, "billing@vendor.com")]),
+      scanForReceipts: () => Promise.resolve({ results: [makeMsg(1, "billing@vendor.com")], failures: [] }),
     };
 
     it("calls messageMove exactly once", async () => {
@@ -65,7 +65,7 @@ describe("sortReceipts", () => {
         forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
         listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
         filterScanMailboxes: () => ["INBOX"],
-        scanForReceipts: () => Promise.resolve([makeMsg(2, "family@home.com")]),
+        scanForReceipts: () => Promise.resolve({ results: [makeMsg(2, "family@home.com")], failures: [] }),
       },
     );
 
@@ -83,7 +83,7 @@ describe("sortReceipts", () => {
         forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
         listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
         filterScanMailboxes: () => ["INBOX"],
-        scanForReceipts: () => Promise.resolve([makeMsg(3, "unknown@example.com")]),
+        scanForReceipts: () => Promise.resolve({ results: [makeMsg(3, "unknown@example.com")], failures: [] }),
       };
     };
 
@@ -109,7 +109,7 @@ describe("sortReceipts", () => {
         forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
         listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
         filterScanMailboxes: () => ["INBOX"],
-        scanForReceipts: () => Promise.resolve([makeMsg(4, "billing@vendor.com")]),
+        scanForReceipts: () => Promise.resolve({ results: [makeMsg(4, "billing@vendor.com")], failures: [] }),
       },
     );
 
@@ -128,7 +128,7 @@ describe("sortReceipts", () => {
       forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
       listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
       filterScanMailboxes: () => ["INBOX"],
-      scanForReceipts: () => Promise.resolve([makeMsg(5, "billing@vendor.com")]),
+      scanForReceipts: () => Promise.resolve({ results: [makeMsg(5, "billing@vendor.com")], failures: [] }),
     });
 
     it("reports skipped count greater than 0", async () => {
@@ -158,7 +158,10 @@ describe("sortReceipts", () => {
           ]),
         filterScanMailboxes: () => ["INBOX", "Archive"],
         scanForReceipts: () =>
-          Promise.resolve([makeMsg(10, "billing@vendor.com", "INBOX"), makeMsg(11, "billing@vendor.com", "Archive")]),
+          Promise.resolve({
+            results: [makeMsg(10, "billing@vendor.com", "INBOX"), makeMsg(11, "billing@vendor.com", "Archive")],
+            failures: [],
+          }),
       },
     );
 
@@ -180,7 +183,7 @@ describe("sortReceipts", () => {
           forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
           listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
           filterScanMailboxes: () => ["INBOX"],
-          scanForReceipts: () => Promise.resolve([makeMsg(5, "billing@vendor.com")]),
+          scanForReceipts: () => Promise.resolve({ results: [makeMsg(5, "billing@vendor.com")], failures: [] }),
         },
         (e) => events.push(e),
       );
@@ -202,7 +205,7 @@ describe("sortReceipts", () => {
           forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
           listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
           filterScanMailboxes: () => ["INBOX"],
-          scanForReceipts: () => Promise.resolve([makeMsg(5, "billing@vendor.com")]),
+          scanForReceipts: () => Promise.resolve({ results: [makeMsg(5, "billing@vendor.com")], failures: [] }),
         },
         (e) => events.push(e),
       );
@@ -228,7 +231,7 @@ describe("sortReceipts", () => {
           forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
           listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
           filterScanMailboxes: () => ["INBOX"],
-          scanForReceipts: () => Promise.resolve([makeMsg(6, "billing@vendor.com")]),
+          scanForReceipts: () => Promise.resolve({ results: [makeMsg(6, "billing@vendor.com")], failures: [] }),
         },
         (e) => events.push(e),
       );
@@ -251,7 +254,7 @@ describe("sortReceipts", () => {
           forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
           listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
           filterScanMailboxes: () => ["INBOX"],
-          scanForReceipts: () => Promise.resolve([makeMsg(6, "billing@vendor.com")]),
+          scanForReceipts: () => Promise.resolve({ results: [makeMsg(6, "billing@vendor.com")], failures: [] }),
         },
         (e) => events.push(e),
       );

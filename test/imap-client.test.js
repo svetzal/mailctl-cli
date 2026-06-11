@@ -174,10 +174,10 @@ describe("scanForReceipts", () => {
     });
   }
 
-  it("returns an empty array when no receipt-matching messages are found", async () => {
+  it("returns empty results when no receipt-matching messages are found", async () => {
     const client = makeClient({ searchUids: [], envelopes: [] });
 
-    const results = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+    const { results } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
 
     expect(results).toEqual([]);
   });
@@ -198,7 +198,7 @@ describe("scanForReceipts", () => {
       ],
     });
 
-    const results = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+    const { results } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
 
     expect(results.length).toBeGreaterThan(0);
   });
@@ -206,7 +206,7 @@ describe("scanForReceipts", () => {
   it("skips a mailbox when getMailboxLock throws", async () => {
     const client = makeClient({ lockFails: true });
 
-    const results = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+    const { results } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
 
     expect(results).toEqual([]);
   });
@@ -276,12 +276,30 @@ describe("scanForReceipts", () => {
       }),
     });
 
-    const results = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+    const { results } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
 
     // UID 99 should only appear once even though multiple search terms matched
     const uidsFound = results.map((r) => r.uid);
     const uniqueUids = new Set(uidsFound);
     expect(uniqueUids.size).toBe(uidsFound.length);
+  });
+
+  it("records a failure entry when a search term throws", async () => {
+    const searchErr = new Error("IMAP search failed");
+    const client = /** @type {any} */ ({
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
+      mailbox: { exists: 1 },
+      search: mock(() => Promise.reject(searchErr)),
+      fetch: mock(() => (async function* () {})()),
+    });
+
+    const { results, failures } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+
+    expect(results).toEqual([]);
+    expect(failures.length).toBeGreaterThan(0);
+    expect(failures[0].mailbox).toBe("INBOX");
+    expect(failures[0].phase).toBe("search");
+    expect(failures[0].error).toBe(searchErr);
   });
 
   it("passes the since option to each search", async () => {
@@ -299,5 +317,13 @@ describe("scanForReceipts", () => {
     for (const [criteria] of calls) {
       expect(criteria.since).toBe(since);
     }
+  });
+
+  it("returns empty failures when all searches succeed", async () => {
+    const client = makeClient({ searchUids: [], envelopes: [] });
+
+    const { failures } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+
+    expect(failures).toEqual([]);
   });
 });

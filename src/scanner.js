@@ -68,7 +68,7 @@ export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () 
       }
     }
 
-    const results = await scanForReceipts(client, account.name, mailboxes, { since });
+    const { results } = await scanForReceipts(client, account.name, mailboxes, { since });
     onProgress(scanAccountComplete(account.name, results.length));
     allResults.push(...results);
   });

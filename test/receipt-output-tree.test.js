@@ -205,6 +205,56 @@ describe("walkOutputTree", () => {
 
       expect(errors[0].ctx.level).toBe("file");
     });
+
+    it("passes ctx.op as visitor to onError when visitor throws", () => {
+      const monthDir4 = join(tmpDir, "2025", "03");
+      mkdirSync(monthDir4, { recursive: true });
+      writeFileSync(join(monthDir4, "bad.json"), "{}");
+
+      const errors = [];
+      walkOutputTree(
+        tmpDir,
+        REAL_FS,
+        (_filePath, fileName) => {
+          if (fileName === "bad.json") throw new Error("visitor-fail");
+        },
+        (err, ctx) => errors.push({ err, ctx }),
+      );
+
+      expect(errors[0].ctx.op).toBe("visitor");
+    });
+  });
+
+  describe("calls onError with op readdir when a month directory read fails", () => {
+    it("passes ctx.op as readdir and ctx.level as month", () => {
+      // Build a fake fs where readdir throws for one month directory
+      const yearPath = join(tmpDir, "2025");
+      mkdirSync(join(yearPath, "03"), { recursive: true });
+      mkdirSync(join(yearPath, "04"), { recursive: true });
+      writeFileSync(join(yearPath, "04", "receipt.json"), "{}");
+
+      const errors = [];
+      const mockFs = {
+        exists: () => true,
+        readdir: (p) => {
+          if (p === join(yearPath, "03")) throw new Error("readdir failed");
+          return REAL_FS.readdir(p);
+        },
+      };
+
+      const visited = [];
+      walkOutputTree(
+        tmpDir,
+        /** @type {any} */ (mockFs),
+        (_fp, fn) => visited.push(fn),
+        (_err, ctx) => errors.push(ctx),
+      );
+
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].op).toBe("readdir");
+      expect(errors[0].level).toBe("month");
+      expect(visited).toContain("receipt.json");
+    });
   });
 });
 

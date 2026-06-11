@@ -73,7 +73,7 @@ const TABLE = {
     params: ["stats"],
     render: (e) => {
       const s = e.stats;
-      return [
+      const lines = [
         `\n=== Download Complete ===`,
         `Found:       ${s.found}`,
         `Downloaded:  ${s.downloaded}`,
@@ -83,7 +83,13 @@ const TABLE = {
         `Duplicates:  ${s.alreadyHave}`,
         `Errors:      ${s.errors}`,
         `Timed out:   ${s.timedOut ?? 0}`,
-      ].join("\n");
+      ];
+      if ((s.searchFailures ?? 0) > 0) {
+        lines.push(
+          `⚠ ${s.searchFailures} mailbox search${s.searchFailures === 1 ? "" : "es"} failed — results may be incomplete`,
+        );
+      }
+      return lines.join("\n");
     },
   },
 

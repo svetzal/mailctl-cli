@@ -7,7 +7,7 @@ import { createFormatOutput } from "./cli-helpers.js";
 /**
  * @typedef {{ mode: "listVendors", configVendors: string[], recentVendors: VendorEntry[] }
  *   | { mode: "reprocess", reprocessed: number, skipped: number, errors: number }
- *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, alreadyHave: number, errors: number }, records?: object[] }
+ *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, alreadyHave: number, errors: number, searchFailures?: number }, records?: object[] }
  * } DownloadReceiptsResult
  */
 
@@ -45,14 +45,20 @@ export function formatDownloadReceiptsText(result, opts) {
     ].join("\n");
   }
 
-  return [
+  const lines = [
     "\n=== Download Receipts Complete ===",
     `Found:         ${result.stats.found}`,
     `Downloaded:    ${result.stats.downloaded}`,
     `No PDF:        ${result.stats.noPdf}`,
     `Already have:  ${result.stats.alreadyHave}`,
     `Errors:        ${result.stats.errors}`,
-  ].join("\n");
+  ];
+  if ((result.stats.searchFailures ?? 0) > 0) {
+    lines.push(
+      `⚠ ${result.stats.searchFailures} mailbox search${result.stats.searchFailures === 1 ? "" : "es"} failed — results may be incomplete`,
+    );
+  }
+  return lines.join("\n");
 }
 
 /**

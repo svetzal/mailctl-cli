@@ -131,6 +131,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     alreadyHave: 0,
     errors: 0,
     timedOut: 0,
+    searchFailures: 0,
   };
   let processedCount = 0;
   let stopped = false;
@@ -148,7 +149,8 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     targetAccounts,
     since,
     { forEachAccount, listMailboxes, onProgress },
-    async (client, account, searchResults) => {
+    async (client, account, searchResults, accountSearchFailures) => {
+      stats.searchFailures += accountSearchFailures.length;
       const {
         filtered: unique,
         vendorExcluded,
@@ -200,11 +202,13 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
             }
           } catch (err) {
             if (/** @type {any} */ (err).code === "ETIMEDOUT") {
+              // withTimeout rejected — transient per-message timeout
               onProgress(messageTimeout(msg.uid, perMessageTimeoutMs));
               stats.timedOut++;
             } else {
-              // Non-timeout errors are already handled inside processReceiptMessage;
-              // re-throwing here would be unexpected, but guard defensively.
+              // Unexpected throw from withTimeout itself; processReceiptMessage
+              // handles its own errors by returning { action: "error" } so those
+              // are tallied by tallyReceiptAction above, not here.
               onProgress(processError(err, msg.uid));
               stats.errors++;
             }
@@ -357,8 +361,9 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     }
 
     // Re-run extraction
+    let metadata;
     try {
-      const metadata = await extractMetadataWithLLM(
+      metadata = await extractMetadataWithLLM(
         llm.broker,
         extractionText,
         sidecar.subject || "",
@@ -366,36 +371,44 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
         sidecar.vendor || "",
         sidecar.date ? new Date(sidecar.date) : new Date(),
       );
-
-      const reprocessDecision = classifyReprocessResult(metadata);
-
-      if (reprocessDecision.action === "noData") {
-        onProgress(reprocessNoData(jsonFilename));
-        stats.errors++;
-        results.push({ file: jsonFilename, status: "error", reason: "LLM extraction failed" });
-        continue;
-      }
-
-      if (reprocessDecision.action === "reclassified") {
-        onProgress(reprocessReclassified(jsonFilename));
-        fs.rm(jsonPath, { force: true });
-        stats.reclassified++;
-        results.push({ file: jsonFilename, status: "reclassified", reason: "non-invoice" });
-        continue;
-      }
-
-      const reprocessedAt = new Date().toISOString();
-      const updated = buildReprocessedSidecar(metadata, sidecar, reprocessedAt);
-
-      fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
-      onProgress(reprocessUpdated(jsonFilename));
-      stats.reprocessed++;
-      results.push({ file: jsonFilename, status: "reprocessed" });
     } catch (err) {
       onProgress(reprocessError(err, jsonFilename));
       stats.errors++;
-      results.push({ file: jsonFilename, status: "error", reason: err.message });
+      results.push({ file: jsonFilename, status: "error", reason: err.message, phase: "llm" });
+      continue;
     }
+
+    const reprocessDecision = classifyReprocessResult(metadata);
+
+    if (reprocessDecision.action === "noData") {
+      onProgress(reprocessNoData(jsonFilename));
+      stats.errors++;
+      results.push({ file: jsonFilename, status: "error", reason: "LLM extraction failed" });
+      continue;
+    }
+
+    if (reprocessDecision.action === "reclassified") {
+      onProgress(reprocessReclassified(jsonFilename));
+      fs.rm(jsonPath, { force: true });
+      stats.reclassified++;
+      results.push({ file: jsonFilename, status: "reclassified", reason: "non-invoice" });
+      continue;
+    }
+
+    const reprocessedAt = new Date().toISOString();
+    const updated = buildReprocessedSidecar(metadata, sidecar, reprocessedAt);
+
+    try {
+      fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
+    } catch (err) {
+      onProgress(reprocessError(err, jsonFilename));
+      stats.errors++;
+      results.push({ file: jsonFilename, status: "error", reason: err.message, phase: "write" });
+      continue;
+    }
+    onProgress(reprocessUpdated(jsonFilename));
+    stats.reprocessed++;
+    results.push({ file: jsonFilename, status: "reprocessed" });
   }
 
   onProgress(reprocessSummary(stats.reprocessed, stats.skipped, stats.reclassified, stats.errors));

@@ -35,7 +35,7 @@ describe("scanAllAccounts", () => {
           ),
         listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
         filterScanMailboxes: (list) => list.map((m) => m.path),
-        scanForReceipts: () => Promise.resolve(fakeResults),
+        scanForReceipts: () => Promise.resolve({ results: fakeResults, failures: [] }),
       },
     );
 
@@ -65,7 +65,7 @@ describe("scanAllAccounts", () => {
         filterScanMailboxes: (list) => list.map((m) => m.path),
         scanForReceipts: async (_client, accountName) => {
           callCount++;
-          return [makeResult("billing@vendor.com", accountName)];
+          return { results: [makeResult("billing@vendor.com", accountName)], failures: [] };
         },
       },
     ).then((r) => {
@@ -84,7 +84,7 @@ describe("scanAllAccounts", () => {
   });
 
   it("uses the provided mailboxes override instead of listing", async () => {
-    const scanForReceipts = mock(() => Promise.resolve([]));
+    const scanForReceipts = mock(() => Promise.resolve({ results: [], failures: [] }));
 
     await scanAllAccounts(
       { mailboxes: ["INBOX", "Archive"] },
@@ -114,7 +114,7 @@ describe("scanAllAccounts", () => {
         filterScanMailboxes: (list) => list.map((m) => m.path),
         scanForReceipts: async (_client, _name, _mailboxes, scanOpts) => {
           capturedOpts = scanOpts;
-          return [];
+          return { results: [], failures: [] };
         },
       },
     );

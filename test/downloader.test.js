@@ -67,7 +67,7 @@ function makeBaseDeps(client, overrides = {}) {
     forEachAccount: async (_accounts, fn) => fn(client, { name: "Test", user: "test@example.com" }),
     listMailboxes: () => Promise.resolve([{ path: "INBOX", specialUse: null, flags: new Set() }]),
     filterScanMailboxes: () => ["INBOX"],
-    scanForReceipts: () => Promise.resolve([makeReceipt()]),
+    scanForReceipts: () => Promise.resolve({ results: [makeReceipt()], failures: [] }),
     _written: written,
     _manifest: manifest,
     ...overrides,

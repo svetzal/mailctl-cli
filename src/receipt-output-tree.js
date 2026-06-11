@@ -136,19 +136,19 @@ export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
               try {
                 visitor(join(monthPath, file), file);
               } catch (err) {
-                onError(err, { path: join(monthPath, file), level: "file" });
+                onError(err, { path: join(monthPath, file), level: "file", op: "visitor" });
               }
             }
           } catch (err) {
-            onError(err, { path: monthPath, level: "month" });
+            onError(err, { path: monthPath, level: "month", op: "readdir" });
           }
         }
       } catch (err) {
-        onError(err, { path: yearPath, level: "year" });
+        onError(err, { path: yearPath, level: "year", op: "readdir" });
       }
     }
   } catch (err) {
-    onError(err, { path: outputDir, level: "root" });
+    onError(err, { path: outputDir, level: "root", op: "readdir" });
   }
 }
 

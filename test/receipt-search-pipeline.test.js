@@ -25,29 +25,31 @@ function makeMsg(uid, messageId, fromAddress = "billing@acme.com", fromName = "A
   };
 }
 
-/** @param {{ mailboxes?: object[], messages?: Record<string, object[]> }} [opts] */
-function makeFns({ mailboxes = [], messages = {} } = {}) {
+/** @param {{ mailboxes?: object[], messages?: Record<string, object[]>, failures?: Record<string, object[]> }} [opts] */
+function makeFns({ mailboxes = [], messages = {}, failures = {} } = {}) {
   return {
     listMailboxes: mock(() => Promise.resolve(mailboxes)),
-    searchMailboxForReceipts: mock((_client, _accountName, mbPath) => Promise.resolve(messages[mbPath] ?? [])),
+    searchMailboxForReceipts: mock((_client, _accountName, mbPath) =>
+      Promise.resolve({ results: messages[mbPath] ?? [], failures: failures[mbPath] ?? [] }),
+    ),
   };
 }
 
 // ── searchAccountForReceipts ──────────────────────────────────────────────────
 
 describe("searchAccountForReceipts", () => {
-  it("returns empty array when no mailboxes match", async () => {
+  it("returns empty results when no mailboxes match", async () => {
     const client = {};
     const account = { name: "TestAccount" };
     const since = new Date();
     const fns = makeFns({ mailboxes: [] });
 
-    const result = await searchAccountForReceipts(client, account, since, fns);
+    const { results } = await searchAccountForReceipts(client, account, since, fns);
 
-    expect(result).toHaveLength(0);
+    expect(results).toHaveLength(0);
   });
 
-  it("returns empty array when mailboxes exist but no emails found", async () => {
+  it("returns empty results when mailboxes exist but no emails found", async () => {
     const client = {};
     const account = { name: "TestAccount" };
     const since = new Date();
@@ -56,9 +58,9 @@ describe("searchAccountForReceipts", () => {
       messages: { INBOX: [] },
     });
 
-    const result = await searchAccountForReceipts(client, account, since, fns);
+    const { results } = await searchAccountForReceipts(client, account, since, fns);
 
-    expect(result).toHaveLength(0);
+    expect(results).toHaveLength(0);
   });
 
   describe("returns results from a single mailbox", () => {
@@ -75,13 +77,13 @@ describe("searchAccountForReceipts", () => {
     }
 
     it("returns exactly one result", async () => {
-      const result = await runSingleMailboxSearch();
-      expect(result).toHaveLength(1);
+      const { results } = await runSingleMailboxSearch();
+      expect(results).toHaveLength(1);
     });
 
     it("returns the correct uid", async () => {
-      const result = await runSingleMailboxSearch();
-      expect(result[0].uid).toBe(1);
+      const { results } = await runSingleMailboxSearch();
+      expect(results[0].uid).toBe(1);
     });
   });
 
@@ -99,9 +101,9 @@ describe("searchAccountForReceipts", () => {
       },
     });
 
-    const result = await searchAccountForReceipts(client, account, since, fns);
+    const { results } = await searchAccountForReceipts(client, account, since, fns);
 
-    expect(result).toMatchObject([{ uid: 1 }]);
+    expect(results).toMatchObject([{ uid: 1 }]);
   });
 
   it("returns results from multiple mailboxes when message-ids are unique", async () => {
@@ -118,9 +120,27 @@ describe("searchAccountForReceipts", () => {
       },
     });
 
-    const result = await searchAccountForReceipts(client, account, since, fns);
+    const { results } = await searchAccountForReceipts(client, account, since, fns);
 
-    expect(result).toHaveLength(2);
+    expect(results).toHaveLength(2);
+  });
+
+  it("aggregates failures from all mailboxes", async () => {
+    const client = {};
+    const account = { name: "TestAccount" };
+    const since = new Date();
+    const failure = { mailbox: "INBOX", phase: "search", error: new Error("search failed") };
+    const fns = makeFns({
+      mailboxes: [makeMailbox("INBOX"), makeMailbox("Archive")],
+      messages: { Archive: [makeMsg(1, "msg-1@acme.com")] },
+      failures: { INBOX: [failure] },
+    });
+
+    const { results, failures } = await searchAccountForReceipts(client, account, since, fns);
+
+    expect(results).toHaveLength(1);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toBe(failure);
   });
 
   it("passes the since date to searchMailboxForReceipts", async () => {
@@ -132,7 +152,7 @@ describe("searchAccountForReceipts", () => {
       listMailboxes: mock(() => Promise.resolve([makeMailbox("INBOX")])),
       searchMailboxForReceipts: mock((_c, _name, _mbPath, s) => {
         capturedSince.push(s);
-        return Promise.resolve([]);
+        return Promise.resolve({ results: [], failures: [] });
       }),
     };
 
@@ -150,7 +170,7 @@ describe("searchAccountForReceipts", () => {
       listMailboxes: mock(() => Promise.resolve([makeMailbox("INBOX")])),
       searchMailboxForReceipts: mock((_c, name) => {
         capturedNames.push(name);
-        return Promise.resolve([]);
+        return Promise.resolve({ results: [], failures: [] });
       }),
     };
 
@@ -236,12 +256,12 @@ describe("forEachReceiptSearchAccount", () => {
 // ── searchMailboxForReceipts ──────────────────────────────────────────────────
 
 describe("searchMailboxForReceipts", () => {
-  it("returns an empty array when getMailboxLock throws", async () => {
+  it("returns empty results when getMailboxLock throws", async () => {
     const client = {
       getMailboxLock: mock(() => Promise.reject(new Error("no such mailbox"))),
     };
-    const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
-    expect(result).toHaveLength(0);
+    const { results } = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
+    expect(results).toHaveLength(0);
   });
 
   describe("emits mailbox-lock-failed event when getMailboxLock throws", () => {
@@ -315,14 +335,23 @@ describe("searchMailboxForReceipts", () => {
       expect(errorEvents[0].error).toBe(searchErr);
     });
 
-    it("returns an empty array after error", async () => {
+    it("returns empty results after error", async () => {
       const { client } = makeSearchErrClient();
-      const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
-      expect(result).toHaveLength(0);
+      const { results } = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
+      expect(results).toHaveLength(0);
+    });
+
+    it("records a failure entry for the failed search term", async () => {
+      const { client, searchErr } = makeSearchErrClient();
+      const { failures } = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
+      expect(failures.length).toBeGreaterThan(0);
+      expect(failures[0].mailbox).toBe("INBOX");
+      expect(failures[0].phase).toBe("search");
+      expect(failures[0].error).toBe(searchErr);
     });
   });
 
-  it("returns an empty array when no UIDs match any search term", async () => {
+  it("returns empty results when no UIDs match any search term", async () => {
     const lock = { release: mock(() => {}) };
     const client = {
       getMailboxLock: mock(() => Promise.resolve(lock)),
@@ -330,8 +359,8 @@ describe("searchMailboxForReceipts", () => {
       mailbox: { exists: 0 },
       fetch: mock(() => (async function* () {})()),
     };
-    const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
-    expect(result).toHaveLength(0);
+    const { results } = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
+    expect(results).toHaveLength(0);
   });
 
   describe("deduplicates UIDs across multiple search terms", () => {
@@ -360,14 +389,14 @@ describe("searchMailboxForReceipts", () => {
 
     it("returns only one result despite multiple matching search terms", async () => {
       const client = makeDedupClient();
-      const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
-      expect(result).toHaveLength(1);
+      const { results } = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
+      expect(results).toHaveLength(1);
     });
 
     it("returns the correct uid in the deduplicated result", async () => {
       const client = makeDedupClient();
-      const result = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
-      expect(result[0].uid).toBe(42);
+      const { results } = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
+      expect(results[0].uid).toBe(42);
     });
   });
 
@@ -410,37 +439,51 @@ describe("searchMailboxForReceipts", () => {
     }
 
     it("sets uid", async () => {
-      const [result] = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
+      const {
+        results: [result],
+      } = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
       expect(result.uid).toBe(99);
     });
 
     it("lowercases fromAddress", async () => {
-      const [result] = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
+      const {
+        results: [result],
+      } = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
       expect(result.fromAddress).toBe("bill@acme.com");
     });
 
     it("sets fromName", async () => {
-      const [result] = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
+      const {
+        results: [result],
+      } = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
       expect(result.fromName).toBe("Acme Billing");
     });
 
     it("sets subject", async () => {
-      const [result] = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
+      const {
+        results: [result],
+      } = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
       expect(result.subject).toBe("Invoice #123");
     });
 
     it("sets messageId", async () => {
-      const [result] = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
+      const {
+        results: [result],
+      } = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
       expect(result.messageId).toBe("msg-99@acme.com");
     });
 
     it("sets account", async () => {
-      const [result] = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
+      const {
+        results: [result],
+      } = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
       expect(result.account).toBe("TestAccount");
     });
 
     it("sets mailbox", async () => {
-      const [result] = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
+      const {
+        results: [result],
+      } = await searchMailboxForReceipts(makeEnvelopeClient(), "TestAccount", "INBOX", new Date());
       expect(result.mailbox).toBe("INBOX");
     });
   });

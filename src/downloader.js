@@ -118,7 +118,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
       excludePaths: ["Receipts/Personal"],
     });
 
-    const results = await scanForReceipts(client, account.name, mailboxes, { since });
+    const { results } = await scanForReceipts(client, account.name, mailboxes, { since });
 
     // Filter to business only
     const bizResults = results.filter((r) => classifications[r.address] === "business");
