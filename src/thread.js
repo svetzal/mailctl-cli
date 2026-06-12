@@ -173,44 +173,24 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
 }
 
 /**
- * @param {any} client - connected IMAP client
- * @param {string} accountName
- * @param {string} mailboxPath - mailbox of the anchor message
- * @param {number|string} uid - anchor message UID
- * @param {string[]} searchMailboxPaths - mailboxes to search for thread members
- * @param {object} [opts]
- * @param {number} [opts.limit=50]
- * @param {boolean} [opts.full=false] - fetch full message bodies
- * @param {function(object): void} [opts.onProgress] - receives structured progress events
- * @returns {Promise<{messages: Array, fallback: boolean}>}
+ * Fetch and parse threading headers from the anchor message.
+ * Returns null when the mailbox lock fails (onProgress already received the event).
+ *
+ * @param {any} client
+ * @param {string} mailboxPath
+ * @param {number|string} uid
+ * @param {function(object): void} onProgress
+ * @returns {Promise<{ messageId: string, subject: string, references: string, inReplyTo: string } | null>}
  */
-export async function findThread(client, accountName, mailboxPath, uid, searchMailboxPaths, opts = {}) {
-  const limit = opts.limit || 50;
-  const full = opts.full || false;
-  const onProgress = opts.onProgress || (() => {});
-
-  // Step 1: Fetch anchor message headers
-  let anchorMessageId = "";
-  let anchorReferences = "";
-  let anchorInReplyTo = "";
-  let anchorSubject = "";
-
-  const anchorResult = await withMailboxLock(
+async function fetchAnchorHeaders(client, mailboxPath, uid, onProgress) {
+  return withMailboxLock(
     client,
     mailboxPath,
     async () => {
       const uidStr = String(uid);
       /** @type {{ messageId: string, subject: string, references: string, inReplyTo: string } | null} */
       let headers = null;
-      for await (const msg of client.fetch(
-        uidStr,
-        {
-          envelope: true,
-          headers: true,
-          uid: true,
-        },
-        { uid: true },
-      )) {
+      for await (const msg of client.fetch(uidStr, { envelope: true, headers: true, uid: true }, { uid: true })) {
         let references = "";
         let inReplyTo = "";
         if (msg.headers) {
@@ -231,18 +211,57 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
     },
     { onProgress },
   );
+}
+
+/**
+ * Builds the set of all related Message-IDs from anchor message headers.
+ * Strips angle brackets from In-Reply-To and deduplicates across all fields.
+ *
+ * @param {{ messageId: string, references: string, inReplyTo: string }} anchor
+ * @returns {Set<string>}
+ */
+export function collectRelatedMessageIds({ messageId, references, inReplyTo }) {
+  const ids = new Set();
+  if (messageId) ids.add(messageId);
+  for (const mid of parseReferences(references)) ids.add(mid);
+  if (inReplyTo) {
+    const cleaned = inReplyTo.replace(/^<|>$/g, "");
+    if (cleaned) ids.add(cleaned);
+  }
+  return ids;
+}
+
+/**
+ * @param {any} client - connected IMAP client
+ * @param {string} accountName
+ * @param {string} mailboxPath - mailbox of the anchor message
+ * @param {number|string} uid - anchor message UID
+ * @param {string[]} searchMailboxPaths - mailboxes to search for thread members
+ * @param {object} [opts]
+ * @param {number} [opts.limit=50]
+ * @param {boolean} [opts.full=false] - fetch full message bodies
+ * @param {function(object): void} [opts.onProgress] - receives structured progress events
+ * @returns {Promise<{messages: Array, fallback: boolean}>}
+ */
+export async function findThread(client, accountName, mailboxPath, uid, searchMailboxPaths, opts = {}) {
+  const limit = opts.limit || 50;
+  const full = opts.full || false;
+  const onProgress = opts.onProgress || (() => {});
+
+  // Step 1: Fetch anchor message headers
+  const anchor = await fetchAnchorHeaders(client, mailboxPath, uid, onProgress);
 
   // null return means lock failed — onProgress already received the event
-  if (anchorResult === null) {
+  if (anchor === null) {
     return { messages: [], fallback: false };
   }
 
-  if (anchorResult) {
-    anchorMessageId = anchorResult.messageId;
-    anchorSubject = anchorResult.subject;
-    anchorReferences = anchorResult.references;
-    anchorInReplyTo = anchorResult.inReplyTo;
-  }
+  const {
+    messageId: anchorMessageId,
+    subject: anchorSubject,
+    references: anchorReferences,
+    inReplyTo: anchorInReplyTo,
+  } = anchor || {};
 
   if (!anchorMessageId && !anchorReferences && !anchorInReplyTo) {
     // No threading headers at all — return just the anchor
@@ -251,21 +270,11 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   }
 
   // Step 2: Collect all related Message-IDs
-  const relatedIds = new Set();
-  if (anchorMessageId) relatedIds.add(anchorMessageId);
-  for (const mid of parseReferences(anchorReferences)) {
-    relatedIds.add(mid);
-  }
-  if (anchorInReplyTo) {
-    // In-Reply-To may have angle brackets
-    const cleaned = anchorInReplyTo.replace(/^<|>$/g, "");
-    if (cleaned) relatedIds.add(cleaned);
-  }
+  const relatedIds = collectRelatedMessageIds(anchor);
 
   // Step 3: Search across mailboxes for related messages
   /** @type {Map<string, Set<number>>} mailbox -> UIDs */
   const uidsByMailbox = new Map();
-
   let headerSearchFoundResults = false;
 
   for (const mbPath of searchMailboxPaths) {
@@ -280,7 +289,7 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   let fallback = false;
   if (!headerSearchFoundResults) {
     fallback = true;
-    const baseSubject = stripSubjectPrefixes(anchorSubject);
+    const baseSubject = stripSubjectPrefixes(anchorSubject || "");
     if (baseSubject) {
       for (const mbPath of searchMailboxPaths) {
         const foundUids = await searchMailboxBySubject(client, mbPath, baseSubject, onProgress);
@@ -299,15 +308,12 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   uidsByMailbox.set(mailboxPath, anchorSet);
 
   // Step 5: Fetch all messages and deduplicate by Message-ID
-  /** @type {Array} */
   const allMessages = [];
-
   for (const [mbPath, uidSetForMb] of uidsByMailbox) {
     const fetched = await fetchThreadMessages(client, accountName, mbPath, [...uidSetForMb], full, onProgress);
     allMessages.push(...fetched);
   }
 
-  // Deduplicate by messageId
   const seen = new Set();
   const unique = [];
   for (const msg of allMessages) {

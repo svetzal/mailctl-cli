@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { buildThreadJson, formatThreadText } from "../src/format-thread.js";
-import { findThread, parseReferences, stripSubjectPrefixes } from "../src/thread.js";
+import { collectRelatedMessageIds, findThread, parseReferences, stripSubjectPrefixes } from "../src/thread.js";
 import { makeLock } from "./helpers.js";
 
 function makeDate(str = "2025-03-01T12:00:00Z") {
@@ -106,6 +106,44 @@ function makeClient(opts = {}) {
     }),
   };
 }
+
+// ── collectRelatedMessageIds ──────────────────────────────────────────────────
+
+describe("collectRelatedMessageIds", () => {
+  it("includes the anchor messageId", () => {
+    const ids = collectRelatedMessageIds({ messageId: "anchor@example.com", references: "", inReplyTo: "" });
+    expect(ids.has("anchor@example.com")).toBe(true);
+  });
+
+  it("includes IDs from a References header", () => {
+    const ids = collectRelatedMessageIds({
+      messageId: "",
+      references: "<ref1@example.com> <ref2@example.com>",
+      inReplyTo: "",
+    });
+    expect(ids.has("ref1@example.com")).toBe(true);
+    expect(ids.has("ref2@example.com")).toBe(true);
+  });
+
+  it("strips angle brackets from inReplyTo", () => {
+    const ids = collectRelatedMessageIds({ messageId: "", references: "", inReplyTo: "<reply@example.com>" });
+    expect(ids.has("reply@example.com")).toBe(true);
+  });
+
+  it("deduplicates IDs appearing in multiple fields", () => {
+    const ids = collectRelatedMessageIds({
+      messageId: "shared@example.com",
+      references: "<shared@example.com>",
+      inReplyTo: "<shared@example.com>",
+    });
+    expect(ids.size).toBe(1);
+  });
+
+  it("returns empty set when all fields are empty", () => {
+    const ids = collectRelatedMessageIds({ messageId: "", references: "", inReplyTo: "" });
+    expect(ids.size).toBe(0);
+  });
+});
 
 // ── parseReferences ───────────────────────────────────────────────────────────
 

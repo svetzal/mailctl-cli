@@ -4,7 +4,9 @@
  */
 
 import {
+  budgetExceeded,
   emptyExtractionSkipped,
+  maxReached,
   skipExistingInvoice,
   skipLowConfidence,
   skipNonInvoice,
@@ -154,6 +156,24 @@ export function receiptDecisionEvent(decision, metadata, msg, emailDate) {
     default:
       return null;
   }
+}
+
+/**
+ * Checks whether batch processing should stop based on --max or --budget constraints.
+ * Returns the stop flag and the event to emit (null if not stopping).
+ *
+ * @param {{ processedCount: number, maxMessages: number|null, startedAt: number, budgetMs: number|null }} opts
+ * @param {number} now - current timestamp from performance.now()
+ * @returns {{ stop: boolean, event: object|null }}
+ */
+export function shouldStopProcessing({ processedCount, maxMessages, startedAt, budgetMs }, now) {
+  if (maxMessages !== null && processedCount >= maxMessages) {
+    return { stop: true, event: maxReached(maxMessages) };
+  }
+  if (budgetMs !== null && now - startedAt >= budgetMs) {
+    return { stop: true, event: budgetExceeded(budgetMs) };
+  }
+  return { stop: false, event: null };
 }
 
 /**

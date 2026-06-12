@@ -145,6 +145,12 @@ const defaultDeps = {
   importVendorMap: () => import("./vendor-map.js"),
 };
 
+// Default lookback periods for Commander option defaults (strings match Commander's contract)
+const SCAN_DEFAULT_MONTHS = "12";
+const SORT_DEFAULT_MONTHS = "24";
+const DOWNLOAD_DEFAULT_MONTHS = "24";
+const DOWNLOAD_RECEIPTS_DEFAULT_MONTHS = "12";
+
 /**
  * Build and return a configured Commander program instance without parsing.
  * Accepts a deps object for dependency injection (defaults to production deps).
@@ -229,7 +235,7 @@ export function buildProgram(deps = defaultDeps) {
   program
     .command("scan")
     .description("Scan configured email accounts for receipt-like messages")
-    .option("-m, --months <n>", "months to look back", "12")
+    .option("-m, --months <n>", "months to look back", SCAN_DEFAULT_MONTHS)
     .option("-a, --all-mailboxes", "scan all mailboxes (slower)", false)
     .option("-o, --output <file>", "write raw results to JSON file")
     .option("--summary", "output aggregated sender summary (default)", true)
@@ -285,7 +291,7 @@ export function buildProgram(deps = defaultDeps) {
   program
     .command("sort")
     .description("Move receipt emails into Receipts/Business and Receipts/Personal folders")
-    .option("-m, --months <n>", "months to look back", "24")
+    .option("-m, --months <n>", "months to look back", SORT_DEFAULT_MONTHS)
     .option("-n, --dry-run", "show what would be moved without actually moving", false)
     .action(
       wrapAction(async (opts) => {
@@ -301,7 +307,7 @@ export function buildProgram(deps = defaultDeps) {
   program
     .command("download")
     .description("Download PDF attachments from business receipt emails")
-    .option("-m, --months <n>", "months to look back", "24")
+    .option("-m, --months <n>", "months to look back", DOWNLOAD_DEFAULT_MONTHS)
     .option("-n, --dry-run", "show what would be downloaded without downloading", false)
     .option("-o, --output <dir>", "override output directory")
     .action(
@@ -319,7 +325,7 @@ export function buildProgram(deps = defaultDeps) {
     .command("download-receipts")
     .description("Download receipt PDFs and create JSON sidecar metadata files")
     .option("-o, --output <dir>", "root output directory", ".")
-    .option("-m, --months <n>", "how far back to search", "12")
+    .option("-m, --months <n>", "how far back to search", DOWNLOAD_RECEIPTS_DEFAULT_MONTHS)
     .option("--since <date>", "search from this date instead of months")
     .option("-n, --dry-run", "show what would be downloaded without writing", false)
     .option("--reprocess", "re-run LLM extraction on existing receipt files", false)

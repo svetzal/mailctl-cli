@@ -6,6 +6,7 @@ import {
   isEmptyExtraction,
   MIN_INVOICE_CONFIDENCE,
   receiptDecisionEvent,
+  shouldStopProcessing,
   sidecarPassesFilters,
   tallyReceiptAction,
 } from "../src/receipt-decisions.js";
@@ -378,5 +379,59 @@ describe("tallyReceiptAction", () => {
 
   it("returns stats unchanged for unknown action", () => {
     expect(tallyReceiptAction(BASE_STATS, "unknown")).toEqual(BASE_STATS);
+  });
+});
+
+// ── shouldStopProcessing ──────────────────────────────────────────────────────
+
+describe("shouldStopProcessing", () => {
+  const startedAt = 0;
+  const now = 1000;
+
+  it("returns stop false when neither max nor budget is set", () => {
+    const result = shouldStopProcessing({ processedCount: 5, maxMessages: null, startedAt, budgetMs: null }, now);
+    expect(result.stop).toBe(false);
+  });
+
+  it("returns null event when not stopping", () => {
+    const result = shouldStopProcessing({ processedCount: 5, maxMessages: null, startedAt, budgetMs: null }, now);
+    expect(result.event).toBeNull();
+  });
+
+  it("returns stop true when processedCount reaches maxMessages", () => {
+    const result = shouldStopProcessing({ processedCount: 10, maxMessages: 10, startedAt, budgetMs: null }, now);
+    expect(result.stop).toBe(true);
+  });
+
+  it("returns a max-reached event when max is hit", () => {
+    const result = shouldStopProcessing({ processedCount: 10, maxMessages: 10, startedAt, budgetMs: null }, now);
+    expect(result.event).not.toBeNull();
+    expect(result.event.type).toBe("max-reached");
+  });
+
+  it("returns stop true when elapsed time exceeds budgetMs", () => {
+    const result = shouldStopProcessing({ processedCount: 1, maxMessages: null, startedAt: 0, budgetMs: 500 }, 600);
+    expect(result.stop).toBe(true);
+  });
+
+  it("returns a budget-exceeded event when budget is hit", () => {
+    const result = shouldStopProcessing({ processedCount: 1, maxMessages: null, startedAt: 0, budgetMs: 500 }, 600);
+    expect(result.event).not.toBeNull();
+    expect(result.event.type).toBe("budget-exceeded");
+  });
+
+  it("max check takes precedence over budget when both are exceeded", () => {
+    const result = shouldStopProcessing({ processedCount: 5, maxMessages: 5, startedAt: 0, budgetMs: 100 }, 200);
+    expect(result.event.type).toBe("max-reached");
+  });
+
+  it("does not stop when processedCount is below maxMessages", () => {
+    const result = shouldStopProcessing({ processedCount: 4, maxMessages: 10, startedAt, budgetMs: null }, now);
+    expect(result.stop).toBe(false);
+  });
+
+  it("does not stop when elapsed time is below budgetMs", () => {
+    const result = shouldStopProcessing({ processedCount: 1, maxMessages: null, startedAt: 0, budgetMs: 5000 }, 1000);
+    expect(result.stop).toBe(false);
   });
 });
