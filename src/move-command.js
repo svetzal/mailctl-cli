@@ -5,6 +5,7 @@
  * be tested independently. All IMAP I/O is injected via deps.
  */
 
+import { createBatchAccumulator, expandPerUid } from "./batch-results.js";
 import { filterAccountsByName } from "./cli-helpers.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { parseAndGroupUids } from "./move-logic.js";
@@ -34,19 +35,14 @@ export async function moveCommand(uids, opts, deps) {
 
   const byAccount = parseAndGroupUids(uids, account || null);
 
-  const stats = { moved: 0, failed: 0, skipped: 0 };
-  /** @type {Array<{ account: string, uid: string, status: string, error?: string, reason?: string }>} */
-  const results = [];
+  const acc = createBatchAccumulator(["moved", "failed", "skipped"]);
 
   for (const [acctKey, acctUids] of byAccount) {
     const targetAccounts = filterAccountsByName(accounts, acctKey);
 
     if (targetAccounts.length === 0) {
       const msg = `Account "${acctKey}" not found.`;
-      for (const uid of acctUids) {
-        stats.failed++;
-        results.push({ account: acctKey, uid, status: "failed", error: msg });
-      }
+      acc.record("failed", expandPerUid(acctUids, { account: acctKey, status: "failed", error: msg }));
       continue;
     }
 
@@ -57,10 +53,7 @@ export async function moveCommand(uids, opts, deps) {
       if (!folderExists) {
         const available = folders.map((f) => f.path).join(", ");
         const msg = `Destination folder "${destination}" does not exist on ${acct.name}. Available: ${available}`;
-        for (const uid of acctUids) {
-          stats.failed++;
-          results.push({ account: acct.name, uid, status: "failed", error: msg });
-        }
+        acc.record("failed", expandPerUid(acctUids, { account: acct.name, status: "failed", error: msg }));
         return;
       }
 
@@ -69,35 +62,25 @@ export async function moveCommand(uids, opts, deps) {
         const uidRange = acctUids.join(",");
 
         if (dryRun) {
-          stats.skipped += acctUids.length;
-          for (const uid of acctUids) {
-            results.push({ account: acct.name, uid, status: "skipped", reason: "dry-run" });
-          }
+          acc.record("skipped", expandPerUid(acctUids, { account: acct.name, status: "skipped", reason: "dry-run" }));
         } else {
           try {
             await client.messageMove(uidRange, destination, { uid: true });
-            stats.moved += acctUids.length;
-            for (const uid of acctUids) {
-              results.push({ account: acct.name, uid, status: "moved" });
-            }
+            acc.record("moved", expandPerUid(acctUids, { account: acct.name, status: "moved" }));
           } catch (err) {
-            stats.failed += acctUids.length;
-            for (const uid of acctUids) {
-              results.push({ account: acct.name, uid, status: "failed", error: err.message });
-            }
+            acc.record("failed", expandPerUid(acctUids, { account: acct.name, status: "failed", error: err.message }));
           }
         }
       });
 
       if (lockResult === null) {
         const msg = `Could not open source mailbox "${sourceMailbox}" on ${acct.name}`;
-        for (const uid of acctUids) {
-          stats.failed++;
-          results.push({ account: acct.name, uid, status: "failed", error: msg });
-        }
+        acc.record("failed", expandPerUid(acctUids, { account: acct.name, status: "failed", error: msg }));
       }
     });
   }
 
-  return { stats, results };
+  return /** @type {{ stats: { moved: number, failed: number, skipped: number }, results: Array<{ account: string, uid: string, status: string, error?: string, reason?: string }> }} */ (
+    acc.getResult()
+  );
 }

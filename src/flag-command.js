@@ -5,6 +5,7 @@
  * be tested independently. All IMAP I/O is injected via deps.
  */
 
+import { createBatchAccumulator } from "./batch-results.js";
 import { filterAccountsByName } from "./cli-helpers.js";
 import { applyFlagChanges, computeFlagChanges } from "./flag-messages.js";
 import { withMailboxLock } from "./imap-orchestration.js";
@@ -55,17 +56,14 @@ export async function flagCommand(uids, opts, deps) {
   });
 
   const byAccount = parseAndGroupUids(uids, account || null);
-  const stats = { flagged: 0, failed: 0, skipped: 0 };
-  /** @type {FlagResult[]} */
-  const results = [];
+  const acc = createBatchAccumulator(["flagged", "failed", "skipped"]);
 
   for (const [acctKey, acctUids] of byAccount) {
     const targetAccounts = filterAccountsByName(accounts, acctKey);
 
     if (targetAccounts.length === 0) {
       const msg = `Account "${acctKey}" not found.`;
-      stats.failed++;
-      results.push({ status: "failed", account: acctKey, uids: acctUids.map(Number), error: msg });
+      acc.record("failed", [{ status: "failed", account: acctKey, uids: acctUids.map(Number), error: msg }]);
       continue;
     }
 
@@ -77,58 +75,59 @@ export async function flagCommand(uids, opts, deps) {
         mailbox = await detectMailboxAcrossAll(client, acctUids[0], listMailboxes);
         if (!mailbox) {
           const msg = `UID ${acctUids[0]} not found in any mailbox on ${acct.name}`;
-          stats.failed++;
-          results.push({ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg });
+          acc.record("failed", [{ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg }]);
           return;
         }
       }
 
       if (opts.dryRun) {
-        stats.skipped++;
-        results.push({
-          status: "skipped",
-          dryRun: true,
-          uids: acctUids.map(Number),
-          added: changes.add,
-          removed: changes.remove,
-          account: acct.name,
-          mailbox,
-        });
+        acc.record("skipped", [
+          {
+            status: "skipped",
+            dryRun: true,
+            uids: acctUids.map(Number),
+            added: changes.add,
+            removed: changes.remove,
+            account: acct.name,
+            mailbox,
+          },
+        ]);
         return;
       }
 
       const lockResult = await withMailboxLock(client, mailbox, async () => {
         try {
           const flagResult = await applyFlagChanges(client, uidRange, changes);
-          stats.flagged++;
-          results.push({
-            status: "flagged",
-            dryRun: false,
-            uids: acctUids.map(Number),
-            added: flagResult.added,
-            removed: flagResult.removed,
-            account: acct.name,
-            mailbox,
-          });
+          acc.record("flagged", [
+            {
+              status: "flagged",
+              dryRun: false,
+              uids: acctUids.map(Number),
+              added: flagResult.added,
+              removed: flagResult.removed,
+              account: acct.name,
+              mailbox,
+            },
+          ]);
         } catch (err) {
-          stats.failed++;
-          results.push({
-            status: "failed",
-            account: acct.name,
-            uids: acctUids.map(Number),
-            mailbox,
-            error: err.message,
-          });
+          acc.record("failed", [
+            {
+              status: "failed",
+              account: acct.name,
+              uids: acctUids.map(Number),
+              mailbox,
+              error: err.message,
+            },
+          ]);
         }
       });
 
       if (lockResult === null) {
         const msg = `Could not open mailbox "${mailbox}" on ${acct.name}`;
-        stats.failed++;
-        results.push({ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg });
+        acc.record("failed", [{ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg }]);
       }
     });
   }
 
-  return { stats, results };
+  return /** @type {{ stats: FlagStats, results: FlagResult[] }} */ (acc.getResult());
 }

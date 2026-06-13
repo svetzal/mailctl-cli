@@ -84,6 +84,7 @@ src/dedup.js                   — deduplicateByMessageId() — shared by search
 src/move-logic.js              — parseUidArgs(), groupUidsByAccount() — pure UID parsing for move command
 src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachmentIndex() — attachment helpers
 src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
+src/batch-results.js           — createBatchAccumulator(), expandPerUid() — shared stats/results accumulator for batch command orchestrators (move, flag)
 src/define-event.js            — defineEvent() — shared event factory builder, eliminates type-string duplication
 src/format-bytes.js            — formatKB() — shared byte-to-KB formatter
 src/with-timeout.js            — withTimeout(promiseFactory, ms, label) — races a promise against a timer; rejects with err.code="ETIMEDOUT" if ms elapses first; used by download-receipts for per-message timeouts
