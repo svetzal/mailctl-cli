@@ -111,6 +111,8 @@ export function sanitizeFilename(str) {
 
 /**
  * Used when the local part is a generic sender prefix; strips common subdomains and titlecases.
+ * Strips only the first matching subdomain prefix so "email.order.acme.com" → "order.acme.com"
+ * rather than attempting to strip both layers at once.
  * @param {string} domain - full domain from email address
  * @param {Record<string, string>} [vendorDomainMap] - optional override for testing
  * @returns {string}
@@ -121,7 +123,7 @@ export function vendorFromDomain(domain, vendorDomainMap) {
   // Check known domain map first (including subdomains)
   if (domainMap[d]) return domainMap[d];
 
-  // Strip common prefixes
+  // Strip common prefixes (first match only — see JSDoc above)
   for (const prefix of DOMAIN_STRIP_PREFIXES) {
     if (d.startsWith(prefix)) {
       d = d.slice(prefix.length);
@@ -142,6 +144,11 @@ export function vendorFromDomain(domain, vendorDomainMap) {
 }
 
 /**
+ * Attempts to extract the vendor name from the email subject line.
+ * Matches patterns like:
+ *   - "Receipt from Acme Co" / "Invoice by Widget Inc" — "from/by" followed by vendor
+ *   - "Receipt for Acme" / "Order from Widget" — labeled receipt with vendor
+ *   - "Your Acme receipt" / "Acme invoice" — vendor precedes receipt keyword
  * @param {string} subject
  * @param {string} _bodyText
  * @returns {string|null}
@@ -149,8 +156,11 @@ export function vendorFromDomain(domain, vendorDomainMap) {
 export function extractVendorFromContent(subject, _bodyText) {
   const tail = `{${MIN_VENDOR_NAME_LENGTH - 1},}`;
   const patterns = [
+    // "Receipt from Acme Co –" or "Invoice by Widget Inc\n"
     new RegExp(`(?:from|by)\\s+([A-Z][A-Za-z0-9 &.-]${tail})(?:\\s*[-–|]|\\n)`, "i"),
+    // "Receipt for Acme Co" or "Fwd: Invoice from Widget"
     new RegExp(`^(?:Fwd?:\\s*)?(?:Receipt|Invoice|Order)\\s+(?:from|for)\\s+([A-Za-z][A-Za-z0-9 &.-]${tail})`, "i"),
+    // "Your Acme Co receipt" or "Acme invoice"
     new RegExp(`(?:Your\\s+)?([A-Z][A-Za-z0-9 &.-]${tail})\\s+(?:receipt|invoice|order)`, "i"),
   ];
 
@@ -191,9 +201,96 @@ export function extractForwardedSender(bodyText) {
   return { address: fromMatch[1].trim().toLowerCase(), name: "" };
 }
 
+// ─── cleanVendorForFilename helpers ─────────────────────────────────────────
+//
+// Priority cascade (first non-null wins):
+//   1. Exact sender address in the vendor filename map
+//   2. Forwarded email — use the original sender's address/domain/name
+//   3. Self-sent email — parse vendor from subject/body content
+//   4. Sender domain in the vendor domain map
+//   5. Display name (after stripping corporate suffixes) or domain derivation
+
+/**
+ * @param {string} addrLower
+ * @param {Record<string, string>} vendorDomains
+ * @returns {string|null}
+ */
+function vendorFromExactAddress(addrLower, vendorDomains) {
+  return vendorDomains[addrLower] ?? null;
+}
+
+/**
+ * @param {string} bodyText
+ * @param {Record<string, string>} vendorDomains
+ * @param {Record<string, string>} vendorDomainMap
+ * @returns {string|null}
+ */
+function vendorFromForwarded(bodyText, vendorDomains, vendorDomainMap) {
+  const fwdSender = extractForwardedSender(bodyText);
+  if (!fwdSender) return null;
+
+  if (vendorDomains[fwdSender.address]) return vendorDomains[fwdSender.address];
+  const fwdDomain = getDomain(fwdSender.address);
+  if (fwdDomain && vendorDomainMap[fwdDomain]) return vendorDomainMap[fwdDomain];
+  if (fwdSender.name) {
+    const cleaned = sanitizeFilename(fwdSender.name.replace(CORPORATE_SUFFIX_PATTERN, "").trim());
+    if (cleaned.length >= 2) return cleaned.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/[-._]+$/, "");
+  }
+  if (fwdDomain) return vendorFromDomain(fwdDomain, vendorDomainMap);
+  return null;
+}
+
+/**
+ * @param {string} addrLower
+ * @param {Set<string>} selfAddresses
+ * @param {string|undefined} subject
+ * @param {string|undefined} bodyText
+ * @returns {string|null}
+ */
+function vendorFromSelfSent(addrLower, selfAddresses, subject, bodyText) {
+  if (!selfAddresses.has(addrLower)) return null;
+  return extractVendorFromContent(subject || "", bodyText || "");
+}
+
+/**
+ * @param {string} domain
+ * @param {string} localPart
+ * @param {string} name
+ * @param {Record<string, string>} vendorDomainMap
+ * @returns {string}
+ */
+function vendorFromDomainMapOrName(domain, localPart, name, vendorDomainMap) {
+  if (vendorDomainMap[domain]) return vendorDomainMap[domain];
+
+  const localNormalized = localPart.replace(/[._]/g, "").toLowerCase();
+  const localBase = localPart.split(/[._+]/)[0].toLowerCase();
+  const isGenericSender =
+    !name ||
+    GENERIC_SENDER_PREFIXES.has(localPart.toLowerCase()) ||
+    GENERIC_SENDER_PREFIXES.has(localNormalized) ||
+    GENERIC_SENDER_PREFIXES.has(localBase);
+  if (isGenericSender && domain) {
+    return vendorFromDomain(domain, vendorDomainMap);
+  }
+
+  // Use display name, cleaning corporate suffixes
+  let clean = name || localPart;
+  clean = stripVendorSuffixes(clean);
+
+  let result = sanitizeFilename(clean) || sanitizeFilename(localPart);
+  if (result.length > MAX_VENDOR_NAME_LENGTH) {
+    result = result.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/-[^-]*$/, "");
+  }
+  result = result.replace(/[-._]+$/, "");
+
+  return result || vendorFromDomain(domain, vendorDomainMap);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 /**
  * Clean a vendor name for use in filenames.
- * Priority: exact address match -> forwarded sender -> domain map -> fromName -> domain derivation.
+ * Priority: exact address match -> forwarded sender -> self-sent content -> domain map -> fromName -> domain derivation.
  * @param {string} address - sender email address
  * @param {string} name - sender display name
  * @param {string} [bodyText] - email body for forwarded detection
@@ -210,60 +307,12 @@ export function cleanVendorForFilename(address, name, bodyText, subject, overrid
   const selfAddresses = new Set(overrides.selfAddresses || getConfigSelfAddresses());
   const addrLower = (address || "").toLowerCase();
 
-  // Exact match on sender address
-  if (vendorDomains[addrLower]) return vendorDomains[addrLower];
-
-  // Check for forwarded emails — use original sender as vendor
-  if (bodyText) {
-    const fwdSender = extractForwardedSender(bodyText);
-    if (fwdSender) {
-      if (vendorDomains[fwdSender.address]) return vendorDomains[fwdSender.address];
-      const fwdDomain = getDomain(fwdSender.address);
-      if (fwdDomain && vendorDomainMap[fwdDomain]) return vendorDomainMap[fwdDomain];
-      if (fwdSender.name) {
-        const cleaned = sanitizeFilename(fwdSender.name.replace(CORPORATE_SUFFIX_PATTERN, "").trim());
-        if (cleaned.length >= 2) return cleaned.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/[-._]+$/, "");
-      }
-      if (fwdDomain) return vendorFromDomain(fwdDomain, vendorDomainMap);
-    }
-  }
-
-  // Self-sent emails — try to extract vendor from subject/body
-  if (selfAddresses.has(addrLower)) {
-    const contentVendor = extractVendorFromContent(subject || "", bodyText || "");
-    if (contentVendor) return contentVendor;
-  }
-
-  const domain = getDomain(addrLower);
-  const localPart = getLocalPart(addrLower);
-
-  // Check domain map
-  if (vendorDomainMap[domain]) return vendorDomainMap[domain];
-
-  const localNormalized = localPart.replace(/[._]/g, "").toLowerCase();
-  const localBase = localPart.split(/[._+]/)[0].toLowerCase();
-  const isGenericSender =
-    !name ||
-    GENERIC_SENDER_PREFIXES.has(localPart.toLowerCase()) ||
-    GENERIC_SENDER_PREFIXES.has(localNormalized) ||
-    GENERIC_SENDER_PREFIXES.has(localBase);
-  if (isGenericSender && domain) {
-    return vendorFromDomain(domain, vendorDomainMap);
-  }
-
-  // Use fromName, cleaning corporate suffixes
-  let clean = name || localPart;
-  clean = stripVendorSuffixes(clean);
-
-  let result = sanitizeFilename(clean) || sanitizeFilename(localPart);
-
-  if (result.length > MAX_VENDOR_NAME_LENGTH) {
-    result = result.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/-[^-]*$/, "");
-  }
-
-  result = result.replace(/[-._]+$/, "");
-
-  return result || vendorFromDomain(domain, vendorDomainMap);
+  return (
+    vendorFromExactAddress(addrLower, vendorDomains) ??
+    (bodyText ? vendorFromForwarded(bodyText, vendorDomains, vendorDomainMap) : null) ??
+    vendorFromSelfSent(addrLower, selfAddresses, subject, bodyText) ??
+    vendorFromDomainMapOrName(getDomain(addrLower), getLocalPart(addrLower), name, vendorDomainMap)
+  );
 }
 
 /**
@@ -336,9 +385,10 @@ export function isValidInvoiceNumber(s, overrides = {}) {
   const blocklist = new Set(overrides.invoiceBlocklist || getConfigInvoiceBlocklist());
   if (blocklist.has(s)) return false;
 
-  // Reject tax registration numbers (e.g. 135664738RT0001)
+  // CRA business number format, e.g. 135664738RT0001 — not an invoice number
   if (/\d{9}RT\d{4}/i.test(s)) return false;
 
+  // Trailing tax-account registration suffix, e.g. "RT0001" — not an invoice number
   if (/RT\d+$/i.test(s)) return false;
 
   return true;
@@ -347,6 +397,8 @@ export function isValidInvoiceNumber(s, overrides = {}) {
 /**
  * Extract invoice/receipt number from subject and body text.
  * Only matches patterns that contain actual digits.
+ * `isValidInvoiceNumber` gates each candidate to reject pure words, tax registration
+ * numbers (e.g. 135664738RT0001), and codes with too few digits.
  * @param {string} subject
  * @param {string} bodyText
  * @param {object} [overrides] - optional overrides for testing
@@ -357,12 +409,19 @@ export function extractInvoiceNumber(subject, bodyText, overrides = {}) {
   const combined = `${subject}\n${bodyText}`;
   const codeTail = `{${MIN_INVOICE_CODE_LENGTH - 1},}`;
   const patterns = [
+    // "#INV-1234" or "#AB-9981" — leading sigil, ≥4-char alphanumeric code
     new RegExp(`#\\s*([A-Z0-9][-A-Z0-9]${codeTail})\\b`),
+    // "Invoice #: INV-1234" or "Invoice 2024-0042"
     new RegExp(`Invoice\\s*#?\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    // "INV-1234" or "INV_9981" — bare INV prefix
     new RegExp(`INV[-_]?([A-Z0-9]{${MIN_INVOICE_CODE_LENGTH},})`, "i"),
+    // "Receipt #: R-20240601" or "Receipt 4421"
     new RegExp(`Receipt\\s*#?\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    // "Order ID: AB-9981" or "Order #20240601"
     new RegExp(`Order\\s*(?:ID|#)\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    // "Transaction ID: TXN-4421" or "Transaction #: 20240601"
     new RegExp(`Transaction\\s*(?:ID|#)\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
+    // "Reference #: REF-1234" or "Reference: 20240601-AB"
     new RegExp(`Reference\\s*#?\\s*:?\\s*([A-Z0-9][-A-Z0-9]${codeTail})`, "i"),
   ];
 
@@ -375,10 +434,13 @@ export function extractInvoiceNumber(subject, bodyText, overrides = {}) {
 
 /**
  * Extract currency amount from text. Prefers amounts near "total" or similar keywords.
+ * Fallback takes the largest dollar amount in the text — grand totals are typically the
+ * largest figure, above per-line-item prices.
  * @param {string} text
  * @returns {{ amount: number, currency: string }|null}
  */
 export function extractAmount(text) {
+  // "Total: CAD $1,234.56" or "Amount Due $99.00" or "charged 9.99 USD" — keyword-anchored, 2 decimal places
   const totalMatch = text.match(
     /(?:total|amount\s*(?:due|charged|paid)?|charged?|payment)\s*:?\s*(?:(CAD|USD|EUR|GBP|AUD)\s*)?\$?\s*([\d,]+\.\d{2})\s*(?:(CAD|USD|EUR|GBP|AUD))?/i,
   );
@@ -390,7 +452,7 @@ export function extractAmount(text) {
     }
   }
 
-  // Fallback: largest dollar amount in the text
+  // Fallback: largest dollar amount — grand totals are typically larger than line items
   const allAmounts = [...text.matchAll(/\$\s*([\d,]+\.\d{2})/g)];
   if (allAmounts.length > 0) {
     let max = 0;
@@ -410,8 +472,11 @@ export function extractAmount(text) {
  */
 export function extractTax(text) {
   const patterns = [
+    // "HST: $13.00" or "GST $5.00" — tax type precedes amount
     /\b(HST|GST|PST|QST|VAT)\s*:?\s*\$?\s*([\d,]+\.\d{2})/i,
+    // "Tax (HST): $13.00" or "Tax GST $5.00" — labeled with parenthetical tax type
     /Tax\s*\(?\s*(HST|GST|PST|QST|VAT)\s*\)?\s*:?\s*\$?\s*([\d,]+\.\d{2})/i,
+    // "$13.00 HST" — amount precedes label; capture groups are in reverse order
     /\$\s*([\d,]+\.\d{2})\s*(HST|GST|PST|QST|VAT)/i,
   ];
 
@@ -419,6 +484,7 @@ export function extractTax(text) {
     const match = text.match(pat);
     if (match) {
       let type, amtStr;
+      // Third pattern flips group order: match[1] is the amount, match[2] is the type
       if (/^\d/.test(match[1])) {
         amtStr = match[1];
         type = match[2];
@@ -445,20 +511,22 @@ export function extractTax(text) {
 export function extractService(text) {
   const serviceTail = `{${MIN_SERVICE_LENGTH - 1},}`;
   const patterns = [
+    // "Plan: Pro Annual" or "Product: Widget" or "Subscription: Basic Monthly"
     new RegExp(`(?:Plan|Product|Subscription)\\s*:\\s*([A-Za-z][A-Za-z0-9 .&+-]${serviceTail})(?:\\n|$)`, "i"),
+    // Line item with price: "Widget  $9.99" — indented name followed by a dollar amount
     new RegExp(`^[ \\t]*([A-Za-z][A-Za-z0-9 .&+-]${serviceTail})\\s+\\$[\\d,]+\\.\\d{2}`, "m"),
   ];
 
   const GARBAGE_PATTERNS = [
-    /\d{5,}/,
-    /http|www\./i,
-    /admin center/i,
-    /canceled|renew/i,
-    /Show to Staff/i,
-    /settings|click|view/i,
-    /is due on/i,
-    /-key=/,
-    /Agreement Number/i,
+    /\d{5,}/, // long numeric IDs (order numbers, tracking codes) — not a product name
+    /http|www\./i, // URLs in the matched text
+    /admin center/i, // Microsoft billing admin noise
+    /canceled|renew/i, // dunning/renewal notices, not a product name
+    /Show to Staff/i, // Shopify internal label
+    /settings|click|view/i, // UI action words — not a product
+    /is due on/i, // dunning notice fragment, not a product name
+    /-key=/, // tracking-link query parameter fragment
+    /Agreement Number/i, // contract reference, not a service name
   ];
 
   for (const pat of patterns) {
