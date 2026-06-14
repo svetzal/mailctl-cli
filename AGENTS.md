@@ -11,9 +11,9 @@ description: |
   Secrets are managed via macOS Keychain — never stored in .env files or source.
 ---
 
-Why this project exists and what problem does it solve: @CHARTER.md
-
 # mailctl Agent Instructions
+
+Why this project exists and what problem does it solve: @CHARTER.md
 
 ## Quick Reference
 
@@ -348,7 +348,7 @@ The GitHub Actions release workflow (`.github/workflows/release.yml`) handles th
 
 **Prerequisite**: The `HOMEBREW_TAP_TOKEN` secret must be set on this repo for the auto-update step. Without it, binaries are released on GitHub but the Homebrew formula isn't updated.
 
-6. **Local install immediately** (don't wait for Homebrew):
+1. **Local install immediately** (don't wait for Homebrew):
 
 ```bash
 bun run build && cp build/mailctl /usr/local/bin/
@@ -356,7 +356,7 @@ bun run build && cp build/mailctl /usr/local/bin/
 
 Or use `bun link` for development.
 
-7. **Re-init skills** to pick up the new version:
+1. **Re-init skills** to pick up the new version:
 
 ```bash
 mailctl init --global --force
