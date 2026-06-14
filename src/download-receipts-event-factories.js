@@ -6,7 +6,7 @@
  * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineEventTable } from "./event-table.js";
+import { defineCommandEventTable } from "./command-event-table.js";
 import { formatKB } from "./format-bytes.js";
 
 const TABLE = {
@@ -226,7 +226,7 @@ const TABLE = {
   },
 };
 
-const { factories, renderEvent } = defineEventTable(TABLE);
+const { factories, renderEvent } = defineCommandEventTable(TABLE);
 
 export const {
   messageStart,

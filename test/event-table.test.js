@@ -48,8 +48,8 @@ describe("defineEventTable", () => {
     expect(renderEvent({ type: "unknown-event" })).toBeNull();
   });
 
-  it("renderEvent returns null for unknown types when fallback is disabled", () => {
-    const { renderEvent } = defineEventTable({ foo: { render: () => "foo" } }, { fallback: false });
+  it("renderEvent returns null for unknown types when no fallbackRenderer is provided", () => {
+    const { renderEvent } = defineEventTable({ foo: { render: () => "foo" } });
     expect(renderEvent({ type: "unknown" })).toBeNull();
   });
 });

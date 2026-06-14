@@ -1,5 +1,5 @@
 import { defineErrorEvent, defineEvent } from "./define-event.js";
-import { createEventRenderer } from "./render-shared-events.js";
+import { createEventRenderer } from "./event-renderer.js";
 
 /**
  * @param {string} key
@@ -21,7 +21,7 @@ function camelToKebab(key) {
  * Adding a new event = one descriptor entry. No separate renderer edit needed.
  *
  * @param {Record<string, { params?: string[], severity?: string, render?: (e: any) => string, type?: string }>} descriptors
- * @param {{ fallback?: boolean }} [opts]
+ * @param {{ fallbackRenderer?: ((event: object) => string | null) | null }} [opts]
  * @returns {{ factories: Record<string, any>, renderEvent: (event: object) => string | null }}
  */
 export function defineEventTable(descriptors, opts) {

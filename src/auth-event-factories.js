@@ -28,7 +28,7 @@ const TABLE = {
   },
 };
 
-const { factories, renderEvent } = defineEventTable(TABLE, { fallback: false });
+const { factories, renderEvent } = defineEventTable(TABLE);
 
 export const { deviceCodePrompt, authWaiting, authSuccess, tokenRefreshFailed, connectError } = factories;
 export const renderAuthEvent = renderEvent;

@@ -4,7 +4,7 @@
  * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineEventTable } from "./event-table.js";
+import { defineCommandEventTable } from "./command-event-table.js";
 
 const TABLE = {
   accountStart: {
@@ -43,7 +43,7 @@ const TABLE = {
   },
 };
 
-const { factories, renderEvent } = defineEventTable(TABLE);
+const { factories, renderEvent } = defineCommandEventTable(TABLE);
 
 export const { accountStart, folderExists, folderCreated, folderError, scanComplete, moveDryRun, moved, moveError } =
   factories;

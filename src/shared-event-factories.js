@@ -3,39 +3,28 @@
  * src/imap-orchestration.js, and other modules that search across mailboxes.
  */
 
-import { defineErrorEvent, defineEvent } from "./define-event.js";
+import { defineEventTable } from "./event-table.js";
 
-/** @type {((mailbox: string, count: number) => { type: "mailbox-start" } & Record<string, any>) & { type: "mailbox-start" }} */
-export const mailboxStart = defineEvent("mailbox-start", "mailbox", "count");
-/** @type {((mailbox: string) => { type: "mailbox-empty" } & Record<string, any>) & { type: "mailbox-empty" }} */
-export const mailboxEmpty = defineEvent("mailbox-empty", "mailbox");
-/** @type {((mailbox: string, count: number) => { type: "mailbox-matches" } & Record<string, any>) & { type: "mailbox-matches" }} */
-export const mailboxMatches = defineEvent("mailbox-matches", "mailbox", "count");
-
-// Error events shared across multiple IMAP-using modules
-/** @type {((error: Error, mailbox: string) => { type: "mailbox-lock-failed", severity: string, error: Error } & Record<string, any>) & { type: "mailbox-lock-failed" }} */
-export const mailboxLockFailed = defineErrorEvent("mailbox-lock-failed", "error", "mailbox");
-/** @type {((error: Error, mailbox: string) => { type: "search-failed", severity: string, error: Error } & Record<string, any>) & { type: "search-failed" }} */
-export const searchFailed = defineErrorEvent("search-failed", "warning", "mailbox");
-/** @type {((error: Error, term: string) => { type: "search-error", severity: string, error: Error } & Record<string, any>) & { type: "search-error" }} */
-export const searchError = defineErrorEvent("search-error", "warning", "term");
-/** @type {((error: Error) => { type: "fetch-error", severity: string, error: Error }) & { type: "fetch-error" }} */
-export const fetchError = defineErrorEvent("fetch-error", "warning");
-
-const sharedRenderMap = {
-  [mailboxLockFailed.type]: (e) => `   Could not lock mailbox ${e.mailbox}: ${e.error.message}`,
-  [searchFailed.type]: (e) => `   Search failed in ${e.mailbox}: ${e.error.message}`,
+const TABLE = {
+  mailboxStart: { params: ["mailbox", "count"] },
+  mailboxEmpty: { params: ["mailbox"] },
+  mailboxMatches: { params: ["mailbox", "count"] },
+  mailboxLockFailed: {
+    severity: "error",
+    params: ["mailbox"],
+    render: (e) => `   Could not lock mailbox ${e.mailbox}: ${e.error.message}`,
+  },
+  searchFailed: {
+    severity: "warning",
+    params: ["mailbox"],
+    render: (e) => `   Search failed in ${e.mailbox}: ${e.error.message}`,
+  },
+  searchError: { severity: "warning", params: ["term"] },
+  fetchError: { severity: "warning" },
 };
 
-/**
- * Handles event types that are emitted by multiple commands:
- * - mailbox-lock-failed
- * - search-failed
- *
- * @param {object} event
- * @returns {string | null}
- */
-export function renderSharedEvent(event) {
-  const handler = sharedRenderMap[event.type];
-  return handler ? handler(event) : null;
-}
+const { factories, renderEvent } = defineEventTable(TABLE);
+
+export const { mailboxStart, mailboxEmpty, mailboxMatches, mailboxLockFailed, searchFailed, searchError, fetchError } =
+  factories;
+export const renderSharedEvent = renderEvent;

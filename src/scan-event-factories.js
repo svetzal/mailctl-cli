@@ -4,7 +4,7 @@
  * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineEventTable } from "./event-table.js";
+import { defineCommandEventTable } from "./command-event-table.js";
 
 const TABLE = {
   scanAccountStart: {
@@ -17,7 +17,7 @@ const TABLE = {
   },
 };
 
-const { factories, renderEvent } = defineEventTable(TABLE);
+const { factories, renderEvent } = defineCommandEventTable(TABLE);
 
 export const { scanAccountStart, scanAccountComplete } = factories;
 export const renderScanEvent = renderEvent;

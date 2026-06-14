@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { createEventRenderer, renderSharedEvent } from "../src/render-shared-events.js";
+import { createEventRenderer } from "../src/event-renderer.js";
+import { renderSharedEvent } from "../src/render-shared-events.js";
 
 // ── renderSharedEvent ─────────────────────────────────────────────────────────
 
@@ -25,28 +26,31 @@ describe("renderSharedEvent", () => {
 
 describe("createEventRenderer", () => {
   it("dispatches to the matching handler", () => {
-    const render = createEventRenderer({ foo: (e) => `foo:${e.value}` });
+    const render = createEventRenderer({ foo: (e) => `foo:${/** @type {any} */ (e).value}` });
     expect(render({ type: "foo", value: "bar" })).toBe("foo:bar");
   });
 
-  it("falls back to renderSharedEvent for unknown types by default", () => {
-    const render = createEventRenderer({});
+  it("falls back to injected fallbackRenderer for unknown types", () => {
+    const render = createEventRenderer({}, { fallbackRenderer: renderSharedEvent });
     const result = render({ type: "mailbox-lock-failed", mailbox: "INBOX", error: { message: "busy" } });
     expect(result).toContain("INBOX");
   });
 
-  it("returns null for unknown types when fallback is disabled", () => {
-    const render = createEventRenderer({ foo: () => "foo" }, { fallback: false });
+  it("returns null for unknown types when no fallbackRenderer is provided", () => {
+    const render = createEventRenderer({ foo: () => "foo" });
     expect(render({ type: "unknown" })).toBeNull();
   });
 
-  it("does not fall back to shared events when fallback is disabled", () => {
-    const render = createEventRenderer({}, { fallback: false });
+  it("does not fall back to shared events when no fallbackRenderer is provided", () => {
+    const render = createEventRenderer({});
     expect(render({ type: "mailbox-lock-failed", mailbox: "X", error: { message: "e" } })).toBeNull();
   });
 
-  it("handler takes precedence over shared fallback", () => {
-    const render = createEventRenderer({ "mailbox-lock-failed": () => "overridden" });
+  it("handler takes precedence over fallbackRenderer", () => {
+    const render = createEventRenderer(
+      { "mailbox-lock-failed": () => "overridden" },
+      { fallbackRenderer: renderSharedEvent },
+    );
     expect(render({ type: "mailbox-lock-failed", mailbox: "X", error: { message: "e" } })).toBe("overridden");
   });
 
@@ -65,8 +69,8 @@ describe("createEventRenderer", () => {
     expect(render({ type: "info" })).toBe("just info");
   });
 
-  it("returns null (not colored null) when no handler matches and fallback is disabled", () => {
-    const render = createEventRenderer({}, { fallback: false });
+  it("returns null (not colored null) when no handler matches and no fallbackRenderer", () => {
+    const render = createEventRenderer({});
     expect(render({ type: "unknown", severity: "error" })).toBeNull();
   });
 });
