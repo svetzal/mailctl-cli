@@ -48,12 +48,8 @@ export async function extractAttachmentCommand(uid, attachmentIndex, opts, deps,
     async (client, acct, _mailbox) => {
       // Fetch BODYSTRUCTURE to enumerate attachments without downloading the full message
       let bodyStructure;
-      try {
-        for await (const fetched of client.fetch(String(uid), { bodyStructure: true }, { uid: true })) {
-          bodyStructure = fetched.bodyStructure;
-        }
-      } catch (_err) {
-        throw uidNotFoundError(uid);
+      for await (const fetched of client.fetch(String(uid), { bodyStructure: true }, { uid: true })) {
+        bodyStructure = fetched.bodyStructure;
       }
 
       if (!bodyStructure) throw uidNotFoundError(uid);

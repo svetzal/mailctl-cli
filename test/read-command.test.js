@@ -93,7 +93,7 @@ describe("readCommand", () => {
     await expect(readCommand("99", {}, deps)).rejects.toThrow("Could not find UID 99 in any account.");
   });
 
-  it("throws with context when download fails", async () => {
+  it("propagates the raw error when download fails", async () => {
     const failClient = {
       getMailboxLock: mock(() => Promise.resolve(makeLock())),
       search: mock(() => Promise.resolve([42])),
@@ -107,7 +107,7 @@ describe("readCommand", () => {
       }),
       _client: failClient,
     });
-    await expect(readCommand("42", { mailbox: "INBOX" }, deps)).rejects.toThrow("Could not fetch UID 42");
+    await expect(readCommand("42", { mailbox: "INBOX" }, deps)).rejects.toThrow("Network error");
   });
 
   it("skips account when mailbox lock fails", async () => {

@@ -34,13 +34,9 @@ export async function readCommand(uid, opts, deps) {
     account,
     mailbox,
   } = await withMessage(uid, opts, deps, async (client) => {
-    try {
-      const raw = await client.download(uid, undefined, { uid: true });
-      const buf = await streamToBuffer(raw.content);
-      return simpleParser(buf);
-    } catch (err) {
-      throw new Error(`Could not fetch UID ${uid}: ${err.message}`);
-    }
+    const raw = await client.download(uid, undefined, { uid: true });
+    const buf = await streamToBuffer(raw.content);
+    return simpleParser(buf);
   });
 
   return { account, uid, mailbox, parsed };

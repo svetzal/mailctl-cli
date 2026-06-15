@@ -100,6 +100,25 @@ describe("extractAttachmentCommand", () => {
         "Could not find UID 42 in any account.",
       );
     });
+
+    it("propagates the raw error when fetch throws during BODYSTRUCTURE retrieval", async () => {
+      const fetchErrorClient = {
+        getMailboxLock: mock(() => Promise.resolve(makeLock())),
+        search: mock(() => Promise.resolve([42])),
+        fetch: mock(() => {
+          throw new Error("IMAP fetch error");
+        }),
+        download: mock(() => ({ content: (async function* () {})() })),
+      };
+      const deps = makeDeps({
+        forEachAccount: mock(async (_accounts, fn) => {
+          await fn(fetchErrorClient, makeAccount());
+        }),
+        _client: fetchErrorClient,
+      });
+
+      await expect(extractAttachmentCommand("42", 0, { list: true }, deps)).rejects.toThrow("IMAP fetch error");
+    });
   });
 
   describe("save mode", () => {
