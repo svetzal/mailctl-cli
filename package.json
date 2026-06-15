@@ -40,7 +40,7 @@
     "imapflow": "^1.4.0",
     "mailparser": "^3.9.9",
     "mojentic": "^1.5.0",
-    "nodemailer": "^8.0.11"
+    "nodemailer": "^9.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
