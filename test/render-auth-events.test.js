@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderAuthEvent } from "../src/render-auth-events.js";
+import { renderAuthEvent } from "../src/auth-event-factories.js";
 
 describe("renderAuthEvent", () => {
   it("renders token-refresh-failed with the error message", () => {

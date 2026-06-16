@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createEventRenderer } from "../src/event-renderer.js";
-import { renderSharedEvent } from "../src/render-shared-events.js";
+import { renderSharedEvent } from "../src/shared-event-factories.js";
 
 // ── renderSharedEvent ─────────────────────────────────────────────────────────
 

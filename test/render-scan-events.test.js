@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderScanEvent } from "../src/render-scan-events.js";
+import { renderScanEvent } from "../src/scan-event-factories.js";
 
 describe("renderScanEvent", () => {
   it("renders scan-account-start with name and user", () => {

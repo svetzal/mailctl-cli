@@ -104,22 +104,15 @@ src/format-inbox.js            — formatInboxText(), buildInboxJson() — pure 
 src/format-contacts.js         — formatContactsText(), buildContactsJson() — pure contacts result formatter
 src/format-import-classifications.js — buildImportClassificationsJson() — pure import-classifications JSON builder
 src/format-init.js             — formatInitText(), buildInitJson() — pure init result formatters
-src/read-email.js              — re-export shim for format-read.js (deprecated)
 src/event-renderer.js          — createEventRenderer() — cycle-free renderer core; accepts optional `fallbackRenderer` injection; owns ANSI color logic
 src/event-table.js             — defineEventTable() — builds event factories + co-located renderer from a single descriptor table; adding a new event = one entry, no separate renderer edit
 src/command-event-table.js     — defineCommandEventTable() — thin wrapper over defineEventTable that injects renderSharedEvent as fallback; use for all command-level event tables
-src/render-auth-events.js      — re-export shim: `export { renderAuthEvent } from "./auth-event-factories.js"`
-src/render-scan-events.js      — re-export shim: `export { renderScanEvent } from "./scan-event-factories.js"`
-src/render-sort-events.js      — re-export shim: `export { renderSortEvent } from "./sort-event-factories.js"`
-src/render-download-events.js  — re-export shim: `export { renderDownloadEvent } from "./download-event-factories.js"`
-src/render-download-receipts-events.js — re-export shim: `export { renderDownloadReceiptsEvent } from "./download-receipts-event-factories.js"`
 src/auth-event-factories.js    — descriptor table for M365 auth events; exports factories (`deviceCodePrompt`, `authWaiting`, `authSuccess`, `tokenRefreshFailed`) and `renderAuthEvent`
 src/shared-event-factories.js  — descriptor table for shared IMAP events (uses defineEventTable pattern); exports factories (`mailboxStart`, `mailboxEmpty`, `mailboxMatches`, `mailboxLockFailed`, `searchFailed`) and `renderSharedEvent`
 src/scan-event-factories.js    — descriptor table for scan events; exports factories (`scanAccountStart`, `scanAccountComplete`) and `renderScanEvent`
 src/sort-event-factories.js    — descriptor table for sort events; exports factories (`accountStart`, `folderExists`, `folderCreated`, `scanComplete`, `moveDryRun`, `moved`) and `renderSortEvent`
 src/download-event-factories.js — descriptor table for download events; exports factories (`downloadAccountStart`, `downloadBizCount`, etc.) and `renderDownloadEvent`
 src/download-receipts-event-factories.js — descriptor table for download-receipts events (44 factories covering all phases) and `renderDownloadReceiptsEvent`
-src/render-shared-events.js    — re-export shim: `export { renderSharedEvent } from "./shared-event-factories.js"`
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
 src/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors

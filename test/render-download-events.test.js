@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderDownloadEvent } from "../src/render-download-events.js";
+import { renderDownloadEvent } from "../src/download-event-factories.js";
 
 describe("renderDownloadEvent", () => {
   it("renders download-account-start with name and user", () => {

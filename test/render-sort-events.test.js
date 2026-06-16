@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderSortEvent } from "../src/render-sort-events.js";
+import { renderSortEvent } from "../src/sort-event-factories.js";
 
 describe("renderSortEvent", () => {
   it("renders account-start with name and user", () => {

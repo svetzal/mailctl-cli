@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { simpleParser } from "mailparser";
 import { loadAccounts } from "./accounts.js";
+import { renderAuthEvent } from "./auth-event-factories.js";
 import { classifyCommand } from "./classify-command.js";
 import {
   collectValues,
@@ -16,7 +17,9 @@ import {
 } from "./cli-helpers.js";
 import { contactsCommand } from "./contacts-command.js";
 import { downloadCommand } from "./download-command.js";
+import { renderDownloadEvent } from "./download-event-factories.js";
 import { downloadReceiptsCommand } from "./download-receipts-command.js";
+import { renderDownloadReceiptsEvent } from "./download-receipts-event-factories.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
 import { formatAttachmentOutput } from "./format-attachment.js";
@@ -48,15 +51,12 @@ import { loadOpenAiKey } from "./keychain.js";
 import { listFoldersCommand } from "./list-folders-command.js";
 import { moveCommand } from "./move-command.js";
 import { readCommand } from "./read-command.js";
-import { renderAuthEvent } from "./render-auth-events.js";
-import { renderDownloadEvent } from "./render-download-events.js";
-import { renderDownloadReceiptsEvent } from "./render-download-receipts-events.js";
-import { renderScanEvent } from "./render-scan-events.js";
-import { renderSortEvent } from "./render-sort-events.js";
 import { replyCommand } from "./reply-command.js";
 import { scanCommand } from "./scan-command.js";
+import { renderScanEvent } from "./scan-event-factories.js";
 import { searchCommand } from "./search-command.js";
 import { sortCommand } from "./sort-command.js";
+import { renderSortEvent } from "./sort-event-factories.js";
 import { threadCommand } from "./thread-command.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
