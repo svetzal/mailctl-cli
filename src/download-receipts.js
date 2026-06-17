@@ -20,9 +20,6 @@ import {
   reprocessSummary,
   reprocessUpdated,
   reprocessUsingBody,
-  subjectExclusions,
-  uniqueReceipts,
-  vendorFilterApplied,
 } from "./download-receipts-event-factories.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
@@ -34,7 +31,9 @@ import { pdfToText } from "./pdf-converter.js";
 import { processReceiptMessage } from "./process-receipt-message.js";
 import {
   buildReprocessedSidecar,
+  chooseReprocessSource,
   classifyReprocessResult,
+  receiptFilterEvents,
   shouldStopProcessing,
   sidecarPassesFilters,
   tallyReceiptAction,
@@ -98,6 +97,50 @@ async function processOneReceiptMessage({ client, msg, context, perMessageTimeou
 }
 
 /**
+ * Processes a mailbox batch, folding results into shared runState.
+ * Separates per-message loop logic from the account-level orchestrator.
+ *
+ * @param {object} client - IMAP client
+ * @param {Array} messages - messages to process in this batch
+ * @param {{ stats: object, records: Array, processedCount: number, stopped: boolean }} runState
+ * @param {{ context: object, perMessageTimeoutMs: number, processMessage: function, maxMessages: number|null, startedAt: number, budgetMs: number|null, total: number }} deps
+ * @param {function(object): void} onProgress
+ * @returns {Promise<void>}
+ */
+async function processReceiptMessageGroup(client, messages, runState, deps, onProgress) {
+  const { context, perMessageTimeoutMs, processMessage, maxMessages, startedAt, budgetMs, total } = deps;
+  for (const msg of messages) {
+    if (runState.stopped) break;
+    runState.processedCount++;
+    onProgress(messageStart(runState.processedCount, total, msg.fromName || msg.fromAddress, msg.subject || ""));
+    const result = await processOneReceiptMessage(
+      { client, msg, context, perMessageTimeoutMs, processMessage },
+      onProgress,
+    );
+    if (result.outcome === "timedOut") {
+      runState.stats.timedOut++;
+    } else if (result.outcome === "error") {
+      runState.stats.errors++;
+    } else {
+      const action = /** @type {string} */ (result.action);
+      runState.stats = tallyReceiptAction(runState.stats, action);
+      if (action === "downloaded" || action === "noPdf") {
+        runState.records.push(/** @type {object} */ (result.metadata));
+      }
+    }
+    const stop = shouldStopProcessing(
+      { processedCount: runState.processedCount, maxMessages, startedAt, budgetMs },
+      performance.now(),
+    );
+    if (stop.stop) {
+      onProgress(stop.event);
+      runState.stopped = true;
+      break;
+    }
+  }
+}
+
+/**
  * @param {object} [opts]
  * @param {string}  [opts.outputDir="."] - root output directory
  * @param {number}  [opts.months=12] - how far back to search
@@ -147,22 +190,23 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   );
   const usedPaths = new Set();
 
-  let stats = {
-    found: 0,
-    downloaded: 0,
-    noPdf: 0,
-    skipped: 0,
-    skippedEmpty: 0,
-    alreadyHave: 0,
-    errors: 0,
-    timedOut: 0,
-    searchFailures: 0,
+  const runState = {
+    stats: {
+      found: 0,
+      downloaded: 0,
+      noPdf: 0,
+      skipped: 0,
+      skippedEmpty: 0,
+      alreadyHave: 0,
+      errors: 0,
+      timedOut: 0,
+      searchFailures: 0,
+    },
+    records: /** @type {Array} */ ([]),
+    processedCount: 0,
+    stopped: false,
   };
-  let processedCount = 0;
-  let stopped = false;
-  const records = [];
 
-  // Initialize LLM broker for receipt data extraction (null if no API key available)
   const llm = _createLlmBroker(openAiKey, onProgress);
   if (llm) {
     onProgress(llmEnabled());
@@ -175,25 +219,21 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     since,
     { forEachAccount, listMailboxes, onProgress },
     async (client, account, searchResults, accountSearchFailures) => {
-      stats.searchFailures += accountSearchFailures.length;
+      runState.stats.searchFailures += accountSearchFailures.length;
       const {
         filtered: unique,
         vendorExcluded,
         subjectExcluded,
       } = applyReceiptFilters(searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS);
+      receiptFilterEvents({
+        uniqueCount: unique.length,
+        vendorExcluded,
+        subjectExcluded,
+        vendor: opts.vendor || null,
+      }).forEach(onProgress);
+      runState.stats.found += unique.length;
 
-      if (vendorExcluded > 0) {
-        onProgress(vendorFilterApplied(unique.length, vendorExcluded, opts.vendor || null));
-      }
-      if (subjectExcluded > 0) {
-        onProgress(subjectExclusions(subjectExcluded));
-      }
-      onProgress(uniqueReceipts(unique.length));
-      stats.found += unique.length;
-
-      // Phase 2: process each email (grouped by mailbox for IMAP efficiency)
       const byMailbox = groupByMailbox(unique);
-      const total = unique.length;
       const context = {
         accountName: account.name,
         outputDir,
@@ -207,40 +247,24 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
         subprocess,
         onProgress,
       };
-      await forEachMailboxGroup(client, byMailbox, async (_mailbox, messages) => {
-        for (const msg of messages) {
-          if (stopped) break;
-          processedCount++;
-          onProgress(messageStart(processedCount, total, msg.fromName || msg.fromAddress, msg.subject || ""));
-          const result = await processOneReceiptMessage(
-            { client, msg, context, perMessageTimeoutMs, processMessage: _processMessage },
-            onProgress,
-          );
-          if (result.outcome === "timedOut") {
-            stats.timedOut++;
-          } else if (result.outcome === "error") {
-            stats.errors++;
-          } else {
-            const action = /** @type {string} */ (result.action);
-            stats = tallyReceiptAction(stats, action);
-            if (action === "downloaded" || action === "noPdf") {
-              records.push(/** @type {object} */ (result.metadata));
-            }
-          }
-          const stop = shouldStopProcessing({ processedCount, maxMessages, startedAt, budgetMs }, performance.now());
-          if (stop.stop) {
-            onProgress(stop.event);
-            stopped = true;
-            break;
-          }
-        }
-      });
+      const deps = {
+        context,
+        perMessageTimeoutMs,
+        processMessage: _processMessage,
+        maxMessages,
+        startedAt,
+        budgetMs,
+        total: unique.length,
+      };
+      await forEachMailboxGroup(client, byMailbox, (_mailbox, messages) =>
+        processReceiptMessageGroup(client, messages, runState, deps, onProgress),
+      );
     },
   );
 
-  onProgress(downloadSummary(stats));
+  onProgress(downloadSummary(runState.stats));
 
-  return { stats, records };
+  return { stats: runState.stats, records: runState.records };
 }
 
 /**
@@ -291,6 +315,76 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
 }
 
 /**
+ * I/O shell: resolves extraction text for a sidecar by dispatching on the source-selection plan.
+ * Returns `{ kind: 'text', text }` on success or `{ kind: 'terminal', statKey, entry }` on early exit.
+ *
+ * @param {{ pdfPath: string, jsonFilename: string, sidecar: object, hasPdf: boolean, dryRun: boolean, fs: object, subprocess: object }} params
+ * @param {function(object): void} onProgress
+ * @returns {{ kind: 'text', text: string } | { kind: 'terminal', statKey: string, entry: object }}
+ */
+function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun, fs, subprocess }, onProgress) {
+  const choice = chooseReprocessSource({ hasPdf, hasBodySnippet: Boolean(sidecar.source_body_snippet), dryRun });
+  switch (choice.kind) {
+    case "dryRunPdf":
+      onProgress(reprocessDryRun(jsonFilename));
+      return { kind: "terminal", statKey: "reprocessed", entry: { file: jsonFilename, status: "dry-run" } };
+    case "pdf": {
+      const text = pdfToText(pdfPath, fs, subprocess);
+      if (text) return { kind: "text", text };
+      onProgress(reprocessDoclingFailed(new Error("docling conversion failed"), jsonFilename));
+      return {
+        kind: "terminal",
+        statKey: "errors",
+        entry: { file: jsonFilename, status: "error", reason: "docling conversion failed" },
+      };
+    }
+    case "dryRunBody":
+      onProgress(reprocessDryRunBody(jsonFilename));
+      return { kind: "terminal", statKey: "reprocessed", entry: { file: jsonFilename, status: "dry-run" } };
+    case "body":
+      onProgress(reprocessUsingBody(jsonFilename));
+      return { kind: "text", text: sidecar.source_body_snippet };
+    default:
+      onProgress(reprocessSkipped(jsonFilename, "no PDF and no body snippet"));
+      return {
+        kind: "terminal",
+        statKey: "skipped",
+        entry: { file: jsonFilename, status: "skipped", reason: "no PDF and no body snippet" },
+      };
+  }
+}
+
+/**
+ * I/O shell: persists or removes a reprocessed sidecar based on classifyReprocessResult.
+ * The caller must inject reprocessedAt so this function has no wall-clock dependency.
+ *
+ * @param {{ metadata: object, sidecar: object, jsonPath: string, jsonFilename: string, reprocessedAt: string, fs: object }} params
+ * @param {function(object): void} onProgress
+ * @returns {{ statKey: string, entry: object }}
+ */
+function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, reprocessedAt, fs }, onProgress) {
+  const decision = classifyReprocessResult(metadata);
+  if (decision.action === "noData") {
+    onProgress(reprocessNoData(jsonFilename));
+    return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: "LLM extraction failed" } };
+  }
+  if (decision.action === "reclassified") {
+    onProgress(reprocessReclassified(jsonFilename));
+    fs.rm(jsonPath, { force: true });
+    return { statKey: "reclassified", entry: { file: jsonFilename, status: "reclassified", reason: "non-invoice" } };
+  }
+  const updated = buildReprocessedSidecar(metadata, sidecar, reprocessedAt);
+  try {
+    fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
+  } catch (err) {
+    onProgress(reprocessError(err, jsonFilename));
+    return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: err.message, phase: "write" } };
+  }
+  onProgress(reprocessUpdated(jsonFilename));
+  return { statKey: "reprocessed", entry: { file: jsonFilename, status: "reprocessed" } };
+}
+
+/**
  * Process a single sidecar file during reprocessing.
  * Returns a stat key and result entry so the orchestrator can fold without branching.
  *
@@ -301,43 +395,19 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
 async function reprocessOneSidecar({ jsonPath, sidecar, llm, fs, subprocess, dryRun }, onProgress) {
   const baseName = jsonPath.replace(/\.json$/, "");
   const pdfPath = `${baseName}.pdf`;
-  const jsonFilename = jsonPath.split("/").pop();
+  const jsonFilename = /** @type {string} */ (jsonPath.split("/").pop());
 
-  const hasPdf = fs.exists(pdfPath);
-  let extractionText = null;
-
-  if (hasPdf) {
-    if (dryRun) {
-      onProgress(reprocessDryRun(jsonFilename));
-      return { statKey: "reprocessed", entry: { file: jsonFilename, status: "dry-run" } };
-    }
-    const pdfMarkdown = pdfToText(pdfPath, fs, subprocess);
-    if (pdfMarkdown) {
-      extractionText = pdfMarkdown;
-    } else {
-      onProgress(reprocessDoclingFailed(new Error("docling conversion failed"), jsonFilename));
-      return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: "docling conversion failed" } };
-    }
-  } else if (sidecar.source_body_snippet) {
-    if (dryRun) {
-      onProgress(reprocessDryRunBody(jsonFilename));
-      return { statKey: "reprocessed", entry: { file: jsonFilename, status: "dry-run" } };
-    }
-    extractionText = sidecar.source_body_snippet;
-    onProgress(reprocessUsingBody(jsonFilename));
-  } else {
-    onProgress(reprocessSkipped(jsonFilename, "no PDF and no body snippet"));
-    return {
-      statKey: "skipped",
-      entry: { file: jsonFilename, status: "skipped", reason: "no PDF and no body snippet" },
-    };
-  }
+  const sourceResult = resolveReprocessSource(
+    { pdfPath, jsonFilename, sidecar, hasPdf: fs.exists(pdfPath), dryRun, fs, subprocess },
+    onProgress,
+  );
+  if (sourceResult.kind === "terminal") return { statKey: sourceResult.statKey, entry: sourceResult.entry };
 
   let metadata;
   try {
     metadata = await extractMetadataWithLLM(
       llm.broker,
-      extractionText,
+      sourceResult.text,
       sidecar.subject || "",
       sidecar.source_email || "",
       sidecar.vendor || "",
@@ -348,31 +418,10 @@ async function reprocessOneSidecar({ jsonPath, sidecar, llm, fs, subprocess, dry
     return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: err.message, phase: "llm" } };
   }
 
-  const reprocessDecision = classifyReprocessResult(metadata);
-
-  if (reprocessDecision.action === "noData") {
-    onProgress(reprocessNoData(jsonFilename));
-    return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: "LLM extraction failed" } };
-  }
-
-  if (reprocessDecision.action === "reclassified") {
-    onProgress(reprocessReclassified(jsonFilename));
-    fs.rm(jsonPath, { force: true });
-    return { statKey: "reclassified", entry: { file: jsonFilename, status: "reclassified", reason: "non-invoice" } };
-  }
-
-  const reprocessedAt = new Date().toISOString();
-  const updated = buildReprocessedSidecar(metadata, sidecar, reprocessedAt);
-
-  try {
-    fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
-  } catch (err) {
-    onProgress(reprocessError(err, jsonFilename));
-    return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: err.message, phase: "write" } };
-  }
-
-  onProgress(reprocessUpdated(jsonFilename));
-  return { statKey: "reprocessed", entry: { file: jsonFilename, status: "reprocessed" } };
+  return persistReprocessedSidecar(
+    { metadata, sidecar, jsonPath, jsonFilename, reprocessedAt: new Date().toISOString(), fs },
+    onProgress,
+  );
 }
 
 /**

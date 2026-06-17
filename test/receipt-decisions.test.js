@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildReprocessedSidecar,
+  chooseReprocessSource,
   classifyReceiptExtraction,
   classifyReprocessResult,
   isEmptyExtraction,
   MIN_INVOICE_CONFIDENCE,
   receiptDecisionEvent,
+  receiptFilterEvents,
   shouldStopProcessing,
   sidecarPassesFilters,
   tallyReceiptAction,
@@ -433,5 +435,53 @@ describe("shouldStopProcessing", () => {
   it("does not stop when elapsed time is below budgetMs", () => {
     const result = shouldStopProcessing({ processedCount: 1, maxMessages: null, startedAt: 0, budgetMs: 5000 }, 1000);
     expect(result.stop).toBe(false);
+  });
+});
+
+// ── chooseReprocessSource ─────────────────────────────────────────────────────
+
+describe("chooseReprocessSource", () => {
+  it("returns dryRunPdf when hasPdf is true and dryRun is true", () => {
+    expect(chooseReprocessSource({ hasPdf: true, hasBodySnippet: false, dryRun: true }).kind).toBe("dryRunPdf");
+  });
+
+  it("returns pdf when hasPdf is true and dryRun is false", () => {
+    expect(chooseReprocessSource({ hasPdf: true, hasBodySnippet: false, dryRun: false }).kind).toBe("pdf");
+  });
+
+  it("returns dryRunBody when no pdf, has snippet, and dryRun is true", () => {
+    expect(chooseReprocessSource({ hasPdf: false, hasBodySnippet: true, dryRun: true }).kind).toBe("dryRunBody");
+  });
+
+  it("returns body when no pdf, has snippet, and dryRun is false", () => {
+    expect(chooseReprocessSource({ hasPdf: false, hasBodySnippet: true, dryRun: false }).kind).toBe("body");
+  });
+
+  it("returns skip when no pdf and no snippet", () => {
+    expect(chooseReprocessSource({ hasPdf: false, hasBodySnippet: false, dryRun: false }).kind).toBe("skip");
+  });
+});
+
+// ── receiptFilterEvents ───────────────────────────────────────────────────────
+
+describe("receiptFilterEvents", () => {
+  it("includes vendor-filter-applied event when vendorExcluded > 0", () => {
+    const events = receiptFilterEvents({ uniqueCount: 5, vendorExcluded: 2, subjectExcluded: 0, vendor: "acme" });
+    expect(events.some((e) => e.type === "vendor-filter-applied")).toBe(true);
+  });
+
+  it("includes subject-exclusions event when subjectExcluded > 0", () => {
+    const events = receiptFilterEvents({ uniqueCount: 5, vendorExcluded: 0, subjectExcluded: 1, vendor: null });
+    expect(events.some((e) => e.type === "subject-exclusions")).toBe(true);
+  });
+
+  it("always includes unique-receipts event last", () => {
+    const events = receiptFilterEvents({ uniqueCount: 3, vendorExcluded: 0, subjectExcluded: 0, vendor: null });
+    expect(events[events.length - 1].type).toBe("unique-receipts");
+  });
+
+  it("returns only the unique-receipts event when both exclusion counts are zero", () => {
+    const events = receiptFilterEvents({ uniqueCount: 3, vendorExcluded: 0, subjectExcluded: 0, vendor: null });
+    expect(events).toHaveLength(1);
   });
 });

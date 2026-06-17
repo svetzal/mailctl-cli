@@ -10,6 +10,9 @@ import {
   skipExistingInvoice,
   skipLowConfidence,
   skipNonInvoice,
+  subjectExclusions,
+  uniqueReceipts,
+  vendorFilterApplied,
 } from "./download-receipts-event-factories.js";
 
 export const MIN_INVOICE_CONFIDENCE = 0.4;
@@ -174,6 +177,42 @@ export function shouldStopProcessing({ processedCount, maxMessages, startedAt, b
     return { stop: true, event: budgetExceeded(budgetMs) };
   }
   return { stop: false, event: null };
+}
+
+/**
+ * Pure decision: determines which source to use when reprocessing a sidecar.
+ * Returns a discriminated plan with no I/O.
+ *
+ * @param {{ hasPdf: boolean, hasBodySnippet: boolean, dryRun: boolean }} opts
+ * @returns {{ kind: 'pdf' | 'body' | 'dryRunPdf' | 'dryRunBody' | 'skip' }}
+ */
+export function chooseReprocessSource({ hasPdf, hasBodySnippet, dryRun }) {
+  if (hasPdf) {
+    return { kind: dryRun ? "dryRunPdf" : "pdf" };
+  }
+  if (hasBodySnippet) {
+    return { kind: dryRun ? "dryRunBody" : "body" };
+  }
+  return { kind: "skip" };
+}
+
+/**
+ * Returns an ordered array of filter progress event objects for receipt search results.
+ * The caller iterates and emits each one — no direct onProgress call here.
+ *
+ * @param {{ uniqueCount: number, vendorExcluded: number, subjectExcluded: number, vendor: string|null }} opts
+ * @returns {Array<object>}
+ */
+export function receiptFilterEvents({ uniqueCount, vendorExcluded, subjectExcluded, vendor }) {
+  const events = [];
+  if (vendorExcluded > 0) {
+    events.push(vendorFilterApplied(uniqueCount, vendorExcluded, vendor));
+  }
+  if (subjectExcluded > 0) {
+    events.push(subjectExclusions(subjectExcluded));
+  }
+  events.push(uniqueReceipts(uniqueCount));
+  return events;
 }
 
 /**
