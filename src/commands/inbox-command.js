@@ -4,8 +4,8 @@
  * Extracts the orchestration logic from the cli.js inbox handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
-import { fetchInbox } from "./inbox.js";
-import { parseIntOption, parseSinceOption } from "./parse-options.js";
+import { fetchInbox } from "../inbox.js";
+import { parseIntOption, parseSinceOption } from "../parse-options.js";
 
 /**
  * @typedef {object} InboxCommandDeps

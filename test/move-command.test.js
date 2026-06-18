@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { moveCommand } from "../src/move-command.js";
+import { moveCommand } from "../src/commands/move-command.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 function makeClient({ messageMoveShouldFail = false } = {}) {

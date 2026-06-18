@@ -4,11 +4,11 @@
  * Extracts the orchestration logic from the cli.js thread handler so it can
  * be tested independently. All IMAP I/O is injected via deps.
  */
-import { uidNotFoundError } from "./find-message.js";
-import { filterSearchMailboxes } from "./imap-client.js";
-import { detectMailboxAcrossAll } from "./mailbox-detect.js";
-import { parseIntOption } from "./parse-options.js";
-import { findThread } from "./thread.js";
+import { uidNotFoundError } from "../find-message.js";
+import { filterSearchMailboxes } from "../imap-client.js";
+import { detectMailboxAcrossAll } from "../mailbox-detect.js";
+import { parseIntOption } from "../parse-options.js";
+import { findThread } from "../thread.js";
 
 /**
  * @typedef {object} ThreadCommandDeps

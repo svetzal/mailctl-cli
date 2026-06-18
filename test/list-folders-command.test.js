@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { listFoldersCommand } from "../src/list-folders-command.js";
+import { listFoldersCommand } from "../src/commands/list-folders-command.js";
 import { makeAccount } from "./helpers.js";
 
 function makeDeps(overrides = {}) {

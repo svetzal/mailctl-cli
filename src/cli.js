@@ -5,7 +5,7 @@ import { Command } from "commander";
 import { simpleParser } from "mailparser";
 import { loadAccounts } from "./accounts.js";
 import { renderAuthEvent } from "./auth-event-factories.js";
-import { classifyCommand } from "./classify-command.js";
+import { classifyCommand } from "./commands/classify-command.js";
 import {
   collectValues,
   createProgressRenderer,
@@ -15,13 +15,13 @@ import {
   resolveCommandContext,
   withErrorHandling,
 } from "./cli-helpers.js";
-import { contactsCommand } from "./contacts-command.js";
-import { downloadCommand } from "./download-command.js";
+import { contactsCommand } from "./commands/contacts-command.js";
+import { downloadCommand } from "./commands/download-command.js";
 import { renderDownloadEvent } from "./download-event-factories.js";
 import { downloadReceiptsCommand } from "./receipts/download-receipts-command.js";
 import { renderDownloadReceiptsEvent } from "./receipts/download-receipts-event-factories.js";
-import { extractAttachmentCommand } from "./extract-attachment-command.js";
-import { flagCommand } from "./flag-command.js";
+import { extractAttachmentCommand } from "./commands/extract-attachment-command.js";
+import { flagCommand } from "./commands/flag-command.js";
 import { formatAttachmentOutput } from "./format-attachment.js";
 import { formatContactsOutput } from "./format-contacts.js";
 import { formatDownloadOutput } from "./format-download.js";
@@ -44,20 +44,20 @@ import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import { KeychainGateway } from "./gateways/keychain-gateway.js";
 import { SmtpGateway } from "./gateways/smtp-gateway.js";
 import { forEachAccount, listMailboxes } from "./imap-client.js";
-import { importClassificationsCommand } from "./import-classifications-command.js";
-import { inboxCommand } from "./inbox-command.js";
+import { importClassificationsCommand } from "./commands/import-classifications-command.js";
+import { inboxCommand } from "./commands/inbox-command.js";
 import { initCommand } from "./init.js";
 import { loadOpenAiKey } from "./keychain.js";
-import { listFoldersCommand } from "./list-folders-command.js";
-import { moveCommand } from "./move-command.js";
-import { readCommand } from "./read-command.js";
-import { replyCommand } from "./reply-command.js";
-import { scanCommand } from "./scan-command.js";
+import { listFoldersCommand } from "./commands/list-folders-command.js";
+import { moveCommand } from "./commands/move-command.js";
+import { readCommand } from "./commands/read-command.js";
+import { replyCommand } from "./commands/reply-command.js";
+import { scanCommand } from "./commands/scan-command.js";
 import { renderScanEvent } from "./scan-event-factories.js";
-import { searchCommand } from "./search-command.js";
-import { sortCommand } from "./sort-command.js";
+import { searchCommand } from "./commands/search-command.js";
+import { sortCommand } from "./commands/sort-command.js";
 import { renderSortEvent } from "./sort-event-factories.js";
-import { threadCommand } from "./thread-command.js";
+import { threadCommand } from "./commands/thread-command.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");

@@ -17,7 +17,7 @@ function makeScanCommand(overrides = {}) {
   mock.module("../src/scanner.js", () => ({ scanAllAccounts, aggregateBySender }));
   mock.module("../src/scan-data.js", () => ({ ensureDataDir, saveScanResults }));
 
-  const { scanCommand } = require("../src/scan-command.js");
+  const { scanCommand } = require("../src/commands/scan-command.js");
 
   return { scanCommand, scanAllAccounts, aggregateBySender, ensureDataDir, saveScanResults };
 }

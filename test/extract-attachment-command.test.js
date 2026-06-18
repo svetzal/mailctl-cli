@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { extractAttachmentCommand } from "../src/extract-attachment-command.js";
+import { extractAttachmentCommand } from "../src/commands/extract-attachment-command.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

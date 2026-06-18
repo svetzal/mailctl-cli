@@ -5,8 +5,8 @@
  * be tested independently. All I/O is injected via deps.
  */
 
-import { downloadReceipts as _downloadReceipts } from "./downloader.js";
-import { parseIntOption } from "./parse-options.js";
+import { downloadReceipts as _downloadReceipts } from "../downloader.js";
+import { parseIntOption } from "../parse-options.js";
 
 /**
  * @typedef {object} DownloadCommandDeps

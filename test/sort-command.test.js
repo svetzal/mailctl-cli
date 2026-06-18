@@ -14,7 +14,7 @@ function makeSortCommand(overrides = {}) {
 
   mock.module("../src/sorter.js", () => ({ sortReceipts }));
 
-  const { sortCommand } = require("../src/sort-command.js");
+  const { sortCommand } = require("../src/commands/sort-command.js");
 
   return { sortCommand, sortReceipts };
 }

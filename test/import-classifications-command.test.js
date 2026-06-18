@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { importClassificationsCommand } from "../src/import-classifications-command.js";
+import { importClassificationsCommand } from "../src/commands/import-classifications-command.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 

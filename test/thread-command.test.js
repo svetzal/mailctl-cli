@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { threadCommand } from "../src/thread-command.js";
+import { threadCommand } from "../src/commands/thread-command.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

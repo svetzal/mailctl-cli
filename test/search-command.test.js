@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { searchCommand } from "../src/search-command.js";
+import { searchCommand } from "../src/commands/search-command.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

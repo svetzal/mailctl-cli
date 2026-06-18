@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { flagCommand } from "../src/flag-command.js";
+import { flagCommand } from "../src/commands/flag-command.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

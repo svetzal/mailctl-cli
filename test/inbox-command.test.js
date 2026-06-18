@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { inboxCommand } from "../src/inbox-command.js";
+import { inboxCommand } from "../src/commands/inbox-command.js";
 import { makeAccount } from "./helpers.js";
 
 function makeMessage(uid = 1) {

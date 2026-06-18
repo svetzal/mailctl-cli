@@ -5,10 +5,10 @@
  * be tested independently. All IMAP I/O is injected via deps.
  */
 
-import { createBatchAccumulator, expandPerUid } from "./batch-results.js";
-import { filterAccountsByName } from "./cli-helpers.js";
-import { withMailboxLock } from "./imap-orchestration.js";
-import { parseAndGroupUids } from "./move-logic.js";
+import { createBatchAccumulator, expandPerUid } from "../batch-results.js";
+import { filterAccountsByName } from "../cli-helpers.js";
+import { withMailboxLock } from "../imap-orchestration.js";
+import { parseAndGroupUids } from "../move-logic.js";
 
 /**
  * @typedef {object} MoveCommandDeps

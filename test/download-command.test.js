@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { downloadCommand } from "../src/download-command.js";
+import { downloadCommand } from "../src/commands/download-command.js";
 
 function makeDownloadReceipts(overrides = {}) {
   return (

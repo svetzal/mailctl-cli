@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { classifyCommand } from "../src/classify-command.js";
+import { classifyCommand } from "../src/commands/classify-command.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 

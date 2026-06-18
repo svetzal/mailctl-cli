@@ -5,14 +5,14 @@
  * so it can be tested independently. All I/O is injected via deps.
  */
 import { join, resolve } from "node:path";
-import { findAttachmentParts } from "./attachment-parts.js";
+import { findAttachmentParts } from "../attachment-parts.js";
 import {
   buildAttachmentListing,
   selectDefaultAttachment,
   validateAttachmentIndex,
-} from "./extract-attachment-logic.js";
-import { uidNotFoundError, withMessage } from "./find-message.js";
-import { streamToBuffer } from "./imap-orchestration.js";
+} from "../extract-attachment-logic.js";
+import { uidNotFoundError, withMessage } from "../find-message.js";
+import { streamToBuffer } from "../imap-orchestration.js";
 
 /**
  * @typedef {object} ExtractAttachmentCommandDeps

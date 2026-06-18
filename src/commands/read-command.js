@@ -5,8 +5,8 @@
  * be tested independently. All IMAP I/O is injected via deps.
  */
 
-import { withMessage } from "./find-message.js";
-import { streamToBuffer } from "./imap-orchestration.js";
+import { withMessage } from "../find-message.js";
+import { streamToBuffer } from "../imap-orchestration.js";
 
 /**
  * @typedef {object} ReadCommandDeps

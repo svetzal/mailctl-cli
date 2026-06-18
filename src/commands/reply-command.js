@@ -5,9 +5,9 @@
  * be tested independently. All I/O is injected via deps.
  */
 import { resolve } from "node:path";
-import { withMessage } from "./find-message.js";
-import { streamToBuffer } from "./imap-orchestration.js";
-import { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "./reply.js";
+import { withMessage } from "../find-message.js";
+import { streamToBuffer } from "../imap-orchestration.js";
+import { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "../reply.js";
 
 /**
  * @typedef {object} ReplyCommandDeps

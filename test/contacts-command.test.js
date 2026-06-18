@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { contactsCommand } from "../src/contacts-command.js";
+import { contactsCommand } from "../src/commands/contacts-command.js";
 import { makeAccount } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { readCommand } from "../src/read-command.js";
+import { readCommand } from "../src/commands/read-command.js";
 import { makeAccount, makeForEachAccount, makeListMailboxes, makeLock } from "./helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

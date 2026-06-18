@@ -5,10 +5,10 @@
  * be tested independently. All IMAP I/O is injected via deps.
  */
 
-import { getConfigSelfAddresses } from "./config.js";
-import { aggregateContacts, extractContacts } from "./contacts.js";
-import { formatShortDateWithYear } from "./format-date.js";
-import { parseIntOption, parseSinceOption } from "./parse-options.js";
+import { getConfigSelfAddresses } from "../config.js";
+import { aggregateContacts, extractContacts } from "../contacts.js";
+import { formatShortDateWithYear } from "../format-date.js";
+import { parseIntOption, parseSinceOption } from "../parse-options.js";
 
 /**
  * @typedef {object} ContactsCommandDeps

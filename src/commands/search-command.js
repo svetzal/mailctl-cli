@@ -5,11 +5,11 @@
  * be tested independently. All IMAP I/O is injected via deps.
  */
 
-import { resolveDateFilters } from "./date-filters.js";
-import { deduplicateByMessageId } from "./dedup.js";
-import { filterSearchMailboxes } from "./imap-client.js";
-import { parseIntOption } from "./parse-options.js";
-import { searchMailbox } from "./search.js";
+import { resolveDateFilters } from "../date-filters.js";
+import { deduplicateByMessageId } from "../dedup.js";
+import { filterSearchMailboxes } from "../imap-client.js";
+import { parseIntOption } from "../parse-options.js";
+import { searchMailbox } from "../search.js";
 
 /**
  * @typedef {object} SearchCommandDeps

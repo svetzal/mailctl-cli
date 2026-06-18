@@ -5,9 +5,9 @@
  * be tested independently. All I/O is injected via deps.
  */
 
-import { parseIntOption } from "./parse-options.js";
-import { ensureDataDir, saveScanResults } from "./scan-data.js";
-import { aggregateBySender, scanAllAccounts } from "./scanner.js";
+import { parseIntOption } from "../parse-options.js";
+import { ensureDataDir, saveScanResults } from "../scan-data.js";
+import { aggregateBySender, scanAllAccounts } from "../scanner.js";
 
 /**
  * @typedef {object} ScanCommandDeps

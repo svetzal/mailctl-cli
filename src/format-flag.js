@@ -1,8 +1,8 @@
 import { createFormatOutput } from "./cli-helpers.js";
 
 /**
- * @typedef {import("./flag-command.js").FlagResult} FlagResult
- * @typedef {import("./flag-command.js").FlagStats} FlagStats
+ * @typedef {import("./commands/flag-command.js").FlagResult} FlagResult
+ * @typedef {import("./commands/flag-command.js").FlagStats} FlagStats
  */
 
 /**

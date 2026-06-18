@@ -5,8 +5,8 @@
  * be tested independently.
  */
 
-import { parseIntOption } from "./parse-options.js";
-import { sortReceipts } from "./sorter.js";
+import { parseIntOption } from "../parse-options.js";
+import { sortReceipts } from "../sorter.js";
 
 /**
  * @typedef {object} SortCommandDeps
