@@ -9,7 +9,7 @@ import {
   invalidPdf,
 } from "./download-event-factories.js";
 import { buildFilename, vendorName } from "./download-filename.js";
-import { buildManifestRecord, contentHash, isValidPdf } from "./download-pdf-decisions.js";
+import { buildManifestRecord, contentHash, isValidPdf } from "./receipt-decisions.js";
 
 /**
  * Process a single receipt message: check manifest, fetch BODYSTRUCTURE, find PDF parts,

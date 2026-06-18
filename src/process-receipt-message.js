@@ -1,5 +1,5 @@
 import { simpleParser } from "mailparser";
-import { contentHash } from "./download-pdf-decisions.js";
+import { contentHash } from "./receipt-decisions.js";
 import { doclingConversionFailed, processError } from "./download-receipts-event-factories.js";
 import { htmlToText } from "./html-to-text.js";
 import { extractReceiptMetadata, sanitizeForAgentOutput } from "./llm-receipt-extraction.js";

@@ -5,7 +5,7 @@
  */
 
 import { defineCommandEventTable } from "./command-event-table.js";
-import { formatKB } from "./format-bytes.js";
+import { formatKB } from "./format-utils.js";
 
 const TABLE = {
   downloadAccountStart: {

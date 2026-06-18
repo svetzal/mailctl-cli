@@ -18,7 +18,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
 import { getConfigDownloadDir } from "./config.js";
-import { contentHash } from "./download-pdf-decisions.js";
+import { contentHash } from "./receipt-decisions.js";
 
 export { buildFilename, getVendorNames, vendorName } from "./download-filename.js";
 

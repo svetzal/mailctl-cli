@@ -38,7 +38,7 @@ import {
   sidecarPassesFilters,
   tallyReceiptAction,
 } from "./receipt-decisions.js";
-import { applyReceiptFilters } from "./receipt-filters.js";
+import { applyReceiptFilters } from "./receipt-decisions.js";
 import { collectSidecarFiles, loadExistingHashes, loadExistingInvoiceNumbers } from "./receipt-output-tree.js";
 import { forEachReceiptSearchAccount } from "./receipt-search-pipeline.js";
 import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";

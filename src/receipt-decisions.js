@@ -3,6 +3,7 @@
  * No I/O — all inputs are plain values, outputs are plain objects.
  */
 
+import { createHash } from "node:crypto";
 import {
   budgetExceeded,
   emptyExtractionSkipped,
@@ -240,4 +241,66 @@ export function tallyReceiptAction(stats, action) {
     default:
       return stats;
   }
+}
+
+/**
+ * Pure receipt filtering functions — no I/O, no side effects.
+ */
+
+/**
+ * @param {Array} results - array of receipt search result objects
+ * @param {object} opts
+ * @param {string | null} [opts.vendor] - vendor substring filter, or omitted for none
+ * @param {Function} matchesVendorFn - (vendor, fromAddress, fromName) => boolean
+ * @param {Array<RegExp>} subjectExclusions - subject patterns to exclude
+ * @returns {{ filtered: Array, vendorExcluded: number, subjectExcluded: number }}
+ */
+export function applyReceiptFilters(results, opts, matchesVendorFn, subjectExclusions) {
+  let filtered = results;
+  let vendorExcluded = 0;
+  let subjectExcluded = 0;
+
+  if (opts.vendor) {
+    const before = filtered.length;
+    filtered = filtered.filter((msg) => matchesVendorFn(opts.vendor, msg.fromAddress, msg.fromName));
+    vendorExcluded = before - filtered.length;
+  }
+
+  const beforeExclusion = filtered.length;
+  filtered = filtered.filter((msg) => !subjectExclusions.some((re) => re.test(msg.subject)));
+  subjectExcluded = beforeExclusion - filtered.length;
+
+  return { filtered, vendorExcluded, subjectExcluded };
+}
+
+// Short hash prefix stored in the manifest for human readability
+const MANIFEST_HASH_PREFIX_LENGTH = 12;
+
+/**
+ * @param {Buffer} buffer
+ * @returns {boolean}
+ */
+export function isValidPdf(buffer) {
+  return buffer.length >= 5 && buffer.subarray(0, 5).toString() === "%PDF-";
+}
+
+/**
+ * @param {Buffer} buffer
+ * @returns {string} SHA-256 hex digest
+ */
+export function contentHash(buffer) {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+/**
+ * @param {"no-pdf"|"duplicate"|"downloaded"} status
+ * @param {{ filename?: string, hash?: string, date?: Date|string, vendor?: string }} [fields]
+ * @returns {object}
+ */
+export function buildManifestRecord(status, { filename, hash, date, vendor } = {}) {
+  if (status === "no-pdf") return { status, date };
+  if (status === "duplicate") return { status, hash: (hash ?? "").slice(0, MANIFEST_HASH_PREFIX_LENGTH), date, vendor };
+  if (status === "downloaded")
+    return { status, filename, hash: (hash ?? "").slice(0, MANIFEST_HASH_PREFIX_LENGTH), date, vendor };
+  return { status, date };
 }

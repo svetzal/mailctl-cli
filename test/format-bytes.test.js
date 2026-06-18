@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatKB } from "../src/format-bytes.js";
+import { formatKB } from "../src/format-utils.js";
 
 describe("formatKB", () => {
   it("formats 0 bytes as 0 KB", () => {
