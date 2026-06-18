@@ -5,6 +5,8 @@
  */
 
 import { deduplicateByMessageId } from "../dedup.js";
+import { filterSearchMailboxes } from "../imap-client.js";
+import { withMailboxLock } from "../imap-orchestration.js";
 import {
   mailboxCandidates,
   mailboxFetchError,
@@ -12,8 +14,6 @@ import {
   searchAccount,
   searchTermError,
 } from "./download-receipts-event-factories.js";
-import { filterSearchMailboxes } from "../imap-client.js";
-import { withMailboxLock } from "../imap-orchestration.js";
 import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
 
 /**

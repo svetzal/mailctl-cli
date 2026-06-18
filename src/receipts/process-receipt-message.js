@@ -1,10 +1,14 @@
 import { simpleParser } from "mailparser";
-import { contentHash } from "./receipt-decisions.js";
-import { doclingConversionFailed, processError } from "./download-receipts-event-factories.js";
 import { htmlToText } from "../html-to-text.js";
+import { doclingConversionFailed, processError } from "./download-receipts-event-factories.js";
 import { extractReceiptMetadata, sanitizeForAgentOutput } from "./llm-receipt-extraction.js";
 import { resolveExtractionText } from "./pdf-converter.js";
-import { classifyReceiptExtraction, MIN_INVOICE_CONFIDENCE, receiptDecisionEvent } from "./receipt-decisions.js";
+import {
+  classifyReceiptExtraction,
+  contentHash,
+  MIN_INVOICE_CONFIDENCE,
+  receiptDecisionEvent,
+} from "./receipt-decisions.js";
 import { writeReceiptOutput } from "./receipt-output-tree.js";
 
 const BODY_SNIPPET_MAX_CHARS = 2000;

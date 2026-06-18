@@ -56,23 +56,39 @@ mailctl download-receipts --since 2026-01-01 --budget 300    # 5-minute overall 
 src/cli.js                     — CLI entry point: true thin dispatcher; `buildProgram(deps)` factory is dependency-injected and unit-tested in `test/cli.test.js`; each .action() is 5–15 lines with no inline event rendering logic
 
 Command orchestrators (testable, injected deps):
-src/search-command.js          — Search orchestration (cross-account, date filters, dedup)
-src/read-command.js            — Read orchestration (fetch, parse, account detection)
-src/reply-command.js           — Reply orchestration (fetch original, compose, send via SMTP)
-src/move-command.js            — Move orchestration (multi-account, folder validation, dry-run)
-src/flag-command.js            — Flag orchestration (detect mailbox, apply IMAP flags)
-src/extract-attachment-command.js — Attachment extraction orchestration (BODYSTRUCTURE, download)
-src/thread-command.js          — Thread orchestration (detect mailbox, cross-mailbox discovery)
-src/inbox-command.js           — Inbox overview orchestration
-src/contacts-command.js        — Contact extraction and aggregation orchestration
-src/scan-command.js            — Receipt scan orchestration (scanAllAccounts + save results)
-src/sort-command.js            — Sort orchestration (classify, plan moves, dry-run)
-src/download-command.js        — Download orchestration (scan, PDF extraction, dedup)
-src/list-folders-command.js    — List-folders orchestration (per-account folder listing)
-src/classify-command.js        — Classify orchestration (load senders, filter unclassified)
-src/import-classifications-command.js — Import classifications orchestration (merge + write)
-src/download-receipts-command.js — Download-receipts orchestration (list/reprocess/download routing)
+Files in src/commands/ import sibling files as ./X.js and parent src/ files as ../X.js.
+src/commands/search-command.js          — Search orchestration (cross-account, date filters, dedup)
+src/commands/read-command.js            — Read orchestration (fetch, parse, account detection)
+src/commands/reply-command.js           — Reply orchestration (fetch original, compose, send via SMTP)
+src/commands/move-command.js            — Move orchestration (multi-account, folder validation, dry-run)
+src/commands/flag-command.js            — Flag orchestration (detect mailbox, apply IMAP flags)
+src/commands/extract-attachment-command.js — Attachment extraction orchestration (BODYSTRUCTURE, download)
+src/commands/thread-command.js          — Thread orchestration (detect mailbox, cross-mailbox discovery)
+src/commands/inbox-command.js           — Inbox overview orchestration
+src/commands/contacts-command.js        — Contact extraction and aggregation orchestration
+src/commands/scan-command.js            — Receipt scan orchestration (scanAllAccounts + save results)
+src/commands/sort-command.js            — Sort orchestration (classify, plan moves, dry-run)
+src/commands/download-command.js        — Download orchestration (scan, PDF extraction, dedup)
+src/commands/list-folders-command.js    — List-folders orchestration (per-account folder listing)
+src/commands/classify-command.js        — Classify orchestration (load senders, filter unclassified)
+src/commands/import-classifications-command.js — Import classifications orchestration (merge + write)
 src/find-message.js            — Shared withMessage() helper: cross-account UID lookup lifecycle
+
+Receipt feature cluster:
+Files in src/receipts/ import sibling files as ./X.js and parent src/ files as ../X.js.
+src/receipts/download-receipts-command.js — Download-receipts orchestration (list/reprocess/download routing)
+src/receipts/download-receipts.js       — Receipt download orchestration: downloadReceiptEmails(), listReceiptVendors(), reprocessReceipts() — search → filter → extract metadata → write PDF+sidecar
+src/receipts/download-receipts-event-factories.js — descriptor table for download-receipts events (44 factories covering all phases) and `renderDownloadReceiptsEvent`
+src/receipts/receipt-decisions.js       — Pure classification/transformation decisions, receipt filtering, PDF hash/validation helpers
+src/receipts/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors
+src/receipts/receipt-output-tree.js     — walkOutputTree(), loadExistingInvoiceNumbers(), loadExistingHashes(), uniqueBaseName(), collectSidecarFiles(), writeReceiptOutput() — output directory tree and file I/O for receipt PDFs and sidecars
+src/receipts/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
+src/receipts/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
+src/receipts/process-download-message.js — Per-message PDF download and manifest update (used by downloader)
+src/receipts/process-receipt-message.js  — Per-message receipt extraction and sidecar writing (used by download-receipts)
+src/receipts/pdf-converter.js           — pdfToText(), resolveExtractionText() — docling subprocess wrapper and extraction text resolution
+src/receipts/llm-receipt-extraction.js  — RECEIPT_EXTRACTION_SCHEMA, createLlmBroker(), extractMetadataWithLLM(), extractReceiptMetadata() — LLM-based receipt metadata extraction via mojentic
+src/receipts/format-download-receipts.js — formatDownloadReceiptsText(), buildDownloadReceiptsJson() — pure download-receipts result formatter
 
 Pure logic modules:
 src/config.js                  — Loads ~/.config/mailctl/config.json (account metadata)
@@ -86,14 +102,13 @@ src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachment
 src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
 src/batch-results.js           — createBatchAccumulator(), expandPerUid() — shared stats/results accumulator for batch command orchestrators (move, flag)
 src/define-event.js            — defineEvent() — shared event factory builder, eliminates type-string duplication
-src/format-bytes.js            — formatKB() — shared byte-to-KB formatter
+src/format-utils.js            — formatKB() — shared formatting utilities
 src/with-timeout.js            — withTimeout(promiseFactory, ms, label) — races a promise against a timer; rejects with err.code="ETIMEDOUT" if ms elapses first; used by download-receipts for per-message timeouts
 src/format-scan.js             — formatScanText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
 src/format-search.js           — formatSearchText(), buildSearchJson() — pure search result formatter
 src/format-move.js             — formatMoveText(), buildMoveJson() — pure move summary formatter
 src/format-sort.js             — formatSortText(), buildSortJson() — pure sort summary formatter
 src/format-download.js         — formatDownloadText(), buildDownloadJson() — pure download summary formatter
-src/format-download-receipts.js — formatDownloadReceiptsText(), buildDownloadReceiptsJson() — pure download-receipts result formatter
 src/format-flag.js             — formatFlagText(), buildFlagJson() — pure flag result formatter
 src/format-reply.js            — formatReplyDryRunText(), formatReplySentText(), buildReplyDryRunJson(), buildReplySentJson() — pure reply result formatters
 src/format-attachment.js       — formatAttachmentListText(), formatAttachmentSavedText(), buildAttachmentListJson(), buildAttachmentSavedJson() — pure attachment result formatters
@@ -112,20 +127,11 @@ src/shared-event-factories.js  — descriptor table for shared IMAP events (uses
 src/scan-event-factories.js    — descriptor table for scan events; exports factories (`scanAccountStart`, `scanAccountComplete`) and `renderScanEvent`
 src/sort-event-factories.js    — descriptor table for sort events; exports factories (`accountStart`, `folderExists`, `folderCreated`, `scanComplete`, `moveDryRun`, `moved`) and `renderSortEvent`
 src/download-event-factories.js — descriptor table for download events; exports factories (`downloadAccountStart`, `downloadBizCount`, etc.) and `renderDownloadEvent`
-src/download-receipts-event-factories.js — descriptor table for download-receipts events (44 factories covering all phases) and `renderDownloadReceiptsEvent`
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
-src/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
-src/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors
-src/receipt-filters.js         — applyReceiptFilters() — pure vendor and subject-exclusion filtering
-src/receipt-output-tree.js     — walkOutputTree(), loadExistingInvoiceNumbers(), loadExistingHashes(), uniqueBaseName(), collectSidecarFiles(), writeReceiptOutput() — output directory tree and file I/O for receipt PDFs and sidecars
-src/llm-receipt-extraction.js  — RECEIPT_EXTRACTION_SCHEMA, createLlmBroker(), extractMetadataWithLLM(), extractReceiptMetadata() — LLM-based receipt metadata extraction via mojentic
-src/pdf-converter.js           — pdfToText(), resolveExtractionText() — docling subprocess wrapper and extraction text resolution
 src/vendor-map.js              — Single source of truth for vendor address → display name mappings
 src/scanner.js                 — Scan orchestration, sender aggregation
 src/sorter.js                  — IMAP folder management, message moving
 src/downloader.js              — PDF attachment download with SHA-256 dedup
-src/download-receipts.js       — Receipt download orchestration: downloadReceiptEmails(), listReceiptVendors(), reprocessReceipts() — search → filter → extract metadata → write PDF+sidecar
-src/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
 src/mailbox-detect.js          — detectMailbox(), detectMailboxAcrossAll() — finds which mailbox contains a given UID
 src/reply.js                   — Pure reply builders: headers, body, editor template, parser
 src/thread.js                  — Thread finding logic (header search + subject fallback); formatting moved to format-thread.js

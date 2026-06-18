@@ -1,6 +1,13 @@
 import { resolve } from "node:path";
 import { loadAccounts as _loadAccounts } from "../accounts.js";
 import { resolveAccounts } from "../cli-helpers.js";
+import { FileSystemGateway } from "../gateways/fs-gateway.js";
+import { SubprocessGateway } from "../gateways/subprocess-gateway.js";
+import { forEachAccount as _forEachAccount, listMailboxes as _listMailboxes } from "../imap-client.js";
+import { forEachMailboxGroup, groupByMailbox } from "../imap-orchestration.js";
+import { monthsAgo } from "../parse-date.js";
+import { matchesVendor } from "../vendor-map.js";
+import { withTimeout } from "../with-timeout.js";
 import {
   downloadSummary,
   llmDisabled,
@@ -21,15 +28,11 @@ import {
   reprocessUpdated,
   reprocessUsingBody,
 } from "./download-receipts-event-factories.js";
-import { FileSystemGateway } from "../gateways/fs-gateway.js";
-import { SubprocessGateway } from "../gateways/subprocess-gateway.js";
-import { forEachAccount as _forEachAccount, listMailboxes as _listMailboxes } from "../imap-client.js";
-import { forEachMailboxGroup, groupByMailbox } from "../imap-orchestration.js";
 import { createLlmBroker, extractMetadataWithLLM } from "./llm-receipt-extraction.js";
-import { monthsAgo } from "../parse-date.js";
 import { pdfToText } from "./pdf-converter.js";
 import { processReceiptMessage } from "./process-receipt-message.js";
 import {
+  applyReceiptFilters,
   buildReprocessedSidecar,
   chooseReprocessSource,
   classifyReprocessResult,
@@ -38,12 +41,9 @@ import {
   sidecarPassesFilters,
   tallyReceiptAction,
 } from "./receipt-decisions.js";
-import { applyReceiptFilters } from "./receipt-decisions.js";
 import { collectSidecarFiles, loadExistingHashes, loadExistingInvoiceNumbers } from "./receipt-output-tree.js";
 import { forEachReceiptSearchAccount } from "./receipt-search-pipeline.js";
 import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
-import { matchesVendor } from "../vendor-map.js";
-import { withTimeout } from "../with-timeout.js";
 
 export { RECEIPT_EXTRACTION_SCHEMA } from "./llm-receipt-extraction.js";
 export { searchMailboxForReceipts } from "./receipt-search-pipeline.js";
