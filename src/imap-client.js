@@ -2,7 +2,7 @@ import { ImapFlow } from "imapflow";
 import { connectError } from "./auth-event-factories.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 import { getM365AccessToken } from "./m365-auth.js";
-import { RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
+import { RECEIPT_SUBJECT_TERMS } from "./receipts/receipt-terms.js";
 import { buildScanResult } from "./scan-helpers.js";
 import { fetchError, mailboxEmpty, mailboxMatches, mailboxStart, searchError } from "./shared-event-factories.js";
 

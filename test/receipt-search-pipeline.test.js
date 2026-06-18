@@ -3,7 +3,7 @@ import {
   forEachReceiptSearchAccount,
   searchAccountForReceipts,
   searchMailboxForReceipts,
-} from "../src/receipt-search-pipeline.js";
+} from "../src/receipts/receipt-search-pipeline.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

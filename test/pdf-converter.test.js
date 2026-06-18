@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { pdfToText, resolveExtractionText, selectMarkdownFile } from "../src/pdf-converter.js";
+import { pdfToText, resolveExtractionText, selectMarkdownFile } from "../src/receipts/pdf-converter.js";
 
 // ── resolveExtractionText ─────────────────────────────────────────────────────
 

@@ -47,7 +47,7 @@ import {
   usingPdfContent,
   vendorFilterApplied,
   wroteMetadata,
-} from "../src/download-receipts-event-factories.js";
+} from "../src/receipts/download-receipts-event-factories.js";
 
 const err = new Error("test error");
 

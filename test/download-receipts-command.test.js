@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { downloadReceiptsCommand } from "../src/download-receipts-command.js";
+import { downloadReceiptsCommand } from "../src/receipts/download-receipts-command.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 

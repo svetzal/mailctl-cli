@@ -11,7 +11,7 @@ import {
   shouldStopProcessing,
   sidecarPassesFilters,
   tallyReceiptAction,
-} from "../src/receipt-decisions.js";
+} from "../src/receipts/receipt-decisions.js";
 
 // ── isEmptyExtraction ─────────────────────────────────────────────────────────
 

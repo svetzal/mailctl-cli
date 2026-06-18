@@ -4,7 +4,7 @@
  * Extracts the routing logic from the cli.js download-receipts handler so it can
  * be tested independently. Dynamic imports are injected for the heavy sub-modules.
  */
-import { parseIntOption, parseSinceOption } from "./parse-options.js";
+import { parseIntOption, parseSinceOption } from "../parse-options.js";
 
 /**
  * @typedef {object} DownloadReceiptsCommandDeps

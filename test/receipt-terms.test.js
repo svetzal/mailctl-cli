@@ -4,7 +4,7 @@ import {
   RECEIPT_SUBJECT_EXCLUSIONS,
   RECEIPT_SUBJECT_TERMS,
   stripVendorSuffixes,
-} from "../src/receipt-terms.js";
+} from "../src/receipts/receipt-terms.js";
 
 describe("RECEIPT_SUBJECT_TERMS", () => {
   describe("is a non-empty array", () => {

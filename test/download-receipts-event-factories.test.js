@@ -39,7 +39,7 @@ import {
   usingPdfContent,
   vendorFilterApplied,
   wroteMetadata,
-} from "../src/download-receipts-event-factories.js";
+} from "../src/receipts/download-receipts-event-factories.js";
 
 describe("searchAccount", () => {
   it("builds the search-account event", () => {

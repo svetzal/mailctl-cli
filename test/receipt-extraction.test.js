@@ -16,7 +16,7 @@ import {
   sanitizeFilename,
   titleCase,
   vendorFromDomain,
-} from "../src/receipt-extraction.js";
+} from "../src/receipts/receipt-extraction.js";
 
 /** Test vendor maps — injected via overrides, not from config file. */
 const TEST_VENDOR_FILENAME_NAMES = {

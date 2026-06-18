@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyReceiptFilters } from "../src/receipt-decisions.js";
+import { applyReceiptFilters } from "../src/receipts/receipt-decisions.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

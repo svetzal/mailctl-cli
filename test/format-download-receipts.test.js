@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildDownloadReceiptsJson, formatDownloadReceiptsText } from "../src/format-download-receipts.js";
+import { buildDownloadReceiptsJson, formatDownloadReceiptsText } from "../src/receipts/format-download-receipts.js";
 
-/** @typedef {import("../src/format-download-receipts.js").DownloadReceiptsResult} DownloadReceiptsResult */
+/** @typedef {import("../src/receipts/format-download-receipts.js").DownloadReceiptsResult} DownloadReceiptsResult */
 
 describe("formatDownloadReceiptsText", () => {
   describe("listVendors mode", () => {

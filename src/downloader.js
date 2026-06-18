@@ -11,14 +11,14 @@ import {
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
-import { processDownloadMessage } from "./process-download-message.js";
+import { processDownloadMessage } from "./receipts/process-download-message.js";
 import { requireClassificationsData } from "./scan-data.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "data");
 
 import { getConfigDownloadDir } from "./config.js";
-import { contentHash } from "./receipt-decisions.js";
+import { contentHash } from "./receipts/receipt-decisions.js";
 
 export { buildFilename, getVendorNames, vendorName } from "./download-filename.js";
 

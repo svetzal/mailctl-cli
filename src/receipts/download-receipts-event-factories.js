@@ -6,8 +6,8 @@
  * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
-import { defineCommandEventTable } from "./command-event-table.js";
-import { formatKB } from "./format-utils.js";
+import { defineCommandEventTable } from "../command-event-table.js";
+import { formatKB } from "../format-utils.js";
 
 const TABLE = {
   // From download-receipts.js — per-message progress and flow control

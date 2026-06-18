@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { processReceiptMessage } from "../src/process-receipt-message.js";
+import { processReceiptMessage } from "../src/receipts/process-receipt-message.js";
 
 const FAKE_PDF = Buffer.from("%PDF-1.4 fake content for tests");
 

@@ -116,7 +116,7 @@ export function planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir,
  * Walk the year/month output directory tree, invoking visitor for each file.
  * Encapsulates the <root>/<YYYY>/<MM>/<file> directory convention.
  * @param {string} outputDir
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(filePath: string, fileName: string) => void} visitor
  * @param {(err: Error, context: object) => void} [onError] - called when any directory read or visitor invocation fails
  * @returns {void}
@@ -154,7 +154,7 @@ export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
 
 /**
  * @param {string} outputDir
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
  * @returns {Set<string>}
  */
@@ -175,7 +175,7 @@ export function loadExistingInvoiceNumbers(outputDir, fs, onError = () => {}) {
 
 /**
  * @param {string} outputDir
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
  * @returns {Set<string>}
  */
@@ -200,7 +200,7 @@ export function loadExistingHashes(outputDir, fs, onError = () => {}) {
  * @param {string} dir
  * @param {string} base
  * @param {Set<string>} usedPaths - tracks names used in this run
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @returns {string}
  */
 export function uniqueBaseName(dir, base, usedPaths, fs) {
@@ -219,7 +219,7 @@ export function uniqueBaseName(dir, base, usedPaths, fs) {
 
 /**
  * @param {string} outputDir
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} fs
+ * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(err: Error, context: object) => void} [onError] - called when a file or directory cannot be read
  * @returns {Array<{ jsonPath: string, sidecar: object }>}
  */
@@ -253,7 +253,7 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
  * @param {boolean} params.dryRun
  * @param {Set<string>} params.existingHashes
  * @param {Set<string>} params.usedPaths
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} params.fs
+ * @param {import("../gateways/fs-gateway.js").FileSystemGateway} params.fs
  * @param {function(object): void} [params.onProgress] - receives structured progress events
  * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', metadata: object }}
  */

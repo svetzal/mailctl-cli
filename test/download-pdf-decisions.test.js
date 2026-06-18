@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildManifestRecord, contentHash, isValidPdf } from "../src/receipt-decisions.js";
+import { buildManifestRecord, contentHash, isValidPdf } from "../src/receipts/receipt-decisions.js";
 
 // ── isValidPdf ────────────────────────────────────────────────────────────────
 

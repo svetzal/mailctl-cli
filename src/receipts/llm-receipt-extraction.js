@@ -4,7 +4,7 @@
  */
 
 import { isOk, LlmBroker, Message, OpenAIGateway } from "mojentic";
-import { buildLlmEmailContext, sanitizeForAgentOutput } from "./content-sanitizer.js";
+import { buildLlmEmailContext, sanitizeForAgentOutput } from "../content-sanitizer.js";
 import { llmExtractionFailed, llmNotConfigured } from "./download-receipts-event-factories.js";
 import { cleanVendorForFilename, extractMetadata, formatDate, sanitizeFilename } from "./receipt-extraction.js";
 import { CORPORATE_SUFFIX_PATTERN } from "./receipt-terms.js";

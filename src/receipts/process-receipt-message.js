@@ -1,7 +1,7 @@
 import { simpleParser } from "mailparser";
 import { contentHash } from "./receipt-decisions.js";
 import { doclingConversionFailed, processError } from "./download-receipts-event-factories.js";
-import { htmlToText } from "./html-to-text.js";
+import { htmlToText } from "../html-to-text.js";
 import { extractReceiptMetadata, sanitizeForAgentOutput } from "./llm-receipt-extraction.js";
 import { resolveExtractionText } from "./pdf-converter.js";
 import { classifyReceiptExtraction, MIN_INVOICE_CONFIDENCE, receiptDecisionEvent } from "./receipt-decisions.js";
@@ -21,8 +21,8 @@ const BODY_SNIPPET_MAX_CHARS = 2000;
  * @param {Set<string>} context.existingInvoiceNumbers
  * @param {Set<string>} context.existingHashes
  * @param {Set<string>} context.usedPaths
- * @param {import("./gateways/fs-gateway.js").FileSystemGateway} context.fs
- * @param {import("./gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
+ * @param {import("../gateways/fs-gateway.js").FileSystemGateway} context.fs
+ * @param {import("../gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
  * @param {function(object): void} [context.onProgress]
  * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'skippedEmpty'|'error', metadata?: object }>}
  */

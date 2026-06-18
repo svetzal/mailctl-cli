@@ -18,14 +18,14 @@ import {
 import { contactsCommand } from "./contacts-command.js";
 import { downloadCommand } from "./download-command.js";
 import { renderDownloadEvent } from "./download-event-factories.js";
-import { downloadReceiptsCommand } from "./download-receipts-command.js";
-import { renderDownloadReceiptsEvent } from "./download-receipts-event-factories.js";
+import { downloadReceiptsCommand } from "./receipts/download-receipts-command.js";
+import { renderDownloadReceiptsEvent } from "./receipts/download-receipts-event-factories.js";
 import { extractAttachmentCommand } from "./extract-attachment-command.js";
 import { flagCommand } from "./flag-command.js";
 import { formatAttachmentOutput } from "./format-attachment.js";
 import { formatContactsOutput } from "./format-contacts.js";
 import { formatDownloadOutput } from "./format-download.js";
-import { formatDownloadReceiptsOutput } from "./format-download-receipts.js";
+import { formatDownloadReceiptsOutput } from "./receipts/format-download-receipts.js";
 import { formatFlagOutput } from "./format-flag.js";
 import { formatFoldersOutput } from "./format-folders.js";
 import { formatImportClassificationsOutput } from "./format-import-classifications.js";
@@ -141,7 +141,7 @@ const defaultDeps = {
   listMailboxes,
   simpleParser,
   // dynamic import seam for download-receipts
-  importDownloadReceipts: () => import("./download-receipts.js"),
+  importDownloadReceipts: () => import("./receipts/download-receipts.js"),
   importVendorMap: () => import("./vendor-map.js"),
 };
 

@@ -1,6 +1,6 @@
 import { getLocalPart } from "./email-address.js";
-import { MAX_VENDOR_NAME_LENGTH } from "./receipt-extraction.js";
-import { stripVendorSuffixes } from "./receipt-terms.js";
+import { MAX_VENDOR_NAME_LENGTH } from "./receipts/receipt-extraction.js";
+import { stripVendorSuffixes } from "./receipts/receipt-terms.js";
 import { getVendorDisplayNames } from "./vendor-map.js";
 
 /**

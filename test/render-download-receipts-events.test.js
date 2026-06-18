@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderDownloadReceiptsEvent } from "../src/download-receipts-event-factories.js";
+import { renderDownloadReceiptsEvent } from "../src/receipts/download-receipts-event-factories.js";
 
 describe("renderDownloadReceiptsEvent", () => {
   it("renders llm-enabled message", () => {

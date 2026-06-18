@@ -1,4 +1,4 @@
-import { createFormatOutput } from "./cli-helpers.js";
+import { createFormatOutput } from "../cli-helpers.js";
 
 /**
  * @typedef {{ vendor: string, count: number }} VendorEntry

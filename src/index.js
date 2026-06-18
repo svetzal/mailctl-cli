@@ -3,7 +3,7 @@
 export { discoverAccountsFromEnv, loadAccounts } from "./accounts.js";
 export { collectValues, headerValueToString, sanitizeString } from "./cli-helpers.js";
 export { getConfigAccounts, loadConfig } from "./config.js";
-export { downloadReceiptEmails } from "./download-receipts.js";
+export { downloadReceiptEmails } from "./receipts/download-receipts.js";
 export { buildFilename, downloadReceipts, getVendorNames, vendorName } from "./downloader.js";
 export { FileSystemGateway } from "./gateways/fs-gateway.js";
 // Gateways
@@ -35,8 +35,8 @@ export {
   sanitizeFilename,
   titleCase,
   vendorFromDomain,
-} from "./receipt-extraction.js";
-export { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_EXCLUSIONS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
+} from "./receipts/receipt-extraction.js";
+export { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_EXCLUSIONS, RECEIPT_SUBJECT_TERMS } from "./receipts/receipt-terms.js";
 // Reply
 export { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "./reply.js";
 export { aggregateBySender, scanAllAccounts } from "./scanner.js";

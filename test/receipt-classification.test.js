@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { downloadReceiptEmails, RECEIPT_EXTRACTION_SCHEMA } from "../src/download-receipts.js";
+import { downloadReceiptEmails, RECEIPT_EXTRACTION_SCHEMA } from "../src/receipts/download-receipts.js";
 import { makeLock } from "./helpers.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────

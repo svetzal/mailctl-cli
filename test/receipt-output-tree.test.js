@@ -12,7 +12,7 @@ import {
   receiptMonthDir,
   uniqueBaseName,
   walkOutputTree,
-} from "../src/receipt-output-tree.js";
+} from "../src/receipts/receipt-output-tree.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 

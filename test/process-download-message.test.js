@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { processDownloadMessage } from "../src/process-download-message.js";
+import { processDownloadMessage } from "../src/receipts/process-download-message.js";
 import { makeLock } from "./helpers.js";
 
 const PDF_BYTES = Buffer.from("%PDF-1.4 fake content");

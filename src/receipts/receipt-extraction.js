@@ -3,10 +3,10 @@
  * No I/O, no side effects — all inputs are plain values, outputs are plain objects.
  */
 
-import { getConfigCanadianDomains, getConfigInvoiceBlocklist, getConfigSelfAddresses } from "./config.js";
-import { getDomain, getLocalPart } from "./email-address.js";
+import { getConfigCanadianDomains, getConfigInvoiceBlocklist, getConfigSelfAddresses } from "../config.js";
+import { getDomain, getLocalPart } from "../email-address.js";
 import { CORPORATE_SUFFIX_PATTERN, stripVendorSuffixes } from "./receipt-terms.js";
-import { getVendorDomainMap, getVendorFilenameNames } from "./vendor-map.js";
+import { getVendorDomainMap, getVendorFilenameNames } from "../vendor-map.js";
 
 /** Local parts that indicate a generic/no-reply sender. */
 export const GENERIC_SENDER_PREFIXES = new Set([

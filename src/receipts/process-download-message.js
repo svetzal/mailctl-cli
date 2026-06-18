@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { findPdfParts } from "./attachment-parts.js";
+import { findPdfParts } from "../attachment-parts.js";
 import {
   downloadDryRun,
   downloaded,
@@ -7,8 +7,8 @@ import {
   duplicateContent,
   fetchStructureError,
   invalidPdf,
-} from "./download-event-factories.js";
-import { buildFilename, vendorName } from "./download-filename.js";
+} from "../download-event-factories.js";
+import { buildFilename, vendorName } from "../download-filename.js";
 import { buildManifestRecord, contentHash, isValidPdf } from "./receipt-decisions.js";
 
 /**
