@@ -37,15 +37,15 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^15.0.0",
-    "imapflow": "^1.4.1",
-    "mailparser": "^3.9.10",
+    "imapflow": "^1.4.3",
+    "mailparser": "^3.9.12",
     "mojentic": "^1.5.0",
     "nodemailer": "^9.0.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.0",
+    "@biomejs/biome": "^2.5.1",
     "@types/bun": "^1.3.14",
-    "@types/node": "^25.9.3"
+    "@types/node": "^25.9.4"
   },
   "overrides": {
     "nodemailer": "9.0.1"
