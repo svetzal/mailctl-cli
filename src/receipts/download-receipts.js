@@ -141,6 +141,106 @@ async function processReceiptMessageGroup(client, messages, runState, deps, onPr
 }
 
 /**
+ * Normalizes raw CLI opts into a resolved config object.
+ * Does not touch `startedAt` (wall-clock) or `targetAccounts` (needs loadAccounts gateway).
+ * @param {object} opts
+ * @returns {{ dryRun: boolean, includeEmpty: boolean, months: number, outputDir: string, accountFilter: string|null, maxMessages: number|null, perMessageTimeoutMs: number, budgetMs: number|null, since: Date }}
+ */
+export function resolveDownloadReceiptsOptions(opts) {
+  const dryRun = opts.dryRun ?? false;
+  const includeEmpty = opts.includeEmpty ?? false;
+  const months = opts.months ?? 12;
+  const outputDir = resolve(opts.outputDir || ".");
+  const accountFilter = opts.account || null;
+  const maxMessages = opts.max ?? null;
+  const perMessageTimeoutMs = opts.timeoutMs ?? DEFAULT_PER_MESSAGE_TIMEOUT_MS;
+  const budgetMs = opts.budgetMs ?? null;
+  const since = opts.since ? new Date(opts.since) : monthsAgo(months);
+  return { dryRun, includeEmpty, months, outputDir, accountFilter, maxMessages, perMessageTimeoutMs, budgetMs, since };
+}
+
+/**
+ * Returns a fresh run-state object with all counters zeroed.
+ * @returns {{ stats: object, records: Array, processedCount: number, stopped: boolean }}
+ */
+export function createReceiptRunState() {
+  return {
+    stats: {
+      found: 0,
+      downloaded: 0,
+      noPdf: 0,
+      skipped: 0,
+      skippedEmpty: 0,
+      alreadyHave: 0,
+      errors: 0,
+      timedOut: 0,
+      searchFailures: 0,
+    },
+    records: /** @type {Array} */ ([]),
+    processedCount: 0,
+    stopped: false,
+  };
+}
+
+/**
+ * Per-account handler for forEachReceiptSearchAccount.
+ * Filters, groups by mailbox, and processes each message batch.
+ *
+ * @param {object} client - IMAP client
+ * @param {object} account - account descriptor
+ * @param {Array} searchResults - raw search results from the pipeline
+ * @param {Array} accountSearchFailures - search errors from the pipeline
+ * @param {{ runState: object, opts: object, resolvedOpts: object, llm: object, gateways: object, onProgress: function(object): void }} ctx
+ * @returns {Promise<void>}
+ */
+async function processAccountReceipts(client, account, searchResults, accountSearchFailures, ctx) {
+  const { runState, opts, resolvedOpts, llm, gateways, onProgress } = ctx;
+  const { outputDir, dryRun, includeEmpty, perMessageTimeoutMs, maxMessages, budgetMs } = resolvedOpts;
+  const { fs, subprocess, processMessage: _processMessage } = gateways;
+
+  runState.stats.searchFailures += accountSearchFailures.length;
+  const {
+    filtered: unique,
+    vendorExcluded,
+    subjectExcluded,
+  } = applyReceiptFilters(searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS);
+  receiptFilterEvents({
+    uniqueCount: unique.length,
+    vendorExcluded,
+    subjectExcluded,
+    vendor: opts.vendor || null,
+  }).forEach(onProgress);
+  runState.stats.found += unique.length;
+
+  const byMailbox = groupByMailbox(unique);
+  const context = {
+    accountName: account.name,
+    outputDir,
+    dryRun,
+    includeEmpty,
+    llm,
+    existingInvoiceNumbers: gateways.existingInvoiceNumbers,
+    existingHashes: gateways.existingHashes,
+    usedPaths: gateways.usedPaths,
+    fs,
+    subprocess,
+    onProgress,
+  };
+  const deps = {
+    context,
+    perMessageTimeoutMs,
+    processMessage: _processMessage,
+    maxMessages,
+    startedAt: gateways.startedAt,
+    budgetMs,
+    total: unique.length,
+  };
+  await forEachMailboxGroup(client, byMailbox, (_mailbox, messages) =>
+    processReceiptMessageGroup(client, messages, runState, deps, onProgress),
+  );
+}
+
+/**
  * @param {object} [opts]
  * @param {string}  [opts.outputDir="."] - root output directory
  * @param {number}  [opts.months=12] - how far back to search
@@ -157,6 +257,7 @@ async function processReceiptMessageGroup(client, messages, runState, deps, onPr
  * @returns {Promise<{ stats: object, records: Array }>}
  */
 export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress = () => {}) {
+  const merged = { ...defaultGateways, ...gateways };
   const {
     fs,
     subprocess,
@@ -166,20 +267,11 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     createLlmBroker: _createLlmBroker,
     processMessage: _processMessage,
     openAiKey,
-  } = { ...defaultGateways, ...gateways };
+  } = merged;
 
-  const dryRun = opts.dryRun ?? false;
-  const includeEmpty = opts.includeEmpty ?? false;
-  const months = opts.months ?? 12;
-  const outputDir = resolve(opts.outputDir || ".");
-  const accountFilter = opts.account || null;
-  const maxMessages = opts.max ?? null;
-  const perMessageTimeoutMs = opts.timeoutMs ?? DEFAULT_PER_MESSAGE_TIMEOUT_MS;
-  const budgetMs = opts.budgetMs ?? null;
+  const resolvedOpts = resolveDownloadReceiptsOptions(opts);
+  const { outputDir, since, accountFilter } = resolvedOpts;
   const startedAt = performance.now();
-
-  const since = opts.since ? new Date(opts.since) : monthsAgo(months);
-
   const targetAccounts = resolveAccounts(accountFilter, loadAccounts);
 
   const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs, (err, ctx) =>
@@ -190,22 +282,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
   );
   const usedPaths = new Set();
 
-  const runState = {
-    stats: {
-      found: 0,
-      downloaded: 0,
-      noPdf: 0,
-      skipped: 0,
-      skippedEmpty: 0,
-      alreadyHave: 0,
-      errors: 0,
-      timedOut: 0,
-      searchFailures: 0,
-    },
-    records: /** @type {Array} */ ([]),
-    processedCount: 0,
-    stopped: false,
-  };
+  const runState = createReceiptRunState();
 
   const llm = _createLlmBroker(openAiKey, onProgress);
   if (llm) {
@@ -218,48 +295,23 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     targetAccounts,
     since,
     { forEachAccount, listMailboxes, onProgress },
-    async (client, account, searchResults, accountSearchFailures) => {
-      runState.stats.searchFailures += accountSearchFailures.length;
-      const {
-        filtered: unique,
-        vendorExcluded,
-        subjectExcluded,
-      } = applyReceiptFilters(searchResults, opts, matchesVendor, RECEIPT_SUBJECT_EXCLUSIONS);
-      receiptFilterEvents({
-        uniqueCount: unique.length,
-        vendorExcluded,
-        subjectExcluded,
-        vendor: opts.vendor || null,
-      }).forEach(onProgress);
-      runState.stats.found += unique.length;
-
-      const byMailbox = groupByMailbox(unique);
-      const context = {
-        accountName: account.name,
-        outputDir,
-        dryRun,
-        includeEmpty,
+    (client, account, searchResults, accountSearchFailures) =>
+      processAccountReceipts(client, account, searchResults, accountSearchFailures, {
+        runState,
+        opts,
+        resolvedOpts,
         llm,
-        existingInvoiceNumbers,
-        existingHashes,
-        usedPaths,
-        fs,
-        subprocess,
+        gateways: {
+          fs,
+          subprocess,
+          processMessage: _processMessage,
+          existingInvoiceNumbers,
+          existingHashes,
+          usedPaths,
+          startedAt,
+        },
         onProgress,
-      };
-      const deps = {
-        context,
-        perMessageTimeoutMs,
-        processMessage: _processMessage,
-        maxMessages,
-        startedAt,
-        budgetMs,
-        total: unique.length,
-      };
-      await forEachMailboxGroup(client, byMailbox, (_mailbox, messages) =>
-        processReceiptMessageGroup(client, messages, runState, deps, onProgress),
-      );
-    },
+      }),
   );
 
   onProgress(downloadSummary(runState.stats));
