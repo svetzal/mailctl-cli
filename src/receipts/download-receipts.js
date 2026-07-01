@@ -1,3 +1,10 @@
+/** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
+/** @typedef {import('./receipt-types.js').ReceiptSidecar} ReceiptSidecar */
+/** @typedef {import('./receipt-types.js').ReceiptStats} ReceiptStats */
+/** @typedef {import('./receipt-types.js').ReceiptRunState} ReceiptRunState */
+/** @typedef {import('./receipt-types.js').ReceiptMessageEnvelope} ReceiptMessageEnvelope */
+/** @typedef {import('./receipt-types.js').ReceiptProcessContext} ReceiptProcessContext */
+
 import { resolve } from "node:path";
 import { loadAccounts as _loadAccounts } from "../accounts.js";
 import { resolveAccounts } from "../cli-helpers.js";
@@ -74,9 +81,9 @@ const defaultGateways = {
  * Process a single receipt message with timeout handling.
  * Returns a discriminated outcome so the caller folds results without nested branching.
  *
- * @param {{ client: any, msg: object, context: object, perMessageTimeoutMs: number, processMessage: function }} params
+ * @param {{ client: object, msg: ReceiptMessageEnvelope, context: ReceiptProcessContext, perMessageTimeoutMs: number, processMessage: function }} params
  * @param {function(object): void} onProgress
- * @returns {Promise<{ outcome: 'success'|'timedOut'|'error', action?: string, metadata?: object }>}
+ * @returns {Promise<{ outcome: 'success'|'timedOut'|'error', action?: string, metadata?: ReceiptMetadata }>}
  */
 async function processOneReceiptMessage({ client, msg, context, perMessageTimeoutMs, processMessage }, onProgress) {
   try {
@@ -101,9 +108,9 @@ async function processOneReceiptMessage({ client, msg, context, perMessageTimeou
  * Separates per-message loop logic from the account-level orchestrator.
  *
  * @param {object} client - IMAP client
- * @param {Array} messages - messages to process in this batch
- * @param {{ stats: object, records: Array, processedCount: number, stopped: boolean }} runState
- * @param {{ context: object, perMessageTimeoutMs: number, processMessage: function, maxMessages: number|null, startedAt: number, budgetMs: number|null, total: number }} deps
+ * @param {ReceiptMessageEnvelope[]} messages - messages to process in this batch
+ * @param {ReceiptRunState} runState
+ * @param {{ context: ReceiptProcessContext, perMessageTimeoutMs: number, processMessage: function, maxMessages: number|null, startedAt: number, budgetMs: number|null, total: number }} deps
  * @param {function(object): void} onProgress
  * @returns {Promise<void>}
  */
@@ -118,14 +125,14 @@ async function processReceiptMessageGroup(client, messages, runState, deps, onPr
       onProgress,
     );
     if (result.outcome === "timedOut") {
-      runState.stats.timedOut++;
+      runState.stats.timedOut = (runState.stats.timedOut ?? 0) + 1;
     } else if (result.outcome === "error") {
       runState.stats.errors++;
     } else {
       const action = /** @type {string} */ (result.action);
       runState.stats = tallyReceiptAction(runState.stats, action);
       if (action === "downloaded" || action === "noPdf") {
-        runState.records.push(/** @type {object} */ (result.metadata));
+        runState.records.push(/** @type {ReceiptMetadata} */ (result.metadata));
       }
     }
     const stop = shouldStopProcessing(
@@ -161,7 +168,7 @@ export function resolveDownloadReceiptsOptions(opts) {
 
 /**
  * Returns a fresh run-state object with all counters zeroed.
- * @returns {{ stats: object, records: Array, processedCount: number, stopped: boolean }}
+ * @returns {ReceiptRunState}
  */
 export function createReceiptRunState() {
   return {
@@ -176,7 +183,7 @@ export function createReceiptRunState() {
       timedOut: 0,
       searchFailures: 0,
     },
-    records: /** @type {Array} */ ([]),
+    records: /** @type {ReceiptMetadata[]} */ ([]),
     processedCount: 0,
     stopped: false,
   };
@@ -187,10 +194,10 @@ export function createReceiptRunState() {
  * Filters, groups by mailbox, and processes each message batch.
  *
  * @param {object} client - IMAP client
- * @param {object} account - account descriptor
- * @param {Array} searchResults - raw search results from the pipeline
- * @param {Array} accountSearchFailures - search errors from the pipeline
- * @param {{ runState: object, opts: object, resolvedOpts: object, llm: object, gateways: object, onProgress: function(object): void }} ctx
+ * @param {{ name: string }} account - account descriptor
+ * @param {ReceiptMessageEnvelope[]} searchResults - raw search results from the pipeline
+ * @param {unknown[]} accountSearchFailures - search errors from the pipeline
+ * @param {{ runState: ReceiptRunState, opts: { vendor?: string|null }, resolvedOpts: { outputDir: string, dryRun: boolean, includeEmpty: boolean, perMessageTimeoutMs: number, maxMessages: number|null, budgetMs: number|null }, llm: { broker: object }|null, gateways: { fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway, processMessage: function, existingInvoiceNumbers: Set<string>, existingHashes: Set<string>, usedPaths: Set<string>, startedAt: number }, onProgress: function(object): void }} ctx
  * @returns {Promise<void>}
  */
 async function processAccountReceipts(client, account, searchResults, accountSearchFailures, ctx) {
@@ -198,7 +205,7 @@ async function processAccountReceipts(client, account, searchResults, accountSea
   const { outputDir, dryRun, includeEmpty, perMessageTimeoutMs, maxMessages, budgetMs } = resolvedOpts;
   const { fs, subprocess, processMessage: _processMessage } = gateways;
 
-  runState.stats.searchFailures += accountSearchFailures.length;
+  runState.stats.searchFailures = (runState.stats.searchFailures ?? 0) + accountSearchFailures.length;
   const {
     filtered: unique,
     vendorExcluded,
@@ -212,7 +219,7 @@ async function processAccountReceipts(client, account, searchResults, accountSea
   }).forEach(onProgress);
   runState.stats.found += unique.length;
 
-  const byMailbox = groupByMailbox(unique);
+  const byMailbox = groupByMailbox(/** @type {{ mailbox: string }[]} */ (unique));
   const context = {
     accountName: account.name,
     outputDir,
@@ -254,7 +261,7 @@ async function processAccountReceipts(client, account, searchResults, accountSea
  * @param {number|null} [opts.budgetMs] - overall wall-clock budget in milliseconds (null = unlimited)
  * @param {object} [gateways] - injectable implementations for testing
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{ stats: object, records: Array }>}
+ * @returns {Promise<{ stats: ReceiptStats, records: ReceiptMetadata[] }>}
  */
 export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress = () => {}) {
   const merged = { ...defaultGateways, ...gateways };
@@ -370,9 +377,9 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
  * I/O shell: resolves extraction text for a sidecar by dispatching on the source-selection plan.
  * Returns `{ kind: 'text', text }` on success or `{ kind: 'terminal', statKey, entry }` on early exit.
  *
- * @param {{ pdfPath: string, jsonFilename: string, sidecar: object, hasPdf: boolean, dryRun: boolean, fs: object, subprocess: object }} params
+ * @param {{ pdfPath: string, jsonFilename: string, sidecar: ReceiptSidecar, hasPdf: boolean, dryRun: boolean, fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway }} params
  * @param {function(object): void} onProgress
- * @returns {{ kind: 'text', text: string } | { kind: 'terminal', statKey: string, entry: object }}
+ * @returns {{ kind: 'text', text: string } | { kind: 'terminal', statKey: string, entry: Record<string, unknown> }}
  */
 function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun, fs, subprocess }, onProgress) {
   const choice = chooseReprocessSource({ hasPdf, hasBodySnippet: Boolean(sidecar.source_body_snippet), dryRun });
@@ -395,7 +402,7 @@ function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun
       return { kind: "terminal", statKey: "reprocessed", entry: { file: jsonFilename, status: "dry-run" } };
     case "body":
       onProgress(reprocessUsingBody(jsonFilename));
-      return { kind: "text", text: sidecar.source_body_snippet };
+      return { kind: "text", text: sidecar.source_body_snippet ?? "" };
     default:
       onProgress(reprocessSkipped(jsonFilename, "no PDF and no body snippet"));
       return {
@@ -410,9 +417,9 @@ function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun
  * I/O shell: persists or removes a reprocessed sidecar based on classifyReprocessResult.
  * The caller must inject reprocessedAt so this function has no wall-clock dependency.
  *
- * @param {{ metadata: object, sidecar: object, jsonPath: string, jsonFilename: string, reprocessedAt: string, fs: object }} params
+ * @param {{ metadata: ReceiptMetadata|null|undefined, sidecar: ReceiptSidecar, jsonPath: string, jsonFilename: string, reprocessedAt: string, fs: import('../gateways/fs-gateway.js').FileSystemGateway }} params
  * @param {function(object): void} onProgress
- * @returns {{ statKey: string, entry: object }}
+ * @returns {{ statKey: string, entry: Record<string, unknown> }}
  */
 function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, reprocessedAt, fs }, onProgress) {
   const decision = classifyReprocessResult(metadata);
@@ -425,7 +432,7 @@ function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, 
     fs.rm(jsonPath, { force: true });
     return { statKey: "reclassified", entry: { file: jsonFilename, status: "reclassified", reason: "non-invoice" } };
   }
-  const updated = buildReprocessedSidecar(metadata, sidecar, reprocessedAt);
+  const updated = buildReprocessedSidecar(/** @type {ReceiptMetadata} */ (metadata), sidecar, reprocessedAt);
   try {
     fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
   } catch (err) {
@@ -440,9 +447,9 @@ function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, 
  * Process a single sidecar file during reprocessing.
  * Returns a stat key and result entry so the orchestrator can fold without branching.
  *
- * @param {{ jsonPath: string, sidecar: object, llm: object, fs: object, subprocess: object, dryRun: boolean }} params
+ * @param {{ jsonPath: string, sidecar: ReceiptSidecar, llm: { broker: object }, fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway, dryRun: boolean }} params
  * @param {function(object): void} onProgress
- * @returns {Promise<{ statKey: string, entry: object }>}
+ * @returns {Promise<{ statKey: string, entry: Record<string, unknown> }>}
  */
 async function reprocessOneSidecar({ jsonPath, sidecar, llm, fs, subprocess, dryRun }, onProgress) {
   const baseName = jsonPath.replace(/\.json$/, "");

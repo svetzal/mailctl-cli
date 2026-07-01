@@ -5,6 +5,11 @@
  * and writing receipt output files.
  */
 
+/** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
+/** @typedef {import('./receipt-types.js').ReceiptSidecar} ReceiptSidecar */
+/** @typedef {import('./receipt-types.js').ReceiptPdfAttachment} ReceiptPdfAttachment */
+/** @typedef {import('./receipt-types.js').ReceiptMessageEnvelope} ReceiptMessageEnvelope */
+
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import {
@@ -37,8 +42,8 @@ export function receiptMonthDir(outputDir, emailDate) {
  * Pure: derives the raw base filename for a receipt (before collision handling).
  * Applies vendor name cleaning, invoice-number sanitization, and the 60-char truncation rule.
  *
- * @param {object} metadata - extracted receipt metadata (invoice_number, date)
- * @param {object} msg - envelope (fromAddress, fromName)
+ * @param {ReceiptMetadata} metadata - extracted receipt metadata (invoice_number, date)
+ * @param {ReceiptMessageEnvelope} msg - envelope (fromAddress, fromName)
  * @param {string} bodyText - plain-text email body
  * @param {string} subject - email subject
  * @returns {{ rawBase: string, vendorClean: string }}
@@ -67,13 +72,13 @@ export function deriveReceiptBaseName(metadata, msg, bodyText, subject) {
  * Hashes the PDF for dedup, returns action, file paths, content buffers, and updated metadata.
  *
  * @param {object} params
- * @param {object} params.metadata
- * @param {Array} params.pdfAttachments
+ * @param {ReceiptMetadata} params.metadata
+ * @param {ReceiptPdfAttachment[]} params.pdfAttachments
  * @param {string} params.baseName - unique base name (post collision-check)
  * @param {string} params.monthDir - output month directory path
  * @param {Set<string>} params.existingHashes - known SHA-256 hashes of existing PDFs
  * @param {string} params.vendorClean - sanitized vendor name (used for dup label)
- * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', writes?: Array<{path: string, content: any}>, metadata?: object, dupLabel?: string }}
+ * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', writes?: Array<{path: string, content: Buffer|string}>, metadata: ReceiptMetadata, dupLabel?: string }}
  */
 export function planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir, existingHashes, vendorClean }) {
   const jsonFilename = `${baseName}.json`;
@@ -87,7 +92,7 @@ export function planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir,
       const dupLabel = metadata.invoice_number
         ? `${vendorClean} ${metadata.invoice_number}`
         : `${vendorClean} (${metadata.date})`;
-      return { action: "duplicate", dupLabel };
+      return { action: "duplicate", dupLabel, metadata };
     }
 
     const pdfFilename = `${baseName}.pdf`;
@@ -221,7 +226,7 @@ export function uniqueBaseName(dir, base, usedPaths, fs) {
  * @param {string} outputDir
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(err: Error, context: object) => void} [onError] - called when a file or directory cannot be read
- * @returns {Array<{ jsonPath: string, sidecar: object }>}
+ * @returns {Array<{ jsonPath: string, sidecar: ReceiptSidecar }>}
  */
 export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
   const results = [];
@@ -243,11 +248,11 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
  * for writing one receipt to disk.
  *
  * @param {object} params
- * @param {object} params.metadata
- * @param {Array} params.pdfAttachments
- * @param {object} params.msg - envelope result
+ * @param {ReceiptMetadata} params.metadata
+ * @param {ReceiptPdfAttachment[]} params.pdfAttachments
+ * @param {ReceiptMessageEnvelope} params.msg - envelope result
  * @param {string} params.bodyText
- * @param {object} params.parsed - parsed email
+ * @param {{ subject?: string }} params.parsed - parsed email (used for subject fallback)
  * @param {Date} params.emailDate
  * @param {string} params.outputDir
  * @param {boolean} params.dryRun
@@ -255,7 +260,7 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
  * @param {Set<string>} params.usedPaths
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} params.fs
  * @param {function(object): void} [params.onProgress] - receives structured progress events
- * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', metadata: object }}
+ * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', metadata: ReceiptMetadata }}
  */
 export function writeReceiptOutput({
   metadata,
@@ -272,7 +277,7 @@ export function writeReceiptOutput({
   onProgress = () => {},
 }) {
   const monthDir = receiptMonthDir(outputDir, emailDate);
-  const { rawBase, vendorClean } = deriveReceiptBaseName(metadata, msg, bodyText, parsed.subject || msg.subject);
+  const { rawBase, vendorClean } = deriveReceiptBaseName(metadata, msg, bodyText, parsed.subject || msg.subject || "");
   const baseName = uniqueBaseName(monthDir, rawBase, usedPaths, fs);
   const plan = planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir, existingHashes, vendorClean });
 

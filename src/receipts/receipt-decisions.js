@@ -3,6 +3,13 @@
  * No I/O — all inputs are plain values, outputs are plain objects.
  */
 
+/** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
+/** @typedef {import('./receipt-types.js').ReceiptSidecar} ReceiptSidecar */
+/** @typedef {import('./receipt-types.js').ReceiptStats} ReceiptStats */
+/** @typedef {import('./receipt-types.js').ReceiptPdfAttachment} ReceiptPdfAttachment */
+/** @typedef {import('./receipt-types.js').ReceiptMessageEnvelope} ReceiptMessageEnvelope */
+/** @typedef {import('./receipt-types.js').ManifestRecord} ManifestRecord */
+
 import { createHash } from "node:crypto";
 import {
   budgetExceeded,
@@ -22,8 +29,8 @@ export const MIN_INVOICE_CONFIDENCE = 0.4;
  * Returns true when extraction produced no useful data — no amount, no invoice number, and no PDF.
  * Sidecars for these emails carry no bookkeeping value and are skipped by default.
  *
- * @param {object} metadata - extracted receipt metadata
- * @param {Array} pdfAttachments - PDF attachments found in the email
+ * @param {ReceiptMetadata} metadata - extracted receipt metadata
+ * @param {ReceiptPdfAttachment[]} pdfAttachments - PDF attachments found in the email
  * @returns {boolean}
  */
 export function isEmptyExtraction(metadata, pdfAttachments) {
@@ -34,12 +41,9 @@ export function isEmptyExtraction(metadata, pdfAttachments) {
  * Classifies a receipt extraction result into one of: skipped, duplicate, skippedEmpty, proceed.
  * Returns a plain decision object — never calls onProgress.
  *
- * @param {object} metadata - extracted receipt metadata
- * @param {Array} pdfAttachments - PDF attachments found in the email
- * @param {object} opts
- * @param {boolean} opts.includeEmpty - when true, skippedEmpty is never returned
- * @param {Set<string>} opts.existingInvoiceNumbers - already-seen invoice numbers
- * @param {number} opts.minConfidence - minimum confidence threshold
+ * @param {ReceiptMetadata} metadata - extracted receipt metadata
+ * @param {ReceiptPdfAttachment[]} pdfAttachments - PDF attachments found in the email
+ * @param {{ includeEmpty: boolean, existingInvoiceNumbers: Set<string>, minConfidence: number }} opts
  * @returns {{ action: 'skipped'|'duplicate'|'skippedEmpty'|'proceed', event?: string, vendor?: string, confidence?: number, invoice_number?: string }}
  */
 export function classifyReceiptExtraction(
@@ -55,7 +59,7 @@ export function classifyReceiptExtraction(
       confidence: metadata.confidence || 0,
     };
   }
-  if (metadata.confidence !== null && metadata.confidence < minConfidence) {
+  if (metadata.confidence != null && metadata.confidence < minConfidence) {
     return { action: "skipped", event: "skipLowConfidence", vendor: metadata.vendor, confidence: metadata.confidence };
   }
   if (metadata.invoice_number && existingInvoiceNumbers.has(metadata.invoice_number)) {
@@ -75,10 +79,8 @@ export function classifyReceiptExtraction(
 /**
  * Returns true when the sidecar should be processed (passes all active filters).
  *
- * @param {object} sidecar - sidecar JSON data
- * @param {object} opts
- * @param {string|null} opts.vendorFilter - substring match on sidecar.vendor (case-insensitive); null = no filter
- * @param {Date|null} opts.sinceDate - exclude sidecars older than this date; null = no filter
+ * @param {ReceiptSidecar} sidecar - sidecar JSON data
+ * @param {{ vendorFilter: string|null, sinceDate: Date|null }} opts
  * @returns {boolean}
  */
 export function sidecarPassesFilters(sidecar, { vendorFilter, sinceDate }) {
@@ -100,10 +102,10 @@ export function sidecarPassesFilters(sidecar, { vendorFilter, sinceDate }) {
  * Merges fresh LLM extraction metadata with preserved fields from the original sidecar.
  * The timestamp must be injected so this function remains pure.
  *
- * @param {object} metadata - fresh extraction result
- * @param {object} sidecar - original sidecar with fields to preserve
+ * @param {ReceiptMetadata} metadata - fresh extraction result
+ * @param {ReceiptSidecar} sidecar - original sidecar with fields to preserve
  * @param {string} reprocessedAt - ISO timestamp injected by the shell
- * @returns {object}
+ * @returns {ReceiptSidecar}
  */
 export function buildReprocessedSidecar(metadata, sidecar, reprocessedAt) {
   return {
@@ -120,7 +122,7 @@ export function buildReprocessedSidecar(metadata, sidecar, reprocessedAt) {
 /**
  * Classifies a reprocess result into one of: noData, reclassified, update.
  *
- * @param {object|null|undefined} metadata - fresh extraction result, or falsy if extraction failed
+ * @param {ReceiptMetadata|null|undefined} metadata - fresh extraction result, or falsy if extraction failed
  * @returns {{ action: 'noData'|'reclassified'|'update' }}
  */
 export function classifyReprocessResult(metadata) {
@@ -137,9 +139,9 @@ export function classifyReprocessResult(metadata) {
  * Maps a non-proceed classification decision to its corresponding progress event object.
  * Returns null for "proceed" decisions or unknown events.
  *
- * @param {object} decision - result from classifyReceiptExtraction
- * @param {object} metadata - extracted receipt metadata
- * @param {object} msg - message envelope with fromName, fromAddress
+ * @param {{ action: string, event?: string, vendor?: string, confidence?: number, invoice_number?: string }} decision - result from classifyReceiptExtraction
+ * @param {ReceiptMetadata} metadata - extracted receipt metadata
+ * @param {ReceiptMessageEnvelope} msg - message envelope
  * @param {Date} emailDate - email date
  * @returns {object|null}
  */
@@ -220,9 +222,9 @@ export function receiptFilterEvents({ uniqueCount, vendorExcluded, subjectExclud
  * Returns a new stats object with the counter for the given action incremented by 1.
  * Unknown actions return the original stats unchanged.
  *
- * @param {object} stats
+ * @param {ReceiptStats} stats
  * @param {string} action
- * @returns {object}
+ * @returns {ReceiptStats}
  */
 export function tallyReceiptAction(stats, action) {
   switch (action) {
@@ -248,12 +250,11 @@ export function tallyReceiptAction(stats, action) {
  */
 
 /**
- * @param {Array} results - array of receipt search result objects
- * @param {object} opts
- * @param {string | null} [opts.vendor] - vendor substring filter, or omitted for none
- * @param {Function} matchesVendorFn - (vendor, fromAddress, fromName) => boolean
+ * @param {ReceiptMessageEnvelope[]} results - array of receipt search result objects
+ * @param {{ vendor?: string|null }} opts
+ * @param {(vendor: string, fromAddress: string, fromName: string) => boolean} matchesVendorFn
  * @param {Array<RegExp>} subjectExclusions - subject patterns to exclude
- * @returns {{ filtered: Array, vendorExcluded: number, subjectExcluded: number }}
+ * @returns {{ filtered: ReceiptMessageEnvelope[], vendorExcluded: number, subjectExcluded: number }}
  */
 export function applyReceiptFilters(results, opts, matchesVendorFn, subjectExclusions) {
   let filtered = results;
@@ -261,13 +262,14 @@ export function applyReceiptFilters(results, opts, matchesVendorFn, subjectExclu
   let subjectExcluded = 0;
 
   if (opts.vendor) {
+    const vendorStr = opts.vendor;
     const before = filtered.length;
-    filtered = filtered.filter((msg) => matchesVendorFn(opts.vendor, msg.fromAddress, msg.fromName));
+    filtered = filtered.filter((msg) => matchesVendorFn(vendorStr, msg.fromAddress, msg.fromName));
     vendorExcluded = before - filtered.length;
   }
 
   const beforeExclusion = filtered.length;
-  filtered = filtered.filter((msg) => !subjectExclusions.some((re) => re.test(msg.subject)));
+  filtered = filtered.filter((msg) => !subjectExclusions.some((re) => re.test(msg.subject ?? "")));
   subjectExcluded = beforeExclusion - filtered.length;
 
   return { filtered, vendorExcluded, subjectExcluded };
@@ -295,7 +297,7 @@ export function contentHash(buffer) {
 /**
  * @param {"no-pdf"|"duplicate"|"downloaded"} status
  * @param {{ filename?: string, hash?: string, date?: Date|string, vendor?: string }} [fields]
- * @returns {object}
+ * @returns {ManifestRecord}
  */
 export function buildManifestRecord(status, { filename, hash, date, vendor } = {}) {
   if (status === "no-pdf") return { status, date };

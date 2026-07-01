@@ -3,6 +3,8 @@
  * Provides the JSON schema, system prompt, LLM broker factory, and extraction functions.
  */
 
+/** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
+
 import { isOk, LlmBroker, Message, OpenAIGateway } from "mojentic";
 import { buildLlmEmailContext, sanitizeForAgentOutput } from "../content-sanitizer.js";
 import { llmExtractionFailed, llmNotConfigured } from "./download-receipts-event-factories.js";
@@ -120,7 +122,7 @@ export function createLlmBroker(openAiKey = null, onProgress = () => {}) {
  * @param {string} fromAddress - sender email address
  * @param {string} fromName - sender display name
  * @param {Date} emailDate - email envelope date
- * @returns {Promise<object|null>} Extracted metadata or null on failure
+ * @returns {Promise<ReceiptMetadata|null>} Extracted metadata or null on failure
  */
 export async function extractMetadataWithLLM(broker, bodyText, subject, fromAddress, fromName, emailDate) {
   // Truncate body to avoid exceeding token limits — first N chars is plenty for receipts
@@ -185,7 +187,7 @@ export async function extractMetadataWithLLM(broker, bodyText, subject, fromAddr
  * @param {string} fromName
  * @param {Date} emailDate
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<object>} metadata object
+ * @returns {Promise<ReceiptMetadata>} metadata object
  */
 export async function extractReceiptMetadata(
   llm,

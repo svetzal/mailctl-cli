@@ -1,3 +1,6 @@
+/** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
+/** @typedef {import('./receipt-types.js').ReceiptMessageEnvelope} ReceiptMessageEnvelope */
+
 import { simpleParser } from "mailparser";
 import { htmlToText } from "../html-to-text.js";
 import { doclingConversionFailed, processError } from "./download-receipts-event-factories.js";
@@ -15,7 +18,7 @@ const BODY_SNIPPET_MAX_CHARS = 2000;
 
 /**
  * @param {object} client - connected IMAP client
- * @param {object} msg - envelope result with uid, fromAddress, fromName, subject, date, mailbox
+ * @param {ReceiptMessageEnvelope} msg - envelope result
  * @param {object} context
  * @param {string} context.accountName
  * @param {string} context.outputDir
@@ -28,7 +31,7 @@ const BODY_SNIPPET_MAX_CHARS = 2000;
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} context.fs
  * @param {import("../gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
  * @param {function(object): void} [context.onProgress]
- * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'skippedEmpty'|'error', metadata?: object }>}
+ * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'skippedEmpty'|'error', metadata?: ReceiptMetadata }>}
  */
 export async function processReceiptMessage(client, msg, context) {
   const {
@@ -62,7 +65,7 @@ export async function processReceiptMessage(client, msg, context) {
     const extractionText = resolveExtractionText(
       pdfAttachments,
       bodyText,
-      msg.uid,
+      /** @type {number} */ (msg.uid),
       fs,
       subprocess,
       onProgress,
@@ -79,7 +82,7 @@ export async function processReceiptMessage(client, msg, context) {
     );
 
     metadata.source_account = accountName.toLowerCase();
-    metadata.email_uid = msg.uid;
+    metadata.email_uid = msg.uid ?? null;
     metadata.source_body_snippet = sanitizeForAgentOutput(
       bodyText.length > BODY_SNIPPET_MAX_CHARS ? bodyText.slice(0, BODY_SNIPPET_MAX_CHARS) : bodyText,
     );
