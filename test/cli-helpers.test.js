@@ -134,6 +134,74 @@ describe("withErrorHandling", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
     exitSpy.mockRestore();
   });
+
+  it("includes error code in JSON output when err.code is set", async () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const wrapped = withErrorHandling(
+      async () => {
+        const err = new Error("timed out");
+        /** @type {any} */ (err).code = "ETIMEDOUT";
+        throw err;
+      },
+      () => true,
+    );
+    try {
+      await wrapped({});
+    } catch {}
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({ error: "timed out", code: "ETIMEDOUT" }));
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it("omits code field from JSON output when err.code is absent", async () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const wrapped = withErrorHandling(
+      async () => {
+        throw new Error("plain error");
+      },
+      () => true,
+    );
+    try {
+      await wrapped({});
+    } catch {}
+    const parsed = JSON.parse(/** @type {string} */ (logSpy.mock.calls[0][0]));
+    expect(parsed).not.toHaveProperty("code");
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it("calls debug logger with the error when DEBUG=mailctl is set", async () => {
+    spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const originalDebug = process.env.DEBUG;
+    process.env.DEBUG = "mailctl";
+    const errSpy = spyOn(console, "error").mockImplementation(() => {});
+    const thrownErr = new Error("debug me");
+    const wrapped = withErrorHandling(
+      async () => {
+        throw thrownErr;
+      },
+      () => false,
+    );
+    try {
+      await wrapped({});
+    } catch {}
+    const calls = errSpy.mock.calls;
+    const debugCall = calls.find((c) => typeof c[0] === "string" && c[0].includes("[mailctl:cli]"));
+    expect(debugCall).toBeDefined();
+    expect(debugCall?.[1]).toBe(thrownErr);
+    process.env.DEBUG = originalDebug;
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
 });
 
 // ── createProgressRenderer ────────────────────────────────────────────────────

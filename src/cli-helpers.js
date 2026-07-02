@@ -2,6 +2,7 @@
  * Pure helper functions used by the CLI layer.
  * No I/O, no Commander imports — these are isolated and testable.
  */
+import { debug } from "./debug.js";
 
 /**
  * Sanitize a value for safe JSON output.
@@ -158,8 +159,12 @@ export function withErrorHandling(fn, resolveJsonFn) {
     } catch (err) {
       const localOpts = args[args.length - 1]?.opts?.() ?? args[args.length - 1] ?? {};
       const json = resolveJsonFn(localOpts);
+      debug("cli", "command failed", err);
       if (json) {
-        console.log(JSON.stringify({ error: /** @type {Error} */ (err).message }));
+        const typedErr = /** @type {Error & { code?: string }} */ (err);
+        const payload =
+          typedErr.code !== undefined ? { error: typedErr.message, code: typedErr.code } : { error: typedErr.message };
+        console.log(JSON.stringify(payload));
       } else {
         console.error(`Error: ${/** @type {Error} */ (err).message}`);
       }
