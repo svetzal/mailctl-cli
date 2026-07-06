@@ -54,6 +54,7 @@ mailctl download-receipts --since 2026-01-01 --budget 300    # 5-minute overall 
 
 ```text
 src/cli.js                     — CLI entry point: true thin dispatcher; `buildProgram(deps)` factory is dependency-injected and unit-tested in `test/cli.test.js`; each .action() is 5–15 lines with no inline event rendering logic
+src/cli-helpers.js             — resolveAccounts(), withErrorHandling(), createFormatOutput(), resolveCommandContext() — shared CLI dispatch/formatting helpers consumed by cli.js .action() handlers
 
 Command orchestrators (testable, injected deps):
 Files in src/commands/ import sibling files as ./X.js and parent src/ files as ../X.js.
@@ -80,6 +81,9 @@ src/receipts/download-receipts-command.js — Download-receipts orchestration (l
 src/receipts/download-receipts.js       — Receipt download orchestration: downloadReceiptEmails(), listReceiptVendors(), reprocessReceipts() — search → filter → extract metadata → write PDF+sidecar
 src/receipts/download-receipts-event-factories.js — descriptor table for download-receipts events (44 factories covering all phases) and `renderDownloadReceiptsEvent`
 src/receipts/receipt-decisions.js       — Pure classification/transformation decisions, receipt filtering, PDF hash/validation helpers
+src/receipts/receipt-fields.js          — extractInvoiceNumber(), extractAmount(), extractTax(), extractService(), field-length/currency constants — pure receipt field extraction primitives
+src/receipts/receipt-types.js           — shared JSDoc typedefs for receipt records (no runtime exports)
+src/receipts/receipt-vendor-name.js     — cleanVendorForFilename(), vendorFromDomain(), extractForwardedSender() — vendor-name derivation for receipt filenames
 src/receipts/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors
 src/receipts/receipt-output-tree.js     — walkOutputTree(), loadExistingInvoiceNumbers(), loadExistingHashes(), uniqueBaseName(), collectSidecarFiles(), writeReceiptOutput() — output directory tree and file I/O for receipt PDFs and sidecars
 src/receipts/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
@@ -93,6 +97,8 @@ src/receipts/format-download-receipts.js — formatDownloadReceiptsText(), build
 Pure logic modules:
 src/config.js                  — Loads ~/.config/mailctl/config.json (account metadata)
 src/accounts.js                — Builds IMAP account list from config.json + env var secrets
+src/keychain.js                — loadAccountCredentials(), loadOpenAiKey() — resolve account passwords and OpenAI key from the keychain gateway
+src/m365-auth.js               — getM365AccessToken() — Microsoft 365 OAuth device-code / token-refresh flow
 src/imap-client.js             — IMAP connection, search, fetch, mailbox filtering, account iteration
 src/imap-orchestration.js      — Shared pure helpers: groupByMailbox(), forEachMailboxGroup()
 src/search.js                  — searchMailbox() — single-mailbox search with field/date filters
@@ -103,6 +109,16 @@ src/date-filters.js            — resolveDateFilters() — pure --months/--sinc
 src/batch-results.js           — createBatchAccumulator(), expandPerUid() — shared stats/results accumulator for batch command orchestrators (move, flag)
 src/define-event.js            — defineEvent() — shared event factory builder, eliminates type-string duplication
 src/format-utils.js            — formatKB() — shared formatting utilities
+src/content-sanitizer.js       — detectInjectionPatterns(), neutralizeContent(), buildLlmEmailContext() — prompt-injection screening/sanitization for agent-facing email content
+src/debug.js                   — debug() — gated diagnostic logging helper
+src/download-filename.js       — vendorName(), buildFilename() — vendor-aware receipt-PDF filename construction
+src/email-address.js           — getLocalPart(), getDomain() — email-address parsing helpers
+src/error-event.js             — errorEvent() — structured error-event factory
+src/format-date.js             — formatShortDate(), formatDatetime(), formatMessageDate() — pure date formatters
+src/mailbox-filters.js         — filterScanMailboxes(), filterSearchMailboxes() — centralized mailbox-exclusion logic
+src/parse-options.js           — parseIntOption(), parseSinceOption() — pure CLI option coercion/validation
+src/scan-helpers.js            — buildScanResult() — pure scan-result record builder
+src/sort-logic.js              — classifyMessage(), planMoves(), BIZ_FOLDER/PERSONAL_FOLDER constants — pure sort classification and move planning
 src/with-timeout.js            — withTimeout(promiseFactory, ms, label) — races a promise against a timer; rejects with err.code="ETIMEDOUT" if ms elapses first; used by download-receipts for per-message timeouts
 src/format-scan.js             — formatScanText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
 src/format-search.js           — formatSearchText(), buildSearchJson() — pure search result formatter
@@ -150,8 +166,10 @@ src/gateways/imap-gateway.js   — ImapGateway: imapflow wrapper
 src/gateways/smtp-gateway.js   — SmtpGateway: nodemailer wrapper
 src/gateways/editor-gateway.js — EditorGateway: temp file + $EDITOR + read-back workflow
 src/gateways/confirm-gateway.js — ConfirmGateway: readline yes/no prompt wrapper
+src/gateways/keychain-gateway.js — KeychainGateway: reads secrets from ~/.newt/newt-keychain-db (macOS security wrapper)
 
 src/index.js                   — Public API re-exports
+src/init.js                    — stampVersion(), parseInstalledVersion(), compareSemver(), initCommand() — skill install + version-guard logic behind `mailctl init`
 data/                          — Runtime data (gitignored): scan results, classifications, manifest
 ```
 
@@ -162,7 +180,7 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **UID range strings** for iCloud compatibility (not arrays)
 - **Content-hash dedup** (SHA-256) prevents duplicate PDF downloads
 - **Config-driven accounts** — account metadata (host, port, user) lives in `~/.config/mailctl/config.json`; secrets come from macOS Keychain
-- **Direct keychain access** — secrets are read from `~/.newt/newt-keychain-db` at runtime via `KeychainGateway`; no wrapper script or env vars needed
+- **Direct keychain access** — secrets are read from `~/.newt/newt-keychain-db` at runtime via `KeychainGateway` (`src/gateways/keychain-gateway.js`); `src/keychain.js` wraps the gateway to expose `loadAccountCredentials()` and `loadOpenAiKey()`; no wrapper script or env vars needed
 - **Shared helpers** — `forEachAccount()` handles connect/logout lifecycle, `filterScanMailboxes()` and `filterSearchMailboxes()` centralize mailbox exclusion logic
 - **Search dedup** — search deduplicates results by message-id header to avoid showing the same email found in multiple mailboxes (e.g. Gmail All Mail + INBOX)
 - **Consistent `--json`** — all commands support `--json` for machine-readable output; errors also output as JSON in that mode
