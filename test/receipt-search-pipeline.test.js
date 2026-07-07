@@ -259,15 +259,25 @@ describe("searchMailboxForReceipts", () => {
   it("returns empty results when getMailboxLock throws", async () => {
     const client = {
       getMailboxLock: mock(() => Promise.reject(new Error("no such mailbox"))),
+      search: mock(() => Promise.resolve([])),
+      async *fetch() {},
     };
     const { results } = await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date());
     expect(results).toHaveLength(0);
   });
 
   describe("emits mailbox-lock-failed event when getMailboxLock throws", () => {
+    function makeLockFailureClient(err) {
+      return {
+        getMailboxLock: mock(() => Promise.reject(err)),
+        search: mock(() => Promise.resolve([])),
+        async *fetch() {},
+      };
+    }
+
     it("emits exactly one event", async () => {
       const lockErr = new Error("no such mailbox");
-      const client = { getMailboxLock: mock(() => Promise.reject(lockErr)) };
+      const client = makeLockFailureClient(lockErr);
       const events = [];
       await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date(), (e) => events.push(e));
       expect(events).toHaveLength(1);
@@ -275,7 +285,7 @@ describe("searchMailboxForReceipts", () => {
 
     it("emits event with type mailbox-lock-failed", async () => {
       const lockErr = new Error("no such mailbox");
-      const client = { getMailboxLock: mock(() => Promise.reject(lockErr)) };
+      const client = makeLockFailureClient(lockErr);
       const events = [];
       await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date(), (e) => events.push(e));
       expect(events[0].type).toBe("mailbox-lock-failed");
@@ -283,7 +293,7 @@ describe("searchMailboxForReceipts", () => {
 
     it("emits event with the correct mailbox", async () => {
       const lockErr = new Error("no such mailbox");
-      const client = { getMailboxLock: mock(() => Promise.reject(lockErr)) };
+      const client = makeLockFailureClient(lockErr);
       const events = [];
       await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date(), (e) => events.push(e));
       expect(events[0].mailbox).toBe("INBOX");
@@ -291,7 +301,7 @@ describe("searchMailboxForReceipts", () => {
 
     it("emits event with the original error", async () => {
       const lockErr = new Error("no such mailbox");
-      const client = { getMailboxLock: mock(() => Promise.reject(lockErr)) };
+      const client = makeLockFailureClient(lockErr);
       const events = [];
       await searchMailboxForReceipts(client, "TestAccount", "INBOX", new Date(), (e) => events.push(e));
       expect(events[0].error).toBe(lockErr);

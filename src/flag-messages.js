@@ -37,7 +37,7 @@ export function computeFlagChanges(opts) {
 }
 
 /**
- * @param {any} client - connected IMAP client with mailbox locked
+ * @param {import("./imap-types.js").ImapFlaggable} client - connected IMAP client with mailbox locked
  * @param {string} uidRange - comma-separated UIDs
  * @param {{ add: string[], remove: string[] }} changes
  * @returns {Promise<{ added: string[], removed: string[] }>}

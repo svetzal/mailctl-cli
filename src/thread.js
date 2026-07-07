@@ -41,7 +41,7 @@ export function parseReferences(references) {
  * Search a single mailbox for messages matching any of the given Message-IDs
  * via header search (Message-ID, References, In-Reply-To).
  *
- * @param {any} client - connected IMAP client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {string[]} messageIds - Message-IDs to search for
  * @param {function(object): void} onProgress
@@ -85,7 +85,7 @@ async function searchMailboxForThread(client, mailboxPath, messageIds, onProgres
 /**
  * Search a single mailbox for messages with a matching subject (fallback).
  *
- * @param {any} client - connected IMAP client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {string} baseSubject - subject with Re:/Fwd: stripped
  * @param {function(object): void} onProgress
@@ -114,7 +114,7 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgre
 /**
  * Fetch envelope + snippet data for a set of UIDs in a mailbox.
  *
- * @param {any} client - connected IMAP client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} accountName
  * @param {string} mailboxPath
  * @param {number[]} uids
@@ -176,7 +176,7 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
  * Fetch and parse threading headers from the anchor message.
  * Returns null when the mailbox lock fails (onProgress already received the event).
  *
- * @param {any} client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {number|string} uid
  * @param {function(object): void} onProgress
@@ -232,7 +232,7 @@ export function collectRelatedMessageIds({ messageId, references, inReplyTo }) {
 }
 
 /**
- * @param {any} client - connected IMAP client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} accountName
  * @param {string} mailboxPath - mailbox of the anchor message
  * @param {number|string} uid - anchor message UID

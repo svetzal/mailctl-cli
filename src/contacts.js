@@ -9,7 +9,7 @@ import { searchFailed } from "./shared-event-factories.js";
 
 /**
  * Scans INBOX for received messages (From) and Sent folder for sent messages (To/CC).
- * @param {any} client - connected IMAP client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} _accountName
  * @param {object} opts
  * @param {Date} opts.since
@@ -24,8 +24,9 @@ export async function extractContacts(client, _accountName, opts) {
   const onProgress = opts.onProgress || (() => {});
   const entries = [];
 
-  // Find the Sent mailbox
-  const mailboxes = await listMailboxes(client);
+  // Find the Sent mailbox — cast to ImapFlow since listMailboxes expects the full class;
+  // the real client passed here is always an ImapFlow instance.
+  const mailboxes = await listMailboxes(/** @type {import("imapflow").ImapFlow} */ (client));
   const sentMailbox = mailboxes.find((mb) => mb.specialUse === "\\Sent");
   const sentPath = sentMailbox ? sentMailbox.path : "Sent";
 
@@ -45,7 +46,7 @@ export async function extractContacts(client, _accountName, opts) {
 }
 
 /**
- * @param {any} client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {Date} since
  * @param {'sent'|'received'} direction

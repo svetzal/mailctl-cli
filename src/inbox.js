@@ -7,7 +7,7 @@ import { withMailboxLock } from "./imap-orchestration.js";
 import { searchFailed } from "./shared-event-factories.js";
 
 /**
- * @param {any} client - connected IMAP client
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} accountName
  * @param {object} opts
  * @param {number} opts.limit

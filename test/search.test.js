@@ -29,6 +29,8 @@ describe("searchMailbox", () => {
   it("returns an empty array when getMailboxLock throws", async () => {
     const client = {
       getMailboxLock: mock(() => Promise.reject(new Error("no such mailbox"))),
+      search: mock(() => Promise.resolve([])),
+      async *fetch() {},
     };
     const result = await searchMailbox(client, "Account", "INBOX", "receipt");
     expect(result).toHaveLength(0);
@@ -36,7 +38,11 @@ describe("searchMailbox", () => {
 
   it("emits mailbox-lock-failed when getMailboxLock throws", async () => {
     const error = new Error("no such mailbox");
-    const client = { getMailboxLock: mock(() => Promise.reject(error)) };
+    const client = {
+      getMailboxLock: mock(() => Promise.reject(error)),
+      search: mock(() => Promise.resolve([])),
+      async *fetch() {},
+    };
     const onProgress = mock(() => {});
 
     await searchMailbox(client, "Account", "INBOX", "receipt", { onProgress });

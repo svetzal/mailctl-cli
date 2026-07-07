@@ -365,6 +365,8 @@ describe("findThread", () => {
       const error = new Error("lock failed");
       const client = {
         getMailboxLock: mock(() => Promise.reject(error)),
+        search: mock(() => Promise.resolve([])),
+        async *fetch() {},
       };
       const onProgress = mock(() => {});
 

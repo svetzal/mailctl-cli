@@ -18,7 +18,7 @@ import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.
 
 /**
  * Returns envelope-level results only — no message bodies fetched.
- * @param {any} client - connected IMAP client (accepts duck-typed mocks in tests)
+ * @param {import("../imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} accountName
  * @param {string} mailboxPath
  * @param {Date} since
@@ -31,7 +31,9 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
     client,
     mailboxPath,
     async () => {
-      const messageCount = client.mailbox?.exists;
+      // client.mailbox is false | MailboxObject on a real ImapFlow; convert false → undefined
+      // so that optional chaining correctly short-circuits on "no mailbox selected".
+      const messageCount = (client.mailbox || undefined)?.exists;
       onProgress(mailboxSearchStart(mailboxPath, messageCount));
       const allUids = new Set();
 

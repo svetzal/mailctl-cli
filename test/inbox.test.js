@@ -126,6 +126,8 @@ describe("fetchInbox", () => {
   it("returns an empty array when getMailboxLock throws", async () => {
     const client = {
       getMailboxLock: mock(() => Promise.reject(new Error("no such mailbox"))),
+      search: mock(() => Promise.resolve([])),
+      async *fetch() {},
     };
 
     const results = await fetchInbox(client, "TestAccount", { limit: 10 });
@@ -135,7 +137,11 @@ describe("fetchInbox", () => {
 
   it("emits mailbox-lock-failed when getMailboxLock throws", async () => {
     const error = new Error("no such mailbox");
-    const client = { getMailboxLock: mock(() => Promise.reject(error)) };
+    const client = {
+      getMailboxLock: mock(() => Promise.reject(error)),
+      search: mock(() => Promise.resolve([])),
+      async *fetch() {},
+    };
     const onProgress = mock(() => {});
 
     await fetchInbox(client, "TestAccount", { limit: 10, onProgress });
@@ -154,6 +160,7 @@ describe("fetchInbox", () => {
     const client = {
       getMailboxLock: mock(() => Promise.resolve(lock)),
       search: mock(() => Promise.reject(error)),
+      async *fetch() {},
     };
     const onProgress = mock(() => {});
 

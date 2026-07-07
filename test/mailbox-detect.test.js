@@ -25,6 +25,8 @@ function buildClient(mailboxUids, opts = {}) {
       const targetUid = parseInt(criteria.uid, 10);
       return Promise.resolve(uids.includes(targetUid) ? [targetUid] : []);
     },
+    // detectMailbox only uses search; fetch stub satisfies the ImapClient interface
+    async *fetch() {},
   };
 }
 

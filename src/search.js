@@ -13,7 +13,7 @@ import { withMailboxLock } from "./imap-orchestration.js";
  * When no field-specific criteria are provided the query is matched against
  * both the From header and the Subject header, and the results are merged.
  *
- * @param {any} client - connected IMAP client (accepts duck-typed mocks in tests)
+ * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} acctName
  * @param {string} mailboxPath
  * @param {string|null|undefined} query

@@ -33,7 +33,7 @@ export async function streamToBuffer(stream) {
  * On lock failure, emits { type: "mailbox-lock-failed", mailbox, error } via onProgress
  * and returns null. Callers should check for a null return value to detect lock failure.
  *
- * @param {object} client - imapflow client
+ * @param {import("./imap-types.js").ImapLockable} client - imapflow client
  * @param {string} mailboxPath - mailbox path to lock
  * @param {() => Promise<any>} fn - async function to run inside the lock
  * @param {{ onProgress?: (event: object) => void }} [options]
@@ -75,7 +75,7 @@ export function groupByMailbox(results) {
  * Emits `mailboxLockFailed` (see shared-event-factories.js) via onProgress when `getMailboxLock` throws
  * (e.g. mailbox not found), then skips that mailbox.
  *
- * @param {any} client - connected IMAP client (accepts duck-typed mocks in tests)
+ * @param {import("./imap-types.js").ImapLockable} client - connected IMAP client
  * @param {Map<string, Array>} byMailbox - produced by groupByMailbox()
  * @param {function(string, Array): Promise<void>} fn - called with (mailboxPath, messages)
  * @param {function(object): void} [onProgress] - receives structured progress events
