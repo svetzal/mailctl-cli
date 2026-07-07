@@ -123,6 +123,38 @@ export function createFormatOutput(buildJsonFn, formatTextFn) {
 }
 
 /**
+ * Resolve the plan/apply safety model for a mutating command.
+ *
+ * Mutating commands preview by default and require an explicit `--apply` to
+ * execute. This mutates `opts.dryRun` in place (the command orchestrators read
+ * that field) so downstream logic stays unchanged, and returns whether the
+ * command should actually apply. An explicit `--dry-run` always forces preview,
+ * even alongside `--apply`.
+ *
+ * @param {object} opts - Commander option object (may carry apply, dryRun)
+ * @returns {boolean} true when the command should execute (i.e. --apply given)
+ */
+export function resolvePlanApply(opts) {
+  const apply = opts.apply === true && opts.dryRun !== true;
+  opts.dryRun = !apply;
+  return apply;
+}
+
+/**
+ * Emit the "how to proceed" hint after a dry-run so the user knows the exact
+ * next step. No-op when the command actually applied or when output is JSON
+ * (structured consumers don't want prose on stderr).
+ *
+ * @param {boolean} applied - whether the command executed (from resolvePlanApply)
+ * @param {boolean} json - whether output is JSON
+ * @param {(msg: string) => void} [write] - sink for the hint (defaults to stderr)
+ */
+export function emitPlanHint(applied, json, write = (msg) => console.error(msg)) {
+  if (applied || json) return;
+  write("\nDry run — no changes made. Re-run the same command with --apply to execute.");
+}
+
+/**
  * Create a resolver for the --json flag that checks command-level opts first,
  * then falls back to global program opts.
  *

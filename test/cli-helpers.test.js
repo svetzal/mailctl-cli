@@ -4,14 +4,67 @@ import {
   createProgressRenderer,
   createResolveAccount,
   createResolveJson,
+  emitPlanHint,
   filterAccountsByName,
   formatOutput,
   headerValueToString,
   resolveAccounts,
   resolveCommandContext,
+  resolvePlanApply,
   sanitizeString,
   withErrorHandling,
 } from "../src/cli-helpers.js";
+
+// ── resolvePlanApply ──────────────────────────────────────────────────────────
+
+describe("resolvePlanApply", () => {
+  it("defaults to preview: no --apply → dryRun true, returns false", () => {
+    const opts = {};
+    const applied = resolvePlanApply(opts);
+    expect(applied).toBe(false);
+    expect(opts.dryRun).toBe(true);
+  });
+
+  it("--apply executes: dryRun false, returns true", () => {
+    const opts = { apply: true };
+    const applied = resolvePlanApply(opts);
+    expect(applied).toBe(true);
+    expect(opts.dryRun).toBe(false);
+  });
+
+  it("explicit --dry-run forces preview even alongside --apply", () => {
+    const opts = { apply: true, dryRun: true };
+    const applied = resolvePlanApply(opts);
+    expect(applied).toBe(false);
+    expect(opts.dryRun).toBe(true);
+  });
+});
+
+// ── emitPlanHint ──────────────────────────────────────────────────────────────
+
+describe("emitPlanHint", () => {
+  it("writes the re-run hint when previewing in human mode", () => {
+    /** @type {string[]} */
+    const written = [];
+    emitPlanHint(false, false, (m) => written.push(m));
+    expect(written).toHaveLength(1);
+    expect(written[0]).toContain("--apply");
+  });
+
+  it("stays silent when the command applied", () => {
+    /** @type {string[]} */
+    const written = [];
+    emitPlanHint(true, false, (m) => written.push(m));
+    expect(written).toHaveLength(0);
+  });
+
+  it("stays silent in JSON mode", () => {
+    /** @type {string[]} */
+    const written = [];
+    emitPlanHint(false, true, (m) => written.push(m));
+    expect(written).toHaveLength(0);
+  });
+});
 
 // ── createResolveJson ─────────────────────────────────────────────────────────
 

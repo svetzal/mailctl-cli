@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { Command } from "commander";
+import { join } from "node:path";
+import { Command, Option } from "commander";
 import { simpleParser } from "mailparser";
 import { loadAccounts } from "./accounts.js";
 import { renderAuthEvent } from "./auth-event-factories.js";
@@ -10,8 +9,10 @@ import {
   createProgressRenderer,
   createResolveAccount,
   createResolveJson,
+  emitPlanHint,
   filterAccountsByName,
   resolveCommandContext,
+  resolvePlanApply,
   withErrorHandling,
 } from "./cli-helpers.js";
 import { classifyCommand } from "./commands/classify-command.js";
@@ -29,6 +30,7 @@ import { scanCommand } from "./commands/scan-command.js";
 import { searchCommand } from "./commands/search-command.js";
 import { sortCommand } from "./commands/sort-command.js";
 import { threadCommand } from "./commands/thread-command.js";
+import { DATA_DIR } from "./data-dir.js";
 import { renderDownloadEvent } from "./download-event-factories.js";
 import { formatAttachmentOutput } from "./format-attachment.js";
 import { formatContactsOutput } from "./format-contacts.js";
@@ -58,9 +60,6 @@ import { renderDownloadReceiptsEvent } from "./receipts/download-receipts-event-
 import { formatDownloadReceiptsOutput } from "./receipts/format-download-receipts.js";
 import { renderScanEvent } from "./scan-event-factories.js";
 import { renderSortEvent } from "./sort-event-factories.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, "..", "data");
 
 const _keychainSingleton = new KeychainGateway();
 const _fsSingleton = new FileSystemGateway();
@@ -217,6 +216,18 @@ export function buildProgram(deps = defaultDeps) {
   const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccountsByName };
   const wrapAction = (/** @type {(...args: any[]) => Promise<void>} */ fn) => withErrorHandling(fn, resolveJson);
 
+  /**
+   * Attach the canonical plan/apply options to a mutating command: a visible
+   * `--apply` and a hidden, deprecated `-n, --dry-run` (now the default, kept so
+   * existing muscle memory and scripts don't break).
+   * @param {import("commander").Command} cmd
+   * @returns {import("commander").Command}
+   */
+  const mutating = (cmd) =>
+    cmd
+      .option("--apply", "execute the changes (previews by default)", false)
+      .addOption(new Option("-n, --dry-run", "deprecated: preview is the default").hideHelp());
+
   const renderAuthProgress = createProgressRenderer(_renderAuthEvent);
   const renderScanProgress = createProgressRenderer(_renderScanEvent);
   const renderSortProgress = createProgressRenderer(_renderSortEvent);
@@ -226,7 +237,7 @@ export function buildProgram(deps = defaultDeps) {
   program
     .name("mailctl")
     .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-    .version("1.1.2")
+    .version("1.2.0")
     .option("--account <name>", "email account to use (searches all if omitted)")
     .option("--json", "output results as JSON");
 
@@ -282,78 +293,88 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (file, opts) => {
         const json = resolveJson(opts);
 
+        // Ensure the state dir exists — the default output lives under DATA_DIR,
+        // which may not have been created yet if `scan` hasn't run.
+        _fs.mkdir(join(opts.output, ".."));
         const { imported, path } = _importClassificationsCommand(file, opts.output, { fsGateway: _fs });
 
         console.log(_formatImportClassificationsOutput(json, imported, path));
       }),
     );
 
-  program
-    .command("sort")
-    .description("Move receipt emails into Receipts/Business and Receipts/Personal folders")
-    .option("-m, --months <n>", "months to look back", SORT_DEFAULT_MONTHS)
-    .option("-n, --dry-run", "show what would be moved without actually moving", false)
-    .action(
-      wrapAction(async (opts) => {
-        const json = resolveJson(opts);
-        const account = resolveAccount(opts);
+  mutating(
+    program
+      .command("sort")
+      .description("Move receipt emails into Receipts/Business and Receipts/Personal folders [Mutates with --apply]")
+      .option("-m, --months <n>", "months to look back", SORT_DEFAULT_MONTHS),
+  ).action(
+    wrapAction(async (opts) => {
+      const json = resolveJson(opts);
+      const account = resolveAccount(opts);
+      const applied = resolvePlanApply(opts);
 
-        const stats = await _sortCommand(opts, { account: account || null }, renderSortProgress);
+      const stats = await _sortCommand(opts, { account: account || null }, renderSortProgress);
 
-        console.log(_formatSortOutput(json, stats));
-      }),
-    );
+      console.log(_formatSortOutput(json, stats));
+      emitPlanHint(applied, json);
+    }),
+  );
 
-  program
-    .command("download")
-    .description("Download PDF attachments from business receipt emails")
-    .option("-m, --months <n>", "months to look back", DOWNLOAD_DEFAULT_MONTHS)
-    .option("-n, --dry-run", "show what would be downloaded without downloading", false)
-    .option("-o, --output <dir>", "override output directory")
-    .action(
-      wrapAction(async (opts) => {
-        const json = resolveJson(opts);
-        const account = resolveAccount(opts);
+  mutating(
+    program
+      .command("download")
+      .description("Download PDF attachments from business receipt emails [Mutates with --apply]")
+      .option("-m, --months <n>", "months to look back", DOWNLOAD_DEFAULT_MONTHS)
+      .option("-o, --output <dir>", "override output directory"),
+  ).action(
+    wrapAction(async (opts) => {
+      const json = resolveJson(opts);
+      const account = resolveAccount(opts);
+      const applied = resolvePlanApply(opts);
 
-        const stats = await _downloadCommand(opts, { account: account || null }, renderDownloadProgress);
+      const stats = await _downloadCommand(opts, { account: account || null }, renderDownloadProgress);
 
-        console.log(_formatDownloadOutput(json, stats));
-      }),
-    );
+      console.log(_formatDownloadOutput(json, stats));
+      emitPlanHint(applied, json);
+    }),
+  );
 
-  program
-    .command("download-receipts")
-    .description("Download receipt PDFs and create JSON sidecar metadata files")
-    .option("-o, --output <dir>", "root output directory", ".")
-    .option("-m, --months <n>", "how far back to search", DOWNLOAD_RECEIPTS_DEFAULT_MONTHS)
-    .option("--since <date>", "search from this date instead of months")
-    .option("-n, --dry-run", "show what would be downloaded without writing", false)
-    .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
-    .option("--vendor <name>", "filter to a specific vendor (substring match)")
-    .option("--list-vendors", "list vendors found in recent receipts", false)
-    .option(
-      "--include-empty",
-      "also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)",
-      false,
-    )
-    .option("--max <n>", "stop after processing this many messages")
-    .option("--timeout <seconds>", "per-message timeout in seconds (default: 120)")
-    .option("--budget <seconds>", "overall wall-clock budget in seconds; stop cleanly when exceeded")
-    .action(
-      wrapAction(async (opts) => {
-        const json = resolveJson(opts);
-        const account = resolveAccount(opts);
+  mutating(
+    program
+      .command("download-receipts")
+      .description("Download receipt PDFs and create JSON sidecar metadata files [Mutates with --apply]")
+      .option("-o, --output <dir>", "root output directory", ".")
+      .option("-m, --months <n>", "how far back to search", DOWNLOAD_RECEIPTS_DEFAULT_MONTHS)
+      .option("--since <date>", "search from this date instead of months")
+      .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
+      .option("--vendor <name>", "filter to a specific vendor (substring match)")
+      .option("--list-vendors", "list vendors found in recent receipts", false)
+      .option(
+        "--include-empty",
+        "also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)",
+        false,
+      )
+      .option("--max <n>", "stop after processing this many messages")
+      .option("--timeout <seconds>", "per-message timeout in seconds (default: 120)")
+      .option("--budget <seconds>", "overall wall-clock budget in seconds; stop cleanly when exceeded"),
+  ).action(
+    wrapAction(async (opts) => {
+      const json = resolveJson(opts);
+      const account = resolveAccount(opts);
+      // --list-vendors is a read-only query; don't force it through plan/apply.
+      const applied = opts.listVendors ? true : resolvePlanApply(opts);
 
-        const commandDeps = {
-          account: account || null,
-          openAiKey: getOpenAiKey(),
-          importDownloadReceipts,
-          importVendorMap,
-        };
-        const result = await _downloadReceiptsCommand(opts, commandDeps, renderDownloadReceiptsProgress);
-        console.log(_formatDownloadReceiptsOutput(json, result, opts));
-      }),
-    );
+      const commandDeps = {
+        account: account || null,
+        openAiKey: getOpenAiKey(),
+        importDownloadReceipts,
+        importVendorMap,
+      };
+      const result = await _downloadReceiptsCommand(opts, commandDeps, renderDownloadReceiptsProgress);
+      console.log(_formatDownloadReceiptsOutput(json, result, opts));
+      emitPlanHint(applied, json);
+    }),
+  );
 
   // --- General email operations ---
 
@@ -406,20 +427,34 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (uid, opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { account: acct, parsed } = await _readCommand(uid, opts, {
+        const {
+          account: acct,
+          parsed,
+          mailbox,
+        } = await _readCommand(uid, opts, {
           targetAccounts,
           forEachAccount: _forEachAccount,
           listMailboxes: _listMailboxes,
           simpleParser: _simpleParser,
         });
 
-        console.error(`\n=== ${acct.name} ===`);
+        // Surface the resolved location. UIDs are per-mailbox, so a bare `read <uid>`
+        // auto-detects a mailbox and can land on a different message than intended —
+        // show which mailbox was used and how to pin it when it wasn't specified.
+        console.error(`\n=== ${acct.name}${mailbox ? ` / ${mailbox}` : ""} ===`);
+        if (!opts.mailbox && mailbox) {
+          console.error(
+            `(auto-detected mailbox; if this isn't the message you meant, re-run with ` +
+              `--account "${acct.name}" --mailbox "${mailbox}" from your search result)`,
+          );
+        }
         console.log(_formatReadOutput(json, parsed, acct.name, uid, opts));
       }),
     );
 
   program
-    .command("list-folders")
+    .command("folders")
+    .alias("list-folders")
     .description("List all IMAP folders for each configured account")
     .action(
       wrapAction(async (opts) => {
@@ -463,27 +498,29 @@ export function buildProgram(deps = defaultDeps) {
       }),
     );
 
-  program
-    .command("move")
-    .description("Move emails by UID to a specified IMAP folder")
-    .argument("<uids...>", "message UIDs (space or comma-separated; prefix with account: if --account omitted)")
-    .requiredOption("--to <folder>", "destination IMAP folder (e.g. Junk, [Gmail]/Spam, Archive)")
-    .option("--mailbox <source>", "source mailbox to move from", "INBOX")
-    .option("-n, --dry-run", "show what would be moved without executing", false)
-    .action(
-      wrapAction(async (uids, opts) => {
-        const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
+  mutating(
+    program
+      .command("move")
+      .description("Move emails by UID to a specified IMAP folder [Mutates with --apply]")
+      .argument("<uids...>", "message UIDs (space or comma-separated; prefix with account: if --account omitted)")
+      .requiredOption("--to <folder>", "destination IMAP folder (e.g. Junk, [Gmail]/Spam, Archive)")
+      .option("--mailbox <source>", "source mailbox to move from", "INBOX"),
+  ).action(
+    wrapAction(async (uids, opts) => {
+      const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
+      const applied = resolvePlanApply(opts);
 
-        const { stats, results } = await _moveCommand(uids, opts, {
-          accounts,
-          account: account || null,
-          forEachAccount: _forEachAccount,
-          listMailboxes: _listMailboxes,
-        });
+      const { stats, results } = await _moveCommand(uids, opts, {
+        accounts,
+        account: account || null,
+        forEachAccount: _forEachAccount,
+        listMailboxes: _listMailboxes,
+      });
 
-        console.log(_formatMoveOutput(json, stats, results));
-      }),
-    );
+      console.log(_formatMoveOutput(json, stats, results));
+      emitPlanHint(applied, json);
+    }),
+  );
 
   program
     .command("inbox")
@@ -504,61 +541,65 @@ export function buildProgram(deps = defaultDeps) {
       }),
     );
 
-  program
-    .command("flag")
-    .description("Set or clear flags on messages (read, unread, star, unstar)")
-    .argument("<uids...>", "message UIDs (space or comma-separated; prefix with account: if --account omitted)")
-    .option("--read", "mark as read (add \\Seen)")
-    .option("--unread", "mark as unread (remove \\Seen)")
-    .option("--star", "add star/flag (add \\Flagged)")
-    .option("--unstar", "remove star/flag (remove \\Flagged)")
-    .option("--mailbox <path>", "mailbox containing the messages (auto-detects if omitted)")
-    .option("-n, --dry-run", "show what would change without modifying", false)
-    .action(
-      wrapAction(async (uids, opts) => {
-        const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
+  mutating(
+    program
+      .command("flag")
+      .description("Set or clear flags on messages (read, unread, star, unstar) [Mutates with --apply]")
+      .argument("<uids...>", "message UIDs (space or comma-separated; prefix with account: if --account omitted)")
+      .option("--read", "mark as read (add \\Seen)")
+      .option("--unread", "mark as unread (remove \\Seen)")
+      .option("--star", "add star/flag (add \\Flagged)")
+      .option("--unstar", "remove star/flag (remove \\Flagged)")
+      .option("--mailbox <path>", "mailbox containing the messages (auto-detects if omitted)"),
+  ).action(
+    wrapAction(async (uids, opts) => {
+      const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
+      const applied = resolvePlanApply(opts);
 
-        const { stats, results } = await _flagCommand(uids, opts, {
-          accounts,
-          account: account || null,
-          forEachAccount: _forEachAccount,
-          listMailboxes: _listMailboxes,
-        });
+      const { stats, results } = await _flagCommand(uids, opts, {
+        accounts,
+        account: account || null,
+        forEachAccount: _forEachAccount,
+        listMailboxes: _listMailboxes,
+      });
 
-        console.log(_formatFlagOutput(json, stats, results));
-      }),
-    );
+      console.log(_formatFlagOutput(json, stats, results));
+      emitPlanHint(applied, json);
+    }),
+  );
 
-  program
-    .command("reply")
-    .description("Reply to an email by UID via SMTP")
-    .argument("<uid>", "message UID to reply to")
-    .option("--message <text>", "reply message text (inline)")
-    .option("--message-file <path>", "read reply text from a file")
-    .option("--edit", "open $EDITOR to compose the reply", false)
-    .option("--mailbox <path>", "mailbox containing the message (auto-detects if omitted)")
-    .option("--cc <addresses>", "CC recipients (comma-separated)")
-    .option("-n, --dry-run", "show composed email without sending", false)
-    .option("-y, --yes", "skip confirmation when using --edit", false)
-    .action(
-      wrapAction(async (uid, opts) => {
-        const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
+  mutating(
+    program
+      .command("reply")
+      .description("Reply to an email by UID via SMTP [Mutates with --apply]")
+      .argument("<uid>", "message UID to reply to")
+      .option("--message <text>", "reply message text (inline)")
+      .option("--message-file <path>", "read reply text from a file")
+      .option("--edit", "open $EDITOR to compose the reply", false)
+      .option("--mailbox <path>", "mailbox containing the message (auto-detects if omitted)")
+      .option("--cc <addresses>", "CC recipients (comma-separated)")
+      .option("-y, --yes", "skip confirmation when using --edit --apply", false),
+  ).action(
+    wrapAction(async (uid, opts) => {
+      const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
+      const applied = resolvePlanApply(opts);
 
-        const replyDeps = {
-          targetAccounts,
-          forEachAccount: _forEachAccount,
-          listMailboxes: _listMailboxes,
-          simpleParser: _simpleParser,
-          fsGateway: _fs,
-          smtpGateway: new SmtpGateway(),
-          editorGateway: new EditorGateway(),
-          confirmGateway: new ConfirmGateway(),
-        };
-        const result = await _replyCommand(uid, opts, replyDeps);
-        if ("aborted" in result) return void console.error("Aborted.");
-        console.log(_formatReplyOutput(json, result));
-      }),
-    );
+      const replyDeps = {
+        targetAccounts,
+        forEachAccount: _forEachAccount,
+        listMailboxes: _listMailboxes,
+        simpleParser: _simpleParser,
+        fsGateway: _fs,
+        smtpGateway: new SmtpGateway(),
+        editorGateway: new EditorGateway(),
+        confirmGateway: new ConfirmGateway(),
+      };
+      const result = await _replyCommand(uid, opts, replyDeps);
+      if ("aborted" in result) return void console.error("Aborted.");
+      console.log(_formatReplyOutput(json, result));
+      emitPlanHint(applied, json);
+    }),
+  );
 
   program
     .command("thread")
@@ -609,14 +650,14 @@ export function buildProgram(deps = defaultDeps) {
 
   program
     .command("init")
-    .description("Install mailctl skill files for Claude Code")
-    .option("-g, --global", "install to ~/.claude (global) instead of .claude/ in CWD")
+    .description("Install the mailctl companion skill for Claude Code (global by default)")
+    .option("--local", "install to .claude/ in the current directory instead of ~/.claude")
     .option("--force", "overwrite even if installed skill is from a newer version")
     .action(
       wrapAction(async (opts) => {
         const json = resolveJson(opts);
         const result = await _initCommand(program.version() ?? "0.0.0", {
-          global: !!opts.global,
+          global: !opts.local,
           force: !!opts.force,
         });
 

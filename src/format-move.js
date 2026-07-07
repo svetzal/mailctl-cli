@@ -13,7 +13,7 @@ import { createFormatOutput } from "./cli-helpers.js";
  * @returns {string}
  */
 export function formatMoveText(stats, _results) {
-  return `\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped (dry-run)`;
+  return `\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped`;
 }
 
 /**

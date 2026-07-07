@@ -1,7 +1,8 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
+import { getConfigDownloadDir } from "./config.js";
+import { DATA_DIR } from "./data-dir.js";
 import { downloadAccountStart, downloadBizCount, hashReadError } from "./download-event-factories.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
@@ -12,13 +13,8 @@ import {
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
 import { processDownloadMessage } from "./receipts/process-download-message.js";
-import { requireClassificationsData } from "./scan-data.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, "..", "data");
-
-import { getConfigDownloadDir } from "./config.js";
 import { contentHash } from "./receipts/receipt-decisions.js";
+import { requireClassificationsData } from "./scan-data.js";
 
 export { buildFilename, getVendorNames, vendorName } from "./download-filename.js";
 

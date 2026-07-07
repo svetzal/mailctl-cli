@@ -16,7 +16,7 @@ function makeStubDeps(overrides = {}) {
     downloadCommand: mock(async () => ({})),
     downloadReceiptsCommand: mock(async () => ({})),
     searchCommand: mock(async () => ({ allResults: [], warnings: [] })),
-    readCommand: mock(async () => ({ account: { name: "Test" }, parsed: {} })),
+    readCommand: mock(async () => ({ account: { name: "Test" }, mailbox: "INBOX", parsed: {} })),
     listFoldersCommand: mock(async () => ({ allAccountFolders: [] })),
     extractAttachmentCommand: mock(async () => ({ listing: [] })),
     moveCommand: mock(async () => ({ stats: {}, results: [] })),
@@ -154,6 +154,64 @@ describe("buildProgram", () => {
       expect(deps.sortCommand).toHaveBeenCalledWith(
         expect.objectContaining({ months: "24" }),
         expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it("previews by default (dryRun true when --apply omitted)", async () => {
+      const deps = makeStubDeps();
+      const program = buildProgram(deps);
+      await program.parseAsync(["node", "mailctl", "sort"]);
+
+      expect(deps.sortCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ dryRun: true }),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it("executes with --apply (dryRun false)", async () => {
+      const deps = makeStubDeps();
+      const program = buildProgram(deps);
+      await program.parseAsync(["node", "mailctl", "sort", "--apply"]);
+
+      expect(deps.sortCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ dryRun: false }),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+  });
+
+  // ── plan/apply safety model ─────────────────────────────────────────────────
+
+  describe("plan/apply model on mutating commands", () => {
+    it("move previews by default (dryRun true)", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "move", "42", "--to", "Archive"]);
+      expect(deps.moveCommand).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ dryRun: true }),
+        expect.anything(),
+      );
+    });
+
+    it("move executes with --apply (dryRun false)", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "move", "42", "--to", "Archive", "--apply"]);
+      expect(deps.moveCommand).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ dryRun: false }),
+        expect.anything(),
+      );
+    });
+
+    it("legacy --dry-run still forces preview even with --apply", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "flag", "42", "--read", "--apply", "--dry-run"]);
+      expect(deps.flagCommand).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ dryRun: true }),
         expect.anything(),
       );
     });
@@ -324,7 +382,21 @@ describe("buildProgram", () => {
       const program = buildProgram(deps);
       await program.parseAsync(["node", "mailctl", "init"]);
 
-      expect(deps.initCommand).toHaveBeenCalledWith("1.1.2", expect.anything());
+      expect(deps.initCommand).toHaveBeenCalledWith("1.2.0", expect.anything());
+    });
+
+    it("installs globally by default", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "init"]);
+
+      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ global: true }));
+    });
+
+    it("installs locally with --local", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "init", "--local"]);
+
+      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ global: false }));
     });
   });
 });

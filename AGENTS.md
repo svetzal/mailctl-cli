@@ -29,23 +29,23 @@ mailctl search "query"          # search all mailboxes across accounts
 mailctl search --mailbox INBOX "query"   # search specific mailbox only
 mailctl search --exclude-mailbox Trash "query"  # skip specific folders
 mailctl read <uid>              # read a specific email by UID
-mailctl list-folders            # list all IMAP folders per account
-mailctl list-folders --json     # JSON output for scripting
+mailctl folders                 # list all IMAP folders per account (list-folders is an alias)
+mailctl folders --json          # JSON output for scripting
 mailctl extract-attachment <uid> --list           # list attachments
 mailctl extract-attachment <uid> [index]          # save attachment (PDF preferred; smime.p7s skipped)
 mailctl extract-attachment <uid> -o ~/Desktop     # save to directory
 
-# Receipt operations
+# Receipt operations (mutating commands preview by default; add --apply to execute)
 mailctl scan                    # discover receipt senders
 mailctl scan --json             # JSON output
-mailctl sort                    # move emails to Business/Personal folders
-mailctl sort --dry-run          # preview without moving
-mailctl download                # download business receipt PDFs
-mailctl download --dry-run
+mailctl sort                    # preview moves to Business/Personal folders
+mailctl sort --apply            # execute the moves
+mailctl download                # preview business receipt PDF downloads
+mailctl download --apply        # download them
 mailctl classify                # output unclassified senders
-mailctl download-receipts --since 2026-01-01 -o <dir>       # download with date filter
-mailctl download-receipts --since 2026-01-01 --dry-run       # preview, no writes
-mailctl download-receipts --since 2026-01-01 --max 10        # cap at 10 messages
+mailctl download-receipts --since 2026-01-01 -o <dir>        # preview (add --apply to write)
+mailctl download-receipts --since 2026-01-01 --apply         # download + write sidecars
+mailctl download-receipts --since 2026-01-01 --max 10 --apply  # cap at 10 messages
 mailctl download-receipts --since 2026-01-01 --timeout 60    # 60 s per-message timeout
 mailctl download-receipts --since 2026-01-01 --budget 300    # 5-minute overall cap
 ```
@@ -187,7 +187,7 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **Two canonical error escalation patterns for command orchestrators:**
   - *Single-item commands* (`read`, `reply`, `search`, `extract-attachment`, `thread`, `classify`, `import-classifications`) throw on failure. The CLI layer catches these via `withErrorHandling` and formats the error for the user.
   - *Batch commands* (`move`, `flag`) accumulate per-item `{ status: "failed", error: … }` entries in their result list and never throw on item-level failure. They return `{ stats, results }` even when some items failed.
-  - *Thin delegators* (`scan`, `sort`, `download`, `inbox`, `contacts`, `list-folders`) wrap their delegate call in try/catch and re-throw with a user-facing prefix (e.g. `"Scan failed: " + err.message`) so raw IMAP protocol errors never reach the user directly.
+  - *Thin delegators* (`scan`, `sort`, `download`, `inbox`, `contacts`, `folders`) wrap their delegate call in try/catch and re-throw with a user-facing prefix (e.g. `"Scan failed: " + err.message`) so raw IMAP protocol errors never reach the user directly.
 
 ## Engineering Standards
 
@@ -301,8 +301,8 @@ The `skills/mailctl/` directory is the source of truth for the mailctl Claude Co
 ### Installing the skill
 
 ```bash
-mailctl init              # install to .claude/skills/mailctl/ in CWD
-mailctl init --global     # install to ~/.claude/skills/mailctl/
+mailctl init              # install to ~/.claude/skills/mailctl/ (global, default)
+mailctl init --local      # install to .claude/skills/mailctl/ in CWD instead
 mailctl init --force      # overwrite even if installed version is newer
 ```
 
@@ -376,13 +376,14 @@ Or use `bun link` for development.
 1. **Re-init skills** to pick up the new version:
 
 ```bash
-mailctl init --global --force
+mailctl init --force
 ```
 
 After Homebrew propagates, upgrade via: `brew upgrade mailctl`
 
 ## Related
 
-- Classifications: `data/classifications.json` (business vs personal sender mapping)
-- Download manifest: `data/download-manifest.json` (tracks downloaded PDFs with content hashes)
+- State directory: `$XDG_STATE_HOME/mailctl` (default `~/.local/state/mailctl`), resolved once in `src/data-dir.js`
+- Classifications: `<state-dir>/classifications.json` (business vs personal sender mapping)
+- Download manifest: `<state-dir>/download-manifest.json` (tracks downloaded PDFs with content hashes)
 - Download output: Configured via `downloadDir` in config.json (defaults to `~/mailctl-receipts/`)

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-06
+
+### Changed
+
+- **BREAKING (safe-by-default): mutating commands now preview by default and require `--apply` to execute.** `sort`, `download`, `download-receipts`, `move`, `flag`, and `reply` no longer act on their first run — they show what *would* happen and print a hint to re-run with `--apply`. The workflow is now: run the command, read the plan, re-run the same command with `--apply`. The legacy `-n, --dry-run` flag is still accepted (hidden) and, since preview is the default, is now redundant; it forces preview even alongside `--apply`. Help text marks these commands `[Mutates with --apply]`.
+- **`list-folders` renamed to `folders`** for grammar consistency with `contacts`/`inbox`. The old name still works as an alias.
+- **`init` now installs the companion skill globally by default** (`~/.claude`). Use the new `--local` flag to install into `.claude/` in the current directory instead. The previous `-g, --global` flag is removed (global is the default).
+- `read` now prints the resolved mailbox in its `=== account / mailbox ===` header and, when the mailbox was auto-detected, a note on how to pin it with `--account`/`--mailbox`. UIDs are per-mailbox, so a bare `read <uid>` can otherwise land on a different message than intended without any signal.
+
+### Fixed
+
+- Receipt-pipeline data now lives in a user-writable state directory (`$XDG_STATE_HOME/mailctl` or `~/.local/state/mailctl`). Previously the `classify`/`import-classifications` defaults and the `scan` output pointed next to the binary, which in a compiled build resolves into the read-only `$bunfs` virtual filesystem — so the defaults were unusable.
+- `move`'s summary line no longer prints a hardcoded `(dry-run)` suffix on real moves.
+
 ## [1.1.2] - 2026-06-07
 
 ### Fixed

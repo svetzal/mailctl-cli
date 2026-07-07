@@ -30,7 +30,7 @@ describe("formatMoveText", () => {
     });
   });
 
-  describe("formats a dry-run result with all messages skipped", () => {
+  describe("formats a result with all messages skipped", () => {
     const text = formatMoveText({ moved: 0, failed: 0, skipped: 4 });
 
     it("shows moved count", () => {
@@ -39,10 +39,6 @@ describe("formatMoveText", () => {
 
     it("shows skipped count", () => {
       expect(text).toContain("4 skipped");
-    });
-
-    it("shows dry-run indicator", () => {
-      expect(text).toContain("(dry-run)");
     });
   });
 });

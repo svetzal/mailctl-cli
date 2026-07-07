@@ -72,7 +72,7 @@ mailctl read 12345 --max-body 5000
 #### List Folders — Show all IMAP folders
 
 ```bash
-mailctl list-folders                # list folders for all accounts
+mailctl folders                     # list folders for all accounts (list-folders is an alias)
 ```
 
 ### Receipt Operations
@@ -85,9 +85,9 @@ mailctl scan -m 24        # last 24 months
 mailctl scan -a           # all mailboxes (slower)
 ```
 
-Outputs:
-- `data/scan-results.json` — every receipt email found
-- `data/senders.json` — aggregated by sender with counts
+Outputs (written under `$XDG_STATE_HOME/mailctl`, default `~/.local/state/mailctl`):
+- `scan-results.json` — every receipt email found
+- `senders.json` — aggregated by sender with counts
 - Human-readable summary to stdout
 
 #### Classify — Tag senders as business or personal
@@ -102,13 +102,13 @@ Outputs unclassified senders as JSON. Set `"classification"` to `"business"` or 
 mailctl import-classifications classified.json
 ```
 
-Classifications stored in `data/classifications.json`.
+Classifications stored in `~/.local/state/mailctl/classifications.json`.
 
 #### Sort — Move emails into receipt folders
 
 ```bash
-mailctl sort              # move emails
-mailctl sort --dry-run    # preview without moving
+mailctl sort              # preview the moves (default)
+mailctl sort --apply      # actually move emails
 mailctl sort -m 6         # only last 6 months
 ```
 
@@ -135,36 +135,36 @@ Lists or extracts individual attachments from a specific email. Prints the saved
 #### Download — Get business receipt PDFs
 
 ```bash
-mailctl download          # download to OneDrive
-mailctl download --dry-run
-mailctl download -m 6
-mailctl download -o ~/Desktop/test  # custom output dir
+mailctl download          # preview what would download (default)
+mailctl download --apply  # download to OneDrive
+mailctl download -m 6 --apply
+mailctl download -o ~/Desktop/test --apply  # custom output dir
 ```
 
 Downloads PDF attachments from business receipt emails. Output directory is configurable via `downloadDir` in `~/.config/mailctl/config.json` (defaults to `~/mailctl-receipts/`).
 
 **Filename convention:** `Vendor YYYY-MM-DD.pdf` with `_2`, `_3` suffixes for multiple attachments on the same date.
 
-**Dedup:** SHA-256 content hashing — never downloads the same PDF twice, even across runs. State tracked in `data/download-manifest.json`.
+**Dedup:** SHA-256 content hashing — never downloads the same PDF twice, even across runs. State tracked in `~/.local/state/mailctl/download-manifest.json`.
 
 #### Download Receipts — LLM-powered receipt PDF download with metadata sidecars
 
 ```bash
-mailctl download-receipts                   # download receipts, skip empty extractions
-mailctl download-receipts --dry-run
-mailctl download-receipts -m 6              # look back 6 months
-mailctl download-receipts --vendor Stripe   # filter to a specific vendor
-mailctl download-receipts --include-empty   # also write sidecars with no amount/invoice/PDF
-mailctl download-receipts --list-vendors    # list vendors seen in recent receipts
-mailctl download-receipts --reprocess       # re-run LLM on existing sidecars
-mailctl download-receipts --max 20          # stop after processing 20 messages
-mailctl download-receipts --timeout 60      # per-message timeout in seconds (default 120)
-mailctl download-receipts --budget 300      # overall wall-clock cap in seconds
+mailctl download-receipts                   # preview (default); skip empty extractions
+mailctl download-receipts --apply           # download receipts + write sidecars
+mailctl download-receipts -m 6 --apply      # look back 6 months
+mailctl download-receipts --vendor Stripe --apply   # filter to a specific vendor
+mailctl download-receipts --include-empty --apply   # also write sidecars with no amount/invoice/PDF
+mailctl download-receipts --list-vendors    # list vendors seen in recent receipts (read-only)
+mailctl download-receipts --reprocess --apply       # re-run LLM on existing sidecars
+mailctl download-receipts --max 20 --apply  # stop after processing 20 messages
+mailctl download-receipts --timeout 60 --apply      # per-message timeout in seconds (default 120)
+mailctl download-receipts --budget 300 --apply      # overall wall-clock cap in seconds
 ```
 
 Downloads receipt PDFs and writes a JSON sidecar alongside each one with extracted metadata (vendor, amount, invoice number, date). Uses LLM (gpt-5-mini via mojentic) when an OpenAI API key is available; falls back to pattern-based extraction.
 
-**Incremental progress:** Per-message progress (`[i/total] vendor — subject`) is emitted to stderr immediately as each message begins, so long runs are observable and `--dry-run` never appears frozen.
+**Incremental progress:** Per-message progress (`[i/total] vendor — subject`) is emitted to stderr immediately as each message begins, so long runs are observable and never appear frozen.
 
 **Per-message timeout:** If a single IMAP fetch or LLM call exceeds `--timeout` seconds (default 120), that message is skipped with a warning and the run continues. The final summary includes a `Timed out:` count.
 

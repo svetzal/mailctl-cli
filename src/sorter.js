@@ -1,7 +1,6 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
+import { DATA_DIR } from "./data-dir.js";
 import { debug } from "./debug.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
@@ -23,9 +22,6 @@ import {
   scanComplete,
 } from "./sort-event-factories.js";
 import { BIZ_FOLDER, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, "..", "data");
 
 /**
  * @param {import("imapflow").ImapFlow} client
