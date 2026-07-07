@@ -327,12 +327,52 @@ When releasing a new version, the embedded skill content is automatically compil
 
 ## Local Installation
 
+### Released version (end users)
+
 ```bash
 brew tap svetzal/tap
 brew install mailctl
 ```
 
 To upgrade: `brew upgrade mailctl`
+
+### Local build (development / before Homebrew catches up)
+
+To run a freshly built binary immediately — e.g. after a change, or right after
+tagging a release while CI is still building — install it to `~/.local/bin`,
+never to a Homebrew-managed path:
+
+```bash
+bun run build
+mkdir -p ~/.local/bin
+cp build/mailctl ~/.local/bin/mailctl
+codesign --force --sign - ~/.local/bin/mailctl   # macOS: re-sign after copy (see note)
+mailctl init --force                              # refresh the global companion skill
+hash -r; which mailctl; mailctl --version         # should report ~/.local/bin and the new version
+```
+
+- **Always install to `~/.local/bin/mailctl` — never `/opt/homebrew/bin` or
+  `/usr/local/bin`.** Writing over a brew-managed path stomps Homebrew's state
+  and makes the next `brew upgrade` fail to link. `~/.local/bin` must sit *ahead*
+  of the Homebrew bin directory in `PATH` so the local build wins; `which mailctl`
+  should report `~/.local/bin/mailctl`. If it reports a Homebrew path instead, fix
+  your `PATH` ordering rather than installing elsewhere. (`/usr/local/bin` is
+  typically *after* `/opt/homebrew/bin` on Apple Silicon, so it will not shadow
+  the released binary — this is why it's the wrong target.)
+- **The `codesign --force --sign -` step is a macOS safeguard.** Bun's `--compile`
+  embeds an ad-hoc signature that can be invalidated when the file is copied
+  (macOS may attach a `com.apple.provenance` xattr that desyncs the embedded
+  hash); when that happens the kernel SIGKILLs the process on launch with no
+  useful error (just `[1] <pid> killed mailctl …`). It doesn't always trigger,
+  but re-signing is harmless and avoids a baffling silent kill.
+- **This is a temporary bridge.** Once the release CI has updated the Homebrew tap
+  (`brew update && brew info svetzal/tap/mailctl` shows the new version), switch
+  back to the brew-managed binary and remove the shadow so it can't go stale:
+
+  ```bash
+  brew upgrade svetzal/tap/mailctl
+  rm -f ~/.local/bin/mailctl
+  ```
 
 ## Release Process
 
@@ -366,21 +406,11 @@ The GitHub Actions release workflow (`.github/workflows/release.yml`) handles th
 
 **Prerequisite**: The `HOMEBREW_TAP_TOKEN` secret must be set on this repo for the auto-update step. Without it, binaries are released on GitHub but the Homebrew formula isn't updated.
 
-1. **Local install immediately** (don't wait for Homebrew):
-
-```bash
-bun run build && cp build/mailctl /usr/local/bin/
-```
-
-Or use `bun link` for development.
-
-1. **Re-init skills** to pick up the new version:
-
-```bash
-mailctl init --force
-```
-
-After Homebrew propagates, upgrade via: `brew upgrade mailctl`
+**To use the new version immediately** (don't wait for Homebrew), follow the
+[Local build](#local-build-development--before-homebrew-catches-up) procedure
+above: build, install to `~/.local/bin`, `codesign`, and `mailctl init --force`.
+Once the tap has caught up, `brew upgrade svetzal/tap/mailctl` and remove the
+`~/.local/bin` shadow.
 
 ## Related
 
