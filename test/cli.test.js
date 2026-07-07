@@ -85,6 +85,36 @@ describe("buildProgram", () => {
 
   // ── scan ────────────────────────────────────────────────────────────────────
 
+  describe("receipts noun-group", () => {
+    it("`receipts scan` routes to scanCommand", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "receipts", "scan"]);
+      expect(deps.scanCommand).toHaveBeenCalled();
+    });
+
+    it("`receipts extract` routes to downloadReceiptsCommand", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "receipts", "extract"]);
+      expect(deps.downloadReceiptsCommand).toHaveBeenCalled();
+    });
+
+    it("`receipts sort` previews by default", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "receipts", "sort"]);
+      expect(deps.sortCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ dryRun: true }),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it("legacy top-level `download-receipts` alias still routes to downloadReceiptsCommand", async () => {
+      const deps = makeStubDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "download-receipts"]);
+      expect(deps.downloadReceiptsCommand).toHaveBeenCalled();
+    });
+  });
+
   describe("scan command", () => {
     it("passes default months '12' to scanCommand", async () => {
       const deps = makeStubDeps();

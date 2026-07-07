@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Receipt commands are now grouped under a `receipts` noun:** `receipts scan`, `receipts classify`, `receipts import-classifications`, `receipts sort`, `receipts download`, and `receipts extract` (the last was `download-receipts`). This resolves the two overlapping top-level "download" verbs. The pre-1.2 top-level names all still work as hidden aliases, so existing scripts and muscle memory keep working.
 - **BREAKING (safe-by-default): mutating commands now preview by default and require `--apply` to execute.** `sort`, `download`, `download-receipts`, `move`, `flag`, and `reply` no longer act on their first run — they show what *would* happen and print a hint to re-run with `--apply`. The workflow is now: run the command, read the plan, re-run the same command with `--apply`. The legacy `-n, --dry-run` flag is still accepted (hidden) and, since preview is the default, is now redundant; it forces preview even alongside `--apply`. Help text marks these commands `[Mutates with --apply]`.
 - **`list-folders` renamed to `folders`** for grammar consistency with `contacts`/`inbox`. The old name still works as an alias.
 - **`init` now installs the companion skill globally by default** (`~/.claude`). Use the new `--local` flag to install into `.claude/` in the current directory instead. The previous `-g, --global` flag is removed (global is the default).

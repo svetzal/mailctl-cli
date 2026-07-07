@@ -35,19 +35,20 @@ mailctl extract-attachment <uid> --list           # list attachments
 mailctl extract-attachment <uid> [index]          # save attachment (PDF preferred; smime.p7s skipped)
 mailctl extract-attachment <uid> -o ~/Desktop     # save to directory
 
-# Receipt operations (mutating commands preview by default; add --apply to execute)
-mailctl scan                    # discover receipt senders
-mailctl scan --json             # JSON output
-mailctl sort                    # preview moves to Business/Personal folders
-mailctl sort --apply            # execute the moves
-mailctl download                # preview business receipt PDF downloads
-mailctl download --apply        # download them
-mailctl classify                # output unclassified senders
-mailctl download-receipts --since 2026-01-01 -o <dir>        # preview (add --apply to write)
-mailctl download-receipts --since 2026-01-01 --apply         # download + write sidecars
-mailctl download-receipts --since 2026-01-01 --max 10 --apply  # cap at 10 messages
-mailctl download-receipts --since 2026-01-01 --timeout 60    # 60 s per-message timeout
-mailctl download-receipts --since 2026-01-01 --budget 300    # 5-minute overall cap
+# Receipt operations — grouped under `receipts` (legacy top-level names are hidden aliases)
+# Mutating commands preview by default; add --apply to execute.
+mailctl receipts scan                    # discover receipt senders
+mailctl receipts scan --json             # JSON output
+mailctl receipts sort                    # preview moves to Business/Personal folders
+mailctl receipts sort --apply            # execute the moves
+mailctl receipts download                # preview business receipt PDF downloads
+mailctl receipts download --apply        # download them
+mailctl receipts classify                # output unclassified senders
+mailctl receipts extract --since 2026-01-01 -o <dir>        # preview (add --apply to write)
+mailctl receipts extract --since 2026-01-01 --apply         # download + write sidecars
+mailctl receipts extract --since 2026-01-01 --max 10 --apply  # cap at 10 messages
+mailctl receipts extract --since 2026-01-01 --timeout 60 --apply   # 60 s per-message timeout
+mailctl receipts extract --since 2026-01-01 --budget 300 --apply   # 5-minute overall cap
 ```
 
 ### Project Structure

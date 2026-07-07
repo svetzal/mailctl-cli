@@ -71,10 +71,10 @@ mailctl reply <uid> --edit --apply                # compose in editor, then send
 ```
 
 **Plan, then apply.** Every command that changes server state or writes files
-(`move`, `flag`, `reply`, `sort`, `download`, `download-receipts`) previews by
-default and does nothing until you re-run it with `--apply`. Read the preview,
-then repeat the same command with `--apply` appended. (`-n, --dry-run` is still
-accepted but redundant — preview is already the default.)
+(`move`, `flag`, `reply`, `receipts sort`, `receipts download`, `receipts extract`)
+previews by default and does nothing until you re-run it with `--apply`. Read the
+preview, then repeat the same command with `--apply` appended. (`-n, --dry-run` is
+still accepted but redundant — preview is already the default.)
 
 ### Folders & Contacts
 
@@ -101,27 +101,31 @@ mailctl extract-attachment <uid> 0 -o ~/Desktop
 
 ### Receipt Management
 
+Receipt commands live under the `receipts` noun. (The pre-1.2 top-level names —
+`scan`, `classify`, `sort`, `download`, `download-receipts` — still work as
+aliases.)
+
 ```bash
 # Scan for receipt-like messages
-mailctl scan
-mailctl scan --months 6
+mailctl receipts scan
+mailctl receipts scan --months 6
 
 # Classify senders as business/personal
-mailctl classify
+mailctl receipts classify
 
 # Sort receipts into Business/Personal folders (preview, then --apply)
-mailctl sort                # preview the moves
-mailctl sort --apply        # execute
+mailctl receipts sort                # preview the moves
+mailctl receipts sort --apply        # execute
 
 # Download receipt PDF attachments (preview, then --apply)
-mailctl download            # preview
-mailctl download --apply    # execute
+mailctl receipts download            # preview
+mailctl receipts download --apply    # execute
 
-# Advanced: LLM-based receipt extraction with metadata (preview, then --apply)
-mailctl download-receipts                   # preview
-mailctl download-receipts --apply           # extract + write sidecars
-mailctl download-receipts --vendor "Amazon" --apply
-mailctl download-receipts --list-vendors    # read-only query, no --apply needed
+# Advanced: LLM-based receipt extraction with metadata (was `download-receipts`)
+mailctl receipts extract                    # preview
+mailctl receipts extract --apply            # extract + write sidecars
+mailctl receipts extract --vendor "Amazon" --apply
+mailctl receipts extract --list-vendors     # read-only query, no --apply needed
 ```
 
 ## Common Workflows
@@ -145,10 +149,10 @@ mailctl move <uid> --to "Projects/Active" --apply   # execute
 ### Process receipts
 
 ```bash
-mailctl scan --months 1            # find receipt senders
-mailctl classify                   # classify new senders
-mailctl sort --apply               # move to Business/Personal (preview without --apply)
-mailctl download --apply           # download PDF attachments (preview without --apply)
+mailctl receipts scan --months 1   # find receipt senders
+mailctl receipts classify          # classify new senders
+mailctl receipts sort --apply      # move to Business/Personal (preview without --apply)
+mailctl receipts download --apply  # download PDF attachments (preview without --apply)
 ```
 
 ### Reply to a message
@@ -164,7 +168,7 @@ mailctl reply <uid> --message "Got it, thanks!" --apply   # send it
 - **UIDs are account-scoped** — prefix with account name when targeting specific accounts: `icloud:123`, `gmail:456`
 - **Mailbox auto-detection** — most commands auto-detect the mailbox for a UID; use `--mailbox` to override. `read` echoes the resolved mailbox in its `=== account / mailbox ===` header — if it doesn't match what `search` showed, re-read with the explicit `--account`/`--mailbox`.
 - **Date filtering** — use `--since`, `--before`, or `--months` for date ranges
-- **Plan, then apply** — `move`, `flag`, `reply`, `sort`, `download`, and `download-receipts` preview by default and only act when you re-run with `--apply`. (`--dry-run` is still accepted but redundant.)
+- **Plan, then apply** — `move`, `flag`, `reply`, `receipts sort`, `receipts download`, and `receipts extract` preview by default and only act when you re-run with `--apply`. (`--dry-run` is still accepted but redundant.)
 - **Multiple accounts** — commands search all configured accounts by default; use `--account` to filter
 
 ## Security: Email Content and Prompt Injection

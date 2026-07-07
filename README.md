@@ -77,12 +77,16 @@ mailctl folders                     # list folders for all accounts (list-folder
 
 ### Receipt Operations
 
+Receipt commands are grouped under the `receipts` noun. The pre-1.2 top-level
+names (`scan`, `classify`, `sort`, `download`, `download-receipts`) still work as
+aliases.
+
 #### Scan — Discover receipt senders
 
 ```bash
-mailctl scan              # last 12 months
-mailctl scan -m 24        # last 24 months
-mailctl scan -a           # all mailboxes (slower)
+mailctl receipts scan              # last 12 months
+mailctl receipts scan -m 24        # last 24 months
+mailctl receipts scan -a           # all mailboxes (slower)
 ```
 
 Outputs (written under `$XDG_STATE_HOME/mailctl`, default `~/.local/state/mailctl`):
@@ -93,13 +97,13 @@ Outputs (written under `$XDG_STATE_HOME/mailctl`, default `~/.local/state/mailct
 #### Classify — Tag senders as business or personal
 
 ```bash
-mailctl classify
+mailctl receipts classify
 ```
 
 Outputs unclassified senders as JSON. Set `"classification"` to `"business"` or `"personal"` for each, then import:
 
 ```bash
-mailctl import-classifications classified.json
+mailctl receipts import-classifications classified.json
 ```
 
 Classifications stored in `~/.local/state/mailctl/classifications.json`.
@@ -107,9 +111,9 @@ Classifications stored in `~/.local/state/mailctl/classifications.json`.
 #### Sort — Move emails into receipt folders
 
 ```bash
-mailctl sort              # preview the moves (default)
-mailctl sort --apply      # actually move emails
-mailctl sort -m 6         # only last 6 months
+mailctl receipts sort              # preview the moves (default)
+mailctl receipts sort --apply      # actually move emails
+mailctl receipts sort -m 6         # only last 6 months
 ```
 
 Creates and populates two IMAP folders:
@@ -135,10 +139,10 @@ Lists or extracts individual attachments from a specific email. Prints the saved
 #### Download — Get business receipt PDFs
 
 ```bash
-mailctl download          # preview what would download (default)
-mailctl download --apply  # download to OneDrive
-mailctl download -m 6 --apply
-mailctl download -o ~/Desktop/test --apply  # custom output dir
+mailctl receipts download          # preview what would download (default)
+mailctl receipts download --apply  # download to OneDrive
+mailctl receipts download -m 6 --apply
+mailctl receipts download -o ~/Desktop/test --apply  # custom output dir
 ```
 
 Downloads PDF attachments from business receipt emails. Output directory is configurable via `downloadDir` in `~/.config/mailctl/config.json` (defaults to `~/mailctl-receipts/`).
@@ -147,19 +151,21 @@ Downloads PDF attachments from business receipt emails. Output directory is conf
 
 **Dedup:** SHA-256 content hashing — never downloads the same PDF twice, even across runs. State tracked in `~/.local/state/mailctl/download-manifest.json`.
 
-#### Download Receipts — LLM-powered receipt PDF download with metadata sidecars
+#### Extract — LLM-powered receipt PDF download with metadata sidecars
+
+Formerly `download-receipts` (still accepted as an alias).
 
 ```bash
-mailctl download-receipts                   # preview (default); skip empty extractions
-mailctl download-receipts --apply           # download receipts + write sidecars
-mailctl download-receipts -m 6 --apply      # look back 6 months
-mailctl download-receipts --vendor Stripe --apply   # filter to a specific vendor
-mailctl download-receipts --include-empty --apply   # also write sidecars with no amount/invoice/PDF
-mailctl download-receipts --list-vendors    # list vendors seen in recent receipts (read-only)
-mailctl download-receipts --reprocess --apply       # re-run LLM on existing sidecars
-mailctl download-receipts --max 20 --apply  # stop after processing 20 messages
-mailctl download-receipts --timeout 60 --apply      # per-message timeout in seconds (default 120)
-mailctl download-receipts --budget 300 --apply      # overall wall-clock cap in seconds
+mailctl receipts extract                   # preview (default); skip empty extractions
+mailctl receipts extract --apply           # download receipts + write sidecars
+mailctl receipts extract -m 6 --apply      # look back 6 months
+mailctl receipts extract --vendor Stripe --apply   # filter to a specific vendor
+mailctl receipts extract --include-empty --apply   # also write sidecars with no amount/invoice/PDF
+mailctl receipts extract --list-vendors    # list vendors seen in recent receipts (read-only)
+mailctl receipts extract --reprocess --apply       # re-run LLM on existing sidecars
+mailctl receipts extract --max 20 --apply  # stop after processing 20 messages
+mailctl receipts extract --timeout 60 --apply      # per-message timeout in seconds (default 120)
+mailctl receipts extract --budget 300 --apply      # overall wall-clock cap in seconds
 ```
 
 Downloads receipt PDFs and writes a JSON sidecar alongside each one with extracted metadata (vendor, amount, invoice number, date). Uses LLM (gpt-5-mini via mojentic) when an OpenAI API key is available; falls back to pattern-based extraction.

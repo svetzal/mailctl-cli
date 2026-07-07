@@ -242,139 +242,164 @@ export function buildProgram(deps = defaultDeps) {
     .option("--json", "output results as JSON");
 
   // --- Receipt operations ---
+  //
+  // These live under the `receipts` noun (`mailctl receipts scan`, etc.). The
+  // pre-1.2 top-level names (`scan`, `sort`, `download`, `download-receipts`, …)
+  // are kept as hidden aliases for back-compat. Each command is built by a
+  // factory so the same definition can be registered under both parents; the
+  // factory takes the command name because `download-receipts` becomes
+  // `receipts extract`.
 
-  program
-    .command("scan")
-    .description("Scan configured email accounts for receipt-like messages")
-    .option("-m, --months <n>", "months to look back", SCAN_DEFAULT_MONTHS)
-    .option("-a, --all-mailboxes", "scan all mailboxes (slower)", false)
-    .option("-o, --output <file>", "write raw results to JSON file")
-    .option("--summary", "output aggregated sender summary (default)", true)
-    .action(
+  const buildScanCommand = (name) =>
+    new Command(name)
+      .description("Scan configured email accounts for receipt-like messages")
+      .option("-m, --months <n>", "months to look back", SCAN_DEFAULT_MONTHS)
+      .option("-a, --all-mailboxes", "scan all mailboxes (slower)", false)
+      .option("-o, --output <file>", "write raw results to JSON file")
+      .option("--summary", "output aggregated sender summary (default)", true)
+      .action(
+        wrapAction(async (opts) => {
+          const json = resolveJson(opts);
+          const account = resolveAccount(opts);
+
+          const { total, senders, rawPath, summaryPath } = await _scanCommand(
+            opts,
+            { account: account || null, dataDir: _DATA_DIR, fsGateway: _fs },
+            renderScanProgress,
+          );
+
+          console.error(`Saved raw results to ${rawPath}`);
+          console.error(`Saved sender summary to ${summaryPath}`);
+          console.log(_formatScanOutput(json, total, senders));
+        }),
+      );
+
+  const buildClassifyCommand = (name) =>
+    new Command(name)
+      .description("Interactively classify senders as business or personal (outputs JSON)")
+      .option("-i, --input <file>", "sender summary JSON", join(_DATA_DIR, "senders.json"))
+      .option("-o, --output <file>", "classification output", join(_DATA_DIR, "classifications.json"))
+      .action(
+        wrapAction(async (opts) => {
+          const json = resolveJson(opts);
+
+          const { unclassifiedList } = _classifyCommand(opts.input, opts.output, {
+            fsGateway: _fs,
+          });
+
+          console.log(_formatClassifyOutput(json, unclassifiedList));
+        }),
+      );
+
+  const buildImportClassificationsCommand = (name) =>
+    new Command(name)
+      .description("Import a classification JSON file")
+      .argument("<file>", "JSON file with classifications")
+      .option("-o, --output <file>", "classification store", join(_DATA_DIR, "classifications.json"))
+      .action(
+        wrapAction(async (file, opts) => {
+          const json = resolveJson(opts);
+
+          // Ensure the state dir exists — the default output lives under DATA_DIR,
+          // which may not have been created yet if `scan` hasn't run.
+          _fs.mkdir(join(opts.output, ".."));
+          const { imported, path } = _importClassificationsCommand(file, opts.output, { fsGateway: _fs });
+
+          console.log(_formatImportClassificationsOutput(json, imported, path));
+        }),
+      );
+
+  const buildSortCommand = (name) =>
+    mutating(
+      new Command(name)
+        .description("Move receipt emails into Receipts/Business and Receipts/Personal folders [Mutates with --apply]")
+        .option("-m, --months <n>", "months to look back", SORT_DEFAULT_MONTHS),
+    ).action(
       wrapAction(async (opts) => {
         const json = resolveJson(opts);
         const account = resolveAccount(opts);
+        const applied = resolvePlanApply(opts);
 
-        const { total, senders, rawPath, summaryPath } = await _scanCommand(
-          opts,
-          { account: account || null, dataDir: _DATA_DIR, fsGateway: _fs },
-          renderScanProgress,
-        );
+        const stats = await _sortCommand(opts, { account: account || null }, renderSortProgress);
 
-        console.error(`Saved raw results to ${rawPath}`);
-        console.error(`Saved sender summary to ${summaryPath}`);
-        console.log(_formatScanOutput(json, total, senders));
+        console.log(_formatSortOutput(json, stats));
+        emitPlanHint(applied, json);
       }),
     );
 
-  program
-    .command("classify")
-    .description("Interactively classify senders as business or personal (outputs JSON)")
-    .option("-i, --input <file>", "sender summary JSON", join(_DATA_DIR, "senders.json"))
-    .option("-o, --output <file>", "classification output", join(_DATA_DIR, "classifications.json"))
-    .action(
+  const buildDownloadCommand = (name) =>
+    mutating(
+      new Command(name)
+        .description("Download PDF attachments from business receipt emails [Mutates with --apply]")
+        .option("-m, --months <n>", "months to look back", DOWNLOAD_DEFAULT_MONTHS)
+        .option("-o, --output <dir>", "override output directory"),
+    ).action(
       wrapAction(async (opts) => {
         const json = resolveJson(opts);
+        const account = resolveAccount(opts);
+        const applied = resolvePlanApply(opts);
 
-        const { unclassifiedList } = _classifyCommand(opts.input, opts.output, {
-          fsGateway: _fs,
-        });
+        const stats = await _downloadCommand(opts, { account: account || null }, renderDownloadProgress);
 
-        console.log(_formatClassifyOutput(json, unclassifiedList));
+        console.log(_formatDownloadOutput(json, stats));
+        emitPlanHint(applied, json);
       }),
     );
 
-  program
-    .command("import-classifications")
-    .description("Import a classification JSON file")
-    .argument("<file>", "JSON file with classifications")
-    .option("-o, --output <file>", "classification store", join(_DATA_DIR, "classifications.json"))
-    .action(
-      wrapAction(async (file, opts) => {
+  const buildExtractCommand = (name) =>
+    mutating(
+      new Command(name)
+        .description("Download receipt PDFs and create JSON sidecar metadata files [Mutates with --apply]")
+        .option("-o, --output <dir>", "root output directory", ".")
+        .option("-m, --months <n>", "how far back to search", DOWNLOAD_RECEIPTS_DEFAULT_MONTHS)
+        .option("--since <date>", "search from this date instead of months")
+        .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
+        .option("--vendor <name>", "filter to a specific vendor (substring match)")
+        .option("--list-vendors", "list vendors found in recent receipts", false)
+        .option(
+          "--include-empty",
+          "also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)",
+          false,
+        )
+        .option("--max <n>", "stop after processing this many messages")
+        .option("--timeout <seconds>", "per-message timeout in seconds (default: 120)")
+        .option("--budget <seconds>", "overall wall-clock budget in seconds; stop cleanly when exceeded"),
+    ).action(
+      wrapAction(async (opts) => {
         const json = resolveJson(opts);
+        const account = resolveAccount(opts);
+        // --list-vendors is a read-only query; don't force it through plan/apply.
+        const applied = opts.listVendors ? true : resolvePlanApply(opts);
 
-        // Ensure the state dir exists — the default output lives under DATA_DIR,
-        // which may not have been created yet if `scan` hasn't run.
-        _fs.mkdir(join(opts.output, ".."));
-        const { imported, path } = _importClassificationsCommand(file, opts.output, { fsGateway: _fs });
-
-        console.log(_formatImportClassificationsOutput(json, imported, path));
+        const commandDeps = {
+          account: account || null,
+          openAiKey: getOpenAiKey(),
+          importDownloadReceipts,
+          importVendorMap,
+        };
+        const result = await _downloadReceiptsCommand(opts, commandDeps, renderDownloadReceiptsProgress);
+        console.log(_formatDownloadReceiptsOutput(json, result, opts));
+        emitPlanHint(applied, json);
       }),
     );
 
-  mutating(
-    program
-      .command("sort")
-      .description("Move receipt emails into Receipts/Business and Receipts/Personal folders [Mutates with --apply]")
-      .option("-m, --months <n>", "months to look back", SORT_DEFAULT_MONTHS),
-  ).action(
-    wrapAction(async (opts) => {
-      const json = resolveJson(opts);
-      const account = resolveAccount(opts);
-      const applied = resolvePlanApply(opts);
+  const receipts = program
+    .command("receipts")
+    .description("Receipt operations — scan, classify, sort, and download receipt mail");
 
-      const stats = await _sortCommand(opts, { account: account || null }, renderSortProgress);
-
-      console.log(_formatSortOutput(json, stats));
-      emitPlanHint(applied, json);
-    }),
-  );
-
-  mutating(
-    program
-      .command("download")
-      .description("Download PDF attachments from business receipt emails [Mutates with --apply]")
-      .option("-m, --months <n>", "months to look back", DOWNLOAD_DEFAULT_MONTHS)
-      .option("-o, --output <dir>", "override output directory"),
-  ).action(
-    wrapAction(async (opts) => {
-      const json = resolveJson(opts);
-      const account = resolveAccount(opts);
-      const applied = resolvePlanApply(opts);
-
-      const stats = await _downloadCommand(opts, { account: account || null }, renderDownloadProgress);
-
-      console.log(_formatDownloadOutput(json, stats));
-      emitPlanHint(applied, json);
-    }),
-  );
-
-  mutating(
-    program
-      .command("download-receipts")
-      .description("Download receipt PDFs and create JSON sidecar metadata files [Mutates with --apply]")
-      .option("-o, --output <dir>", "root output directory", ".")
-      .option("-m, --months <n>", "how far back to search", DOWNLOAD_RECEIPTS_DEFAULT_MONTHS)
-      .option("--since <date>", "search from this date instead of months")
-      .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
-      .option("--vendor <name>", "filter to a specific vendor (substring match)")
-      .option("--list-vendors", "list vendors found in recent receipts", false)
-      .option(
-        "--include-empty",
-        "also write sidecars when LLM extraction is empty (no amount, no invoice number, no PDF)",
-        false,
-      )
-      .option("--max <n>", "stop after processing this many messages")
-      .option("--timeout <seconds>", "per-message timeout in seconds (default: 120)")
-      .option("--budget <seconds>", "overall wall-clock budget in seconds; stop cleanly when exceeded"),
-  ).action(
-    wrapAction(async (opts) => {
-      const json = resolveJson(opts);
-      const account = resolveAccount(opts);
-      // --list-vendors is a read-only query; don't force it through plan/apply.
-      const applied = opts.listVendors ? true : resolvePlanApply(opts);
-
-      const commandDeps = {
-        account: account || null,
-        openAiKey: getOpenAiKey(),
-        importDownloadReceipts,
-        importVendorMap,
-      };
-      const result = await _downloadReceiptsCommand(opts, commandDeps, renderDownloadReceiptsProgress);
-      console.log(_formatDownloadReceiptsOutput(json, result, opts));
-      emitPlanHint(applied, json);
-    }),
-  );
+  // { build, sub: name under `receipts`, legacy: pre-1.2 top-level name (hidden alias) }
+  const receiptCommands = [
+    { build: buildScanCommand, sub: "scan", legacy: "scan" },
+    { build: buildClassifyCommand, sub: "classify", legacy: "classify" },
+    { build: buildImportClassificationsCommand, sub: "import-classifications", legacy: "import-classifications" },
+    { build: buildSortCommand, sub: "sort", legacy: "sort" },
+    { build: buildDownloadCommand, sub: "download", legacy: "download" },
+    { build: buildExtractCommand, sub: "extract", legacy: "download-receipts" },
+  ];
+  for (const { build, sub, legacy } of receiptCommands) {
+    receipts.addCommand(build(sub));
+    program.addCommand(build(legacy), { hidden: true });
+  }
 
   // --- General email operations ---
 
