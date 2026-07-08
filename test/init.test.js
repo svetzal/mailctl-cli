@@ -1,103 +1,60 @@
 import { describe, expect, it } from "bun:test";
-import { compareSemver, parseInstalledVersion, stampVersion, stripVersionInfo } from "../src/init.js";
+import { buildInitResult, warningFor } from "../src/init.js";
 
-describe("stampVersion", () => {
-  it("inserts mailctl-version before closing frontmatter delimiter", () => {
-    const content = "---\ndescription: test\n---\n\n# Body";
-    const result = stampVersion(content, "0.7.0");
+// Version stamping and the newer-install guard now live in cmx-core (verified in
+// that package's own suite). mailctl only owns the mapping from cmx-core's plan
+// targets to its own result shape — that's what these tests cover.
 
-    expect(result).toBe("---\ndescription: test\nmailctl-version: 0.7.0\n---\n\n# Body");
+describe("warningFor", () => {
+  it("warns with the installed version for refuse-newer", () => {
+    const warning = warningFor({ kind: "refuse-newer", installed: "2.0.0" });
+
+    expect(warning).toContain("2.0.0");
+    expect(warning).toContain("--force");
   });
 
-  it("updates metadata.version when present in frontmatter", () => {
-    const content = '---\nname: mailctl\nmetadata:\n  version: "0.7.2"\n  author: svetzal\n---\n\n# Body';
-    const result = stampVersion(content, "0.7.3");
+  it("warns about local edits for drifted-skip", () => {
+    const warning = warningFor({ kind: "drifted-skip", installed: "1.3.0" });
 
-    expect(result).toBe(
-      '---\nname: mailctl\nmetadata:\n  version: "0.7.3"\n  author: svetzal\nmailctl-version: 0.7.3\n---\n\n# Body',
-    );
+    expect(warning).toContain("1.3.0");
+    expect(warning).toContain("--force");
   });
 
-  it("returns content unchanged if no closing frontmatter delimiter", () => {
-    const content = "No frontmatter here";
-    const result = stampVersion(content, "0.7.0");
-
-    expect(result).toBe("No frontmatter here");
-  });
-});
-
-describe("stripVersionInfo", () => {
-  it("removes the mailctl-version line from frontmatter", () => {
-    const content = "---\ndescription: test\nmailctl-version: 0.7.0\n---\n\n# Body";
-    const result = stripVersionInfo(content);
-
-    expect(result).toBe("---\ndescription: test\n---\n\n# Body");
-  });
-
-  it("normalizes metadata.version to placeholder", () => {
-    const content = '---\nmetadata:\n  version: "0.7.3"\nmailctl-version: 0.7.3\n---\n\n# Body';
-    const result = stripVersionInfo(content);
-
-    expect(result).toBe('---\nmetadata:\n  version: "0.0.0"\n---\n\n# Body');
-  });
-
-  it("returns content unchanged if no version info present", () => {
-    const content = "---\ndescription: test\n---\n\n# Body";
-    const result = stripVersionInfo(content);
-
-    expect(result).toBe(content);
+  it("returns undefined for writing actions", () => {
+    expect(warningFor({ kind: "install" })).toBeUndefined();
+    expect(warningFor({ kind: "update", from: "1.2.0" })).toBeUndefined();
+    expect(warningFor({ kind: "skip" })).toBeUndefined();
   });
 });
 
-describe("parseInstalledVersion", () => {
-  it("extracts the version string from frontmatter", () => {
-    const content = "---\ndescription: test\nmailctl-version: 0.8.0\n---\n";
-    const result = parseInstalledVersion(content);
+describe("buildInitResult", () => {
+  it("preserves platform order and maps action kinds", () => {
+    const result = buildInitResult("1.3.0", "global", [
+      { platform: "claude", action: { kind: "update", from: "1.2.0" } },
+      { platform: "codex", action: { kind: "install" } },
+      { platform: "hermes", action: { kind: "install" } },
+    ]);
 
-    expect(result).toBe("0.8.0");
+    expect(result.version).toBe("1.3.0");
+    expect(result.scope).toBe("global");
+    expect(result.targets.map((t) => t.platform)).toEqual(["claude", "codex", "hermes"]);
+    expect(result.targets.map((t) => t.action)).toEqual(["update", "install", "install"]);
   });
 
-  it("trims whitespace from the version", () => {
-    const content = "---\nmailctl-version:  1.2.3  \n---\n";
-    const result = parseInstalledVersion(content);
+  it("attaches a warning for blocked targets and omits it otherwise", () => {
+    const result = buildInitResult("1.3.0", "global", [
+      { platform: "claude", action: { kind: "install" } },
+      { platform: "codex", action: { kind: "refuse-newer", installed: "1.4.0" } },
+    ]);
 
-    expect(result).toBe("1.2.3");
+    expect(result.targets[0].warning).toBeUndefined();
+    expect(result.targets[1].warning).toContain("1.4.0");
   });
 
-  it("returns null when no version field exists", () => {
-    const content = "---\ndescription: test\n---\n";
-    const result = parseInstalledVersion(content);
+  it("handles an empty target list", () => {
+    const result = buildInitResult("1.3.0", "local", []);
 
-    expect(result).toBeNull();
-  });
-});
-
-describe("compareSemver", () => {
-  it("returns 0 for equal versions", () => {
-    expect(compareSemver("1.2.3", "1.2.3")).toBe(0);
-  });
-
-  it("returns -1 when first version is older (major)", () => {
-    expect(compareSemver("0.7.0", "1.0.0")).toBe(-1);
-  });
-
-  it("returns 1 when first version is newer (major)", () => {
-    expect(compareSemver("2.0.0", "1.0.0")).toBe(1);
-  });
-
-  it("returns -1 when first version is older (minor)", () => {
-    expect(compareSemver("0.7.0", "0.8.0")).toBe(-1);
-  });
-
-  it("returns 1 when first version is newer (minor)", () => {
-    expect(compareSemver("0.8.0", "0.7.0")).toBe(1);
-  });
-
-  it("returns -1 when first version is older (patch)", () => {
-    expect(compareSemver("0.7.0", "0.7.1")).toBe(-1);
-  });
-
-  it("returns 1 when first version is newer (patch)", () => {
-    expect(compareSemver("0.7.1", "0.7.0")).toBe(1);
+    expect(result.targets).toEqual([]);
+    expect(result.scope).toBe("local");
   });
 });

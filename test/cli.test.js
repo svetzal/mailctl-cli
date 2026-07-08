@@ -412,21 +412,21 @@ describe("buildProgram", () => {
       const program = buildProgram(deps);
       await program.parseAsync(["node", "mailctl", "init"]);
 
-      expect(deps.initCommand).toHaveBeenCalledWith("1.2.0", expect.anything());
+      expect(deps.initCommand).toHaveBeenCalledWith("1.3.0", expect.anything());
     });
 
-    it("installs globally by default", async () => {
+    it("installs to the user home by default", async () => {
       const deps = makeStubDeps();
       await buildProgram(deps).parseAsync(["node", "mailctl", "init"]);
 
-      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ global: true }));
+      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ local: false }));
     });
 
     it("installs locally with --local", async () => {
       const deps = makeStubDeps();
       await buildProgram(deps).parseAsync(["node", "mailctl", "init", "--local"]);
 
-      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ global: false }));
+      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ local: true }));
     });
   });
 });

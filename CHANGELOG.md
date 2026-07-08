@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-07
+
+### Changed
+
+- **`init` now installs the companion skill across every cmx-managed agent platform, not just Claude.** Skill installation is delegated to [`cmx-core`](https://www.npmjs.com/package/cmx-core), which resolves target platforms from `~/.config/context-mixer/config.json` (`platforms: [...]`) — falling back to any platform with an existing cmx lockfile, then to `claude`. On a typical setup with `claude`, `codex`, and `hermes` managed, a single `mailctl init` now lands the skill in all three (`~/.claude/skills`, `~/.agents/skills`, `~/.hermes/skills`). Output is per-platform, showing what happened on each (installed / updated / up to date / skipped).
+- **Version stamping and the newer-install guard are now owned by cmx-core's lockfiles** rather than mailctl's own frontmatter field. cmx-core reconciles `metadata.version` in the installed `SKILL.md` from the binary version and tracks per-platform state (version + checksum) in `cmx-lock*.json`, giving idempotent re-runs and drift detection. The old `mailctl-version:` frontmatter marker is gone.
+- **`init` registers mailctl as a managed cmx source** (`bundled:mailctl`), so `cmx` sees the bundled skill and can update it alongside other managed artifacts.
+- `--local` now installs into the current project's platform directories (via cmx scope) rather than a single `.claude/` dir.
+
 ## [1.2.0] - 2026-07-06
 
 ### Changed

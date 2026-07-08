@@ -170,7 +170,7 @@ src/gateways/confirm-gateway.js — ConfirmGateway: readline yes/no prompt wrapp
 src/gateways/keychain-gateway.js — KeychainGateway: reads secrets from ~/.newt/newt-keychain-db (macOS security wrapper)
 
 src/index.js                   — Public API re-exports
-src/init.js                    — stampVersion(), parseInstalledVersion(), compareSemver(), initCommand() — skill install + version-guard logic behind `mailctl init`
+src/init.js                    — initCommand() (imperative shell), buildInitResult()/warningFor() (pure) — delegates multi-platform skill install to cmx-core behind `mailctl init`
 data/                          — Runtime data (gitignored): scan results, classifications, manifest
 ```
 
@@ -297,33 +297,41 @@ The address map drives both display names (with spaces) and filename-safe names 
 
 ## Skill Distribution
 
-The `skills/mailctl/` directory is the source of truth for the mailctl Claude Code skill.
+The `skills/mailctl/` directory is the source of truth for the mailctl companion skill. Installation is delegated to [`cmx-core`](https://www.npmjs.com/package/cmx-core) so a single `init` reaches every agent platform the user manages — not just Claude.
 
 ### Installing the skill
 
 ```bash
-mailctl init              # install to ~/.claude/skills/mailctl/ (global, default)
-mailctl init --local      # install to .claude/skills/mailctl/ in CWD instead
-mailctl init --force      # overwrite even if installed version is newer
+mailctl init              # install across all cmx-managed platforms (user home, default)
+mailctl init --local      # install into the current project instead
+mailctl init --force      # overwrite drifted or newer installs
 ```
 
-### Version stamping
+### Target resolution (owned by cmx-core)
 
-`mailctl init` stamps `mailctl-version: X.Y.Z` into the installed SKILL.md frontmatter from the running binary's version. This allows the version guard to detect stale or newer installations.
+`init` builds a `BundledSkill` from the embedded `SKILL.md`, a `ToolIdentity("mailctl", version)`, and an `InstallerContext` (`NodeFilesystem` + `SystemClock` + `ConfigPaths.fromEnv`), then runs `SkillInstaller.plan()` → `apply()`. cmx-core resolves which platforms to write:
 
-### Version guard
+1. `~/.config/context-mixer/config.json` → `platforms: [...]` if present (filtered to those supporting skills), else
+2. any platform with an existing cmx lockfile (`cmx-lock*.json`), else
+3. `claude`.
 
-Before overwriting an existing SKILL.md, `init` compares the installed `mailctl-version` with the running binary version:
+Each platform's install directory comes from cmx-core's platform table (e.g. claude → `.claude/skills`, codex → `.agents/skills`, hermes → `.hermes/skills`).
 
-- **No version field or no existing file** → always install
-- **Installed version ≤ running version** → update normally
-- **Installed version > running version** → refuse with warning, unless `--force` is used
+### Version handling & guard (owned by cmx-core)
 
-This prevents an older binary from accidentally downgrading a skill installed by a newer version.
+mailctl no longer stamps its own version marker. cmx-core reconciles `metadata.version` in the installed `SKILL.md` from the binary version and records per-platform state (version + checksum) in `cmx-lock*.json`:
+
+- **Untracked or missing on disk** → install
+- **Same version, on disk matches** → up to date (skip)
+- **Older tracked version** → update
+- **On disk drifted (local edits)** → skip with a `--force` hint
+- **Newer version installed** → refuse that platform with a `--force` hint (other platforms still install)
+
+`init` also registers a `bundled:mailctl` managed source in `sources.json`, so `cmx` can maintain the skill alongside other artifacts.
 
 ### Release checklist note
 
-When releasing a new version, the embedded skill content is automatically compiled into the binary via Bun text imports — no extra steps needed. Just ensure `skills/mailctl/SKILL.md` is up to date before building.
+The embedded skill content is compiled into the binary via Bun text imports — no extra steps needed. Just ensure `skills/mailctl/SKILL.md` is current before building. The `cmx-core` version is a normal npm dependency; bumping it (for new platforms or install semantics) is a regular `bun add cmx-core@latest` + rebuild.
 
 ## Local Installation
 

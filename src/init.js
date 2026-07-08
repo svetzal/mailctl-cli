@@ -1,133 +1,107 @@
-import { mkdir } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { BundledSkill, ConfigPaths, NodeFilesystem, SkillInstaller, SystemClock, ToolIdentity } from "cmx-core";
 
 // Embed skill content at build time via Bun text imports
-// Source of truth lives in skills/ — .claude/skills/ is the installed copy
+// Source of truth lives in skills/ — the installed copies are managed by cmx-core,
+// which reconciles metadata.version into the frontmatter from the binary version.
 // @ts-expect-error — Bun text import
 import SKILL_MD from "../skills/mailctl/SKILL.md" with { type: "text" };
 
+const TOOL_NAME = "mailctl";
+
 /**
- * @typedef {"created" | "updated" | "up-to-date" | "skipped"} FileAction
+ * @typedef {"install" | "update" | "skip" | "drifted-skip" | "refuse-newer" | "downgrade"} TargetActionKind
  */
 
 /**
- * @typedef {object} FileResult
- * @property {string} path
- * @property {FileAction} action
- * @property {string} [warning]
+ * @typedef {object} TargetResult
+ * @property {string} platform - platform slug (claude, codex, hermes, …)
+ * @property {TargetActionKind} action - what happened for this platform
+ * @property {string} [warning] - human-readable note (e.g. newer version installed)
  */
 
 /**
  * @typedef {object} InitResult
- * @property {boolean} success
- * @property {string} message
- * @property {string} version
- * @property {FileResult[]} files
+ * @property {string} version - mailctl version installed
+ * @property {"global" | "local"} scope - install scope
+ * @property {TargetResult[]} targets - per-platform results, in resolution order
  */
 
 /**
- * Stamp mailctl-version into YAML frontmatter.
- * @param {string} content - skill file content with YAML frontmatter
- * @param {string} version - version string to stamp
- * @returns {string}
+ * Build a warning string for the non-writing / blocked actions that carry an
+ * installed version. Pure.
+ * @param {import("cmx-core").TargetAction} action
+ * @returns {string | undefined}
  */
-export function stampVersion(content, version) {
-  const closingIndex = content.indexOf("\n---", 1);
-  if (closingIndex === -1) return content;
-  let stamped = `${content.slice(0, closingIndex)}\nmailctl-version: ${version}${content.slice(closingIndex)}`;
-  // Also update metadata.version if present in frontmatter
-  stamped = stamped.replace(/(\n\s+version:\s*)"[^"]*"/, `$1"${version}"`);
-  return stamped;
-}
-
-/**
- * Strip the mailctl-version field from frontmatter for content comparison.
- * @param {string} content
- * @returns {string}
- */
-export function stripVersionInfo(content) {
-  return content.replace(/\nmailctl-version: .+/g, "").replace(/(\n\s+version:\s*)"[^"]*"/, '$1"0.0.0"');
-}
-
-/**
- * Parse the mailctl-version from installed file content.
- * @param {string} content
- * @returns {string | null}
- */
-export function parseInstalledVersion(content) {
-  const match = content.match(/\nmailctl-version:\s*(.+)/);
-  return match ? match[1].trim() : null;
-}
-
-/**
- * Compare two semver strings. Returns -1, 0, or 1.
- * @param {string} a
- * @param {string} b
- * @returns {number}
- */
-export function compareSemver(a, b) {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    const va = pa[i] ?? 0;
-    const vb = pb[i] ?? 0;
-    if (va < vb) return -1;
-    if (va > vb) return 1;
+export function warningFor(action) {
+  if (action.kind === "refuse-newer") {
+    return `Installed skill is from a newer version (v${action.installed}). Use --force to downgrade.`;
   }
-  return 0;
+  if (action.kind === "drifted-skip") {
+    return `Installed skill (v${action.installed}) has local edits. Use --force to overwrite.`;
+  }
+  return undefined;
 }
 
 /**
- * Install mailctl skill files.
+ * Map cmx-core plan/outcome targets to mailctl's normalized init result. Pure —
+ * unit-tested against fabricated targets; the imperative shell in initCommand
+ * feeds it the real plan.
+ * @param {string} version - mailctl version
+ * @param {"global" | "local"} scope
+ * @param {ReadonlyArray<{ platform: string, action: import("cmx-core").TargetAction }>} targets
+ * @returns {InitResult}
+ */
+export function buildInitResult(version, scope, targets) {
+  return {
+    version,
+    scope,
+    targets: targets.map((target) => {
+      /** @type {TargetResult} */
+      const result = { platform: target.platform, action: target.action.kind };
+      const warning = warningFor(target.action);
+      if (warning !== undefined) {
+        result.warning = warning;
+      }
+      return result;
+    }),
+  };
+}
+
+/**
+ * Install the mailctl companion skill across every cmx-managed platform.
+ *
+ * Targets are resolved by cmx-core from `~/.config/context-mixer/config.json`
+ * (`platforms: [...]`); with no managed list it falls back to platforms with an
+ * existing cmx lockfile, then to claude. Version stamping and the newer-install
+ * guard are owned by cmx-core's lockfiles, not by mailctl.
+ *
  * @param {string} version - current mailctl version
  * @param {object} [options]
- * @param {boolean} [options.global] - install to ~/.claude instead of CWD
- * @param {boolean} [options.force] - bypass version guard
- * @returns {Promise<{ version: string, global: boolean, files: FileResult[] }>}
+ * @param {boolean} [options.local] - install into the current project instead of the user home
+ * @param {boolean} [options.force] - overwrite drifted/newer installs
+ * @returns {Promise<InitResult>}
  */
-export async function initCommand(version, { global = false, force = false } = {}) {
-  const baseDir = global ? join(homedir(), ".claude") : process.cwd();
-  const relativePath = global ? "skills/mailctl/SKILL.md" : ".claude/skills/mailctl/SKILL.md";
-  const fullPath = join(baseDir, relativePath);
-  const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
-  const stamped = stampVersion(SKILL_MD, version);
+export async function initCommand(version, { local = false, force = false } = {}) {
+  /** @type {"global" | "local"} */
+  const scope = local ? "local" : "global";
+  const installer = new SkillInstaller(new ToolIdentity(TOOL_NAME, version));
+  const skill = BundledSkill.singleMd(SKILL_MD);
+  /** @type {import("cmx-core").InstallerContext} */
+  const context = {
+    fs: new NodeFilesystem(),
+    clock: new SystemClock(),
+    paths: ConfigPaths.fromEnv("claude"),
+  };
 
-  /** @type {FileResult} */
-  let result;
+  const plan = await installer.plan(skill, scope, force, context);
 
-  const fileRef = Bun.file(fullPath);
-
-  if (!(await fileRef.exists())) {
-    await mkdir(dir, { recursive: true });
-    await Bun.write(fullPath, stamped);
-    result = { path: relativePath, action: "created" };
-  } else {
-    const existing = await fileRef.text();
-
-    // Version guard: refuse to overwrite a newer installed skill
-    const installedVersion = parseInstalledVersion(existing);
-    if (installedVersion && compareSemver(installedVersion, version) > 0) {
-      if (!force) {
-        const warning = `Installed skill is from mailctl v${installedVersion} but this binary is v${version}. Use --force to downgrade.`;
-        result = { path: relativePath, action: "skipped", warning };
-        return { version, global, files: [result] };
-      }
-    }
-
-    const existingBody = stripVersionInfo(existing);
-    const newBody = SKILL_MD;
-
-    if (existingBody === newBody) {
-      if (existing !== stamped) {
-        await Bun.write(fullPath, stamped);
-      }
-      result = { path: relativePath, action: "up-to-date" };
-    } else {
-      await Bun.write(fullPath, stamped);
-      result = { path: relativePath, action: "updated" };
-    }
+  // apply() refuses the whole plan if any target is a newer-install (refuse-newer).
+  // Drop those targets so the remaining platforms still install; the skipped ones
+  // are still reported (from the original plan) with a --force hint.
+  const writable = plan.targets.filter((target) => target.action.kind !== "refuse-newer");
+  if (writable.length > 0) {
+    await installer.apply(skill, { ...plan, targets: writable }, context);
   }
 
-  return { version, global, files: [result] };
+  return buildInitResult(version, scope, plan.targets);
 }

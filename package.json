@@ -1,6 +1,6 @@
 {
   "name": "mailctl-cli",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Personal email operations tool — receipt sorting, search, folder management, and more",
   "type": "module",
   "main": "src/index.js",
@@ -36,6 +36,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "cmx-core": "^0.3.0",
     "commander": "^15.0.0",
     "imapflow": "^1.4.6",
     "mailparser": "^3.9.14",

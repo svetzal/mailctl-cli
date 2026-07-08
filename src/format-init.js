@@ -1,48 +1,54 @@
 import { createFormatOutput } from "./cli-helpers.js";
 
 /**
- * @typedef {import("./init.js").FileAction} FileAction
- * @typedef {import("./init.js").FileResult} FileResult
+ * @typedef {import("./init.js").TargetActionKind} TargetActionKind
+ * @typedef {import("./init.js").TargetResult} TargetResult
+ * @typedef {import("./init.js").InitResult} InitFormatInput
  */
 
-/**
- * @typedef {object} InitFormatInput
- * @property {string} version - mailctl version string
- * @property {boolean} global - true if installed globally to ~/.claude
- * @property {FileResult[]} files - list of file operation results
- */
-
-/** @type {Record<string, string>} */
+/** @type {Record<TargetActionKind, string>} */
 const ACTION_ICONS = {
-  created: "+",
-  updated: "~",
-  skipped: "!",
+  install: "+",
+  update: "~",
+  downgrade: "~",
+  skip: "=",
+  "drifted-skip": "!",
+  "refuse-newer": "!",
 };
 
-/** @type {Record<string, string>} */
+/** @type {Record<TargetActionKind, string>} */
 const ACTION_LABELS = {
-  created: "Created",
-  updated: "Updated",
-  skipped: "Skipped",
+  install: "Installed",
+  update: "Updated",
+  downgrade: "Downgraded",
+  skip: "Up to date",
+  "drifted-skip": "Skipped (drifted)",
+  "refuse-newer": "Skipped (newer installed)",
 };
+
+const BLOCKED_ACTIONS = new Set(["drifted-skip", "refuse-newer"]);
 
 /**
  * @param {InitFormatInput} result - init command result
  * @returns {string}
  */
 export function formatInitText(result) {
-  const { version, files } = result;
-  const scope = result.global ? "global (~/.claude)" : "local";
+  const { version, targets } = result;
+  const scope = result.scope === "global" ? "global (user home)" : "local (project)";
   const lines = [];
 
-  lines.push(`\nmailctl v${version} — skill files (${scope})\n`);
+  lines.push(`\nmailctl v${version} — companion skill install (${scope})\n`);
 
-  for (const r of files) {
-    const icon = ACTION_ICONS[r.action] ?? "=";
-    const label = ACTION_LABELS[r.action] ?? "Up to date";
-    lines.push(`  ${icon} ${r.path} (${label})`);
-    if (r.warning) {
-      lines.push(`    ${r.warning}`);
+  if (targets.length === 0) {
+    lines.push("  No target platforms resolved.");
+  }
+
+  for (const target of targets) {
+    const icon = ACTION_ICONS[target.action] ?? "=";
+    const label = ACTION_LABELS[target.action] ?? target.action;
+    lines.push(`  ${icon} ${target.platform} (${label})`);
+    if (target.warning) {
+      lines.push(`    ${target.warning}`);
     }
   }
 
@@ -53,17 +59,24 @@ export function formatInitText(result) {
 
 /**
  * @param {InitFormatInput} result - init command result
- * @returns {{ success: boolean, message: string, version: string, files: FileResult[] }}
+ * @returns {{ success: boolean, message: string, version: string, scope: string, targets: TargetResult[] }}
  */
 export function buildInitJson(result) {
-  const { version, files } = result;
-  const skipped = files.filter((r) => r.action === "skipped").length;
+  const { version, scope, targets } = result;
+  const blocked = targets.filter((t) => BLOCKED_ACTIONS.has(t.action));
+  const written = targets.filter((t) => !BLOCKED_ACTIONS.has(t.action) && t.action !== "skip");
+
+  const message =
+    blocked.length > 0
+      ? `Skill install skipped on ${blocked.length} platform(s)`
+      : `Skill installed on ${written.length || targets.length} platform(s)`;
 
   return {
-    success: skipped === 0,
-    message: skipped > 0 ? "Skill install skipped" : `Skill ${files[0]?.action ?? ""}`,
+    success: blocked.length === 0,
+    message,
     version,
-    files,
+    scope,
+    targets,
   };
 }
 

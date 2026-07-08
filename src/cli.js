@@ -237,7 +237,7 @@ export function buildProgram(deps = defaultDeps) {
   program
     .name("mailctl")
     .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-    .version("1.2.0")
+    .version("1.3.0")
     .option("--account <name>", "email account to use (searches all if omitted)")
     .option("--json", "output results as JSON");
 
@@ -675,14 +675,14 @@ export function buildProgram(deps = defaultDeps) {
 
   program
     .command("init")
-    .description("Install the mailctl companion skill for Claude Code (global by default)")
-    .option("--local", "install to .claude/ in the current directory instead of ~/.claude")
-    .option("--force", "overwrite even if installed skill is from a newer version")
+    .description("Install the mailctl companion skill across all cmx-managed agent platforms")
+    .option("--local", "install into the current project instead of the user home")
+    .option("--force", "overwrite drifted or newer installs")
     .action(
       wrapAction(async (opts) => {
         const json = resolveJson(opts);
         const result = await _initCommand(program.version() ?? "0.0.0", {
-          global: !opts.local,
+          local: !!opts.local,
           force: !!opts.force,
         });
 
