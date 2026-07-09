@@ -85,7 +85,7 @@ function makeGetOpenAiKey(keychain) {
 }
 
 /** Default production dependencies — real implementations wired up. */
-const defaultDeps = {
+export const defaultDeps = {
   // command orchestrators
   scanCommand,
   classifyCommand,
@@ -132,7 +132,6 @@ const defaultDeps = {
   DATA_DIR,
   // gateways
   _fs: _fsSingleton,
-  _keychain: _keychainSingleton,
   // helpers
   requireAccounts: makeRequireAccounts(_keychainSingleton),
   getOpenAiKey: makeGetOpenAiKey(_keychainSingleton),
@@ -158,62 +157,11 @@ const DOWNLOAD_RECEIPTS_DEFAULT_MONTHS = "12";
  * @returns {import("commander").Command}
  */
 export function buildProgram(deps = defaultDeps) {
-  const {
-    scanCommand: _scanCommand,
-    classifyCommand: _classifyCommand,
-    importClassificationsCommand: _importClassificationsCommand,
-    sortCommand: _sortCommand,
-    downloadCommand: _downloadCommand,
-    downloadReceiptsCommand: _downloadReceiptsCommand,
-    searchCommand: _searchCommand,
-    readCommand: _readCommand,
-    listFoldersCommand: _listFoldersCommand,
-    extractAttachmentCommand: _extractAttachmentCommand,
-    moveCommand: _moveCommand,
-    inboxCommand: _inboxCommand,
-    flagCommand: _flagCommand,
-    replyCommand: _replyCommand,
-    threadCommand: _threadCommand,
-    contactsCommand: _contactsCommand,
-    initCommand: _initCommand,
-    formatScanOutput: _formatScanOutput,
-    formatClassifyOutput: _formatClassifyOutput,
-    formatImportClassificationsOutput: _formatImportClassificationsOutput,
-    formatSortOutput: _formatSortOutput,
-    formatDownloadOutput: _formatDownloadOutput,
-    formatDownloadReceiptsOutput: _formatDownloadReceiptsOutput,
-    formatSearchOutput: _formatSearchOutput,
-    formatReadOutput: _formatReadOutput,
-    formatFoldersOutput: _formatFoldersOutput,
-    formatAttachmentOutput: _formatAttachmentOutput,
-    formatMoveOutput: _formatMoveOutput,
-    formatInboxOutput: _formatInboxOutput,
-    formatFlagOutput: _formatFlagOutput,
-    formatReplyOutput: _formatReplyOutput,
-    formatThreadOutput: _formatThreadOutput,
-    formatContactsOutput: _formatContactsOutput,
-    formatInitOutput: _formatInitOutput,
-    renderAuthEvent: _renderAuthEvent,
-    renderScanEvent: _renderScanEvent,
-    renderSortEvent: _renderSortEvent,
-    renderDownloadEvent: _renderDownloadEvent,
-    renderDownloadReceiptsEvent: _renderDownloadReceiptsEvent,
-    DATA_DIR: _DATA_DIR,
-    _fs,
-    requireAccounts,
-    getOpenAiKey,
-    forEachAccount: _forEachAccount,
-    listMailboxes: _listMailboxes,
-    simpleParser: _simpleParser,
-    importDownloadReceipts,
-    importVendorMap,
-  } = deps;
-
   const program = new Command();
 
   const resolveJson = createResolveJson(() => program.opts());
   const resolveAccount = createResolveAccount(() => program.opts());
-  const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccountsByName };
+  const contextDeps = { resolveJson, resolveAccount, requireAccounts: deps.requireAccounts, filterAccountsByName };
   const wrapAction = (/** @type {(...args: any[]) => Promise<void>} */ fn) => withErrorHandling(fn, resolveJson);
 
   /**
@@ -228,11 +176,11 @@ export function buildProgram(deps = defaultDeps) {
       .option("--apply", "execute the changes (previews by default)", false)
       .addOption(new Option("-n, --dry-run", "deprecated: preview is the default").hideHelp());
 
-  const renderAuthProgress = createProgressRenderer(_renderAuthEvent);
-  const renderScanProgress = createProgressRenderer(_renderScanEvent);
-  const renderSortProgress = createProgressRenderer(_renderSortEvent);
-  const renderDownloadProgress = createProgressRenderer(_renderDownloadEvent);
-  const renderDownloadReceiptsProgress = createProgressRenderer(_renderDownloadReceiptsEvent);
+  const renderAuthProgress = createProgressRenderer(deps.renderAuthEvent);
+  const renderScanProgress = createProgressRenderer(deps.renderScanEvent);
+  const renderSortProgress = createProgressRenderer(deps.renderSortEvent);
+  const renderDownloadProgress = createProgressRenderer(deps.renderDownloadEvent);
+  const renderDownloadReceiptsProgress = createProgressRenderer(deps.renderDownloadReceiptsEvent);
 
   program
     .name("mailctl")
@@ -262,32 +210,32 @@ export function buildProgram(deps = defaultDeps) {
           const json = resolveJson(opts);
           const account = resolveAccount(opts);
 
-          const { total, senders, rawPath, summaryPath } = await _scanCommand(
+          const { total, senders, rawPath, summaryPath } = await deps.scanCommand(
             opts,
-            { account: account || null, dataDir: _DATA_DIR, fsGateway: _fs },
+            { account: account || null, dataDir: deps.DATA_DIR, fsGateway: deps._fs },
             renderScanProgress,
           );
 
           console.error(`Saved raw results to ${rawPath}`);
           console.error(`Saved sender summary to ${summaryPath}`);
-          console.log(_formatScanOutput(json, total, senders));
+          console.log(deps.formatScanOutput(json, total, senders));
         }),
       );
 
   const buildClassifyCommand = (name) =>
     new Command(name)
       .description("Interactively classify senders as business or personal (outputs JSON)")
-      .option("-i, --input <file>", "sender summary JSON", join(_DATA_DIR, "senders.json"))
-      .option("-o, --output <file>", "classification output", join(_DATA_DIR, "classifications.json"))
+      .option("-i, --input <file>", "sender summary JSON", join(deps.DATA_DIR, "senders.json"))
+      .option("-o, --output <file>", "classification output", join(deps.DATA_DIR, "classifications.json"))
       .action(
         wrapAction(async (opts) => {
           const json = resolveJson(opts);
 
-          const { unclassifiedList } = _classifyCommand(opts.input, opts.output, {
-            fsGateway: _fs,
+          const { unclassifiedList } = deps.classifyCommand(opts.input, opts.output, {
+            fsGateway: deps._fs,
           });
 
-          console.log(_formatClassifyOutput(json, unclassifiedList));
+          console.log(deps.formatClassifyOutput(json, unclassifiedList));
         }),
       );
 
@@ -295,17 +243,17 @@ export function buildProgram(deps = defaultDeps) {
     new Command(name)
       .description("Import a classification JSON file")
       .argument("<file>", "JSON file with classifications")
-      .option("-o, --output <file>", "classification store", join(_DATA_DIR, "classifications.json"))
+      .option("-o, --output <file>", "classification store", join(deps.DATA_DIR, "classifications.json"))
       .action(
         wrapAction(async (file, opts) => {
           const json = resolveJson(opts);
 
           // Ensure the state dir exists — the default output lives under DATA_DIR,
           // which may not have been created yet if `scan` hasn't run.
-          _fs.mkdir(join(opts.output, ".."));
-          const { imported, path } = _importClassificationsCommand(file, opts.output, { fsGateway: _fs });
+          deps._fs.mkdir(join(opts.output, ".."));
+          const { imported, path } = deps.importClassificationsCommand(file, opts.output, { fsGateway: deps._fs });
 
-          console.log(_formatImportClassificationsOutput(json, imported, path));
+          console.log(deps.formatImportClassificationsOutput(json, imported, path));
         }),
       );
 
@@ -320,9 +268,9 @@ export function buildProgram(deps = defaultDeps) {
         const account = resolveAccount(opts);
         const applied = resolvePlanApply(opts);
 
-        const stats = await _sortCommand(opts, { account: account || null }, renderSortProgress);
+        const stats = await deps.sortCommand(opts, { account: account || null }, renderSortProgress);
 
-        console.log(_formatSortOutput(json, stats));
+        console.log(deps.formatSortOutput(json, stats));
         emitPlanHint(applied, json);
       }),
     );
@@ -339,9 +287,9 @@ export function buildProgram(deps = defaultDeps) {
         const account = resolveAccount(opts);
         const applied = resolvePlanApply(opts);
 
-        const stats = await _downloadCommand(opts, { account: account || null }, renderDownloadProgress);
+        const stats = await deps.downloadCommand(opts, { account: account || null }, renderDownloadProgress);
 
-        console.log(_formatDownloadOutput(json, stats));
+        console.log(deps.formatDownloadOutput(json, stats));
         emitPlanHint(applied, json);
       }),
     );
@@ -373,12 +321,12 @@ export function buildProgram(deps = defaultDeps) {
 
         const commandDeps = {
           account: account || null,
-          openAiKey: getOpenAiKey(),
-          importDownloadReceipts,
-          importVendorMap,
+          openAiKey: deps.getOpenAiKey(),
+          importDownloadReceipts: deps.importDownloadReceipts,
+          importVendorMap: deps.importVendorMap,
         };
-        const result = await _downloadReceiptsCommand(opts, commandDeps, renderDownloadReceiptsProgress);
-        console.log(_formatDownloadReceiptsOutput(json, result, opts));
+        const result = await deps.downloadReceiptsCommand(opts, commandDeps, renderDownloadReceiptsProgress);
+        console.log(deps.formatDownloadReceiptsOutput(json, result, opts));
         emitPlanHint(applied, json);
       }),
     );
@@ -426,16 +374,16 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (query, opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { allResults, warnings } = await _searchCommand(query, opts, {
+        const { allResults, warnings } = await deps.searchCommand(query, opts, {
           targetAccounts,
-          forEachAccount: _forEachAccount,
-          listMailboxes: _listMailboxes,
+          forEachAccount: deps.forEachAccount,
+          listMailboxes: deps.listMailboxes,
         });
 
         for (const w of warnings) console.error(w);
 
         if (json || allResults.length > 0) {
-          console.log(_formatSearchOutput(json, allResults));
+          console.log(deps.formatSearchOutput(json, allResults));
         }
       }),
     );
@@ -456,11 +404,11 @@ export function buildProgram(deps = defaultDeps) {
           account: acct,
           parsed,
           mailbox,
-        } = await _readCommand(uid, opts, {
+        } = await deps.readCommand(uid, opts, {
           targetAccounts,
-          forEachAccount: _forEachAccount,
-          listMailboxes: _listMailboxes,
-          simpleParser: _simpleParser,
+          forEachAccount: deps.forEachAccount,
+          listMailboxes: deps.listMailboxes,
+          simpleParser: deps.simpleParser,
         });
 
         // Surface the resolved location. UIDs are per-mailbox, so a bare `read <uid>`
@@ -473,7 +421,7 @@ export function buildProgram(deps = defaultDeps) {
               `--account "${acct.name}" --mailbox "${mailbox}" from your search result)`,
           );
         }
-        console.log(_formatReadOutput(json, parsed, acct.name, uid, opts));
+        console.log(deps.formatReadOutput(json, parsed, acct.name, uid, opts));
       }),
     );
 
@@ -485,13 +433,13 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { allAccountFolders } = await _listFoldersCommand(
+        const { allAccountFolders } = await deps.listFoldersCommand(
           opts,
-          { targetAccounts, forEachAccount: _forEachAccount, listMailboxes: _listMailboxes },
+          { targetAccounts, forEachAccount: deps.forEachAccount, listMailboxes: deps.listMailboxes },
           renderAuthProgress,
         );
 
-        console.log(_formatFoldersOutput(json, allAccountFolders));
+        console.log(deps.formatFoldersOutput(json, allAccountFolders));
       }),
     );
 
@@ -507,19 +455,19 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (uid, index, opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const result = await _extractAttachmentCommand(
+        const result = await deps.extractAttachmentCommand(
           uid,
           index === undefined ? undefined : parseInt(index, 10),
           opts,
           {
             targetAccounts,
-            forEachAccount: _forEachAccount,
-            listMailboxes: _listMailboxes,
-            fsGateway: _fs,
+            forEachAccount: deps.forEachAccount,
+            listMailboxes: deps.listMailboxes,
+            fsGateway: deps._fs,
           },
         );
 
-        console.log(_formatAttachmentOutput(json, result));
+        console.log(deps.formatAttachmentOutput(json, result));
       }),
     );
 
@@ -535,14 +483,14 @@ export function buildProgram(deps = defaultDeps) {
       const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
       const applied = resolvePlanApply(opts);
 
-      const { stats, results } = await _moveCommand(uids, opts, {
+      const { stats, results } = await deps.moveCommand(uids, opts, {
         accounts,
         account: account || null,
-        forEachAccount: _forEachAccount,
-        listMailboxes: _listMailboxes,
+        forEachAccount: deps.forEachAccount,
+        listMailboxes: deps.listMailboxes,
       });
 
-      console.log(_formatMoveOutput(json, stats, results));
+      console.log(deps.formatMoveOutput(json, stats, results));
       emitPlanHint(applied, json);
     }),
   );
@@ -557,12 +505,12 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { resultsByAccount, allResults } = await _inboxCommand(opts, {
+        const { resultsByAccount, allResults } = await deps.inboxCommand(opts, {
           targetAccounts,
-          forEachAccount: _forEachAccount,
+          forEachAccount: deps.forEachAccount,
         });
 
-        console.log(_formatInboxOutput(json, allResults, resultsByAccount));
+        console.log(deps.formatInboxOutput(json, allResults, resultsByAccount));
       }),
     );
 
@@ -581,14 +529,14 @@ export function buildProgram(deps = defaultDeps) {
       const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
       const applied = resolvePlanApply(opts);
 
-      const { stats, results } = await _flagCommand(uids, opts, {
+      const { stats, results } = await deps.flagCommand(uids, opts, {
         accounts,
         account: account || null,
-        forEachAccount: _forEachAccount,
-        listMailboxes: _listMailboxes,
+        forEachAccount: deps.forEachAccount,
+        listMailboxes: deps.listMailboxes,
       });
 
-      console.log(_formatFlagOutput(json, stats, results));
+      console.log(deps.formatFlagOutput(json, stats, results));
       emitPlanHint(applied, json);
     }),
   );
@@ -611,17 +559,17 @@ export function buildProgram(deps = defaultDeps) {
 
       const replyDeps = {
         targetAccounts,
-        forEachAccount: _forEachAccount,
-        listMailboxes: _listMailboxes,
-        simpleParser: _simpleParser,
-        fsGateway: _fs,
+        forEachAccount: deps.forEachAccount,
+        listMailboxes: deps.listMailboxes,
+        simpleParser: deps.simpleParser,
+        fsGateway: deps._fs,
         smtpGateway: new SmtpGateway(),
         editorGateway: new EditorGateway(),
         confirmGateway: new ConfirmGateway(),
       };
-      const result = await _replyCommand(uid, opts, replyDeps);
+      const result = await deps.replyCommand(uid, opts, replyDeps);
       if ("aborted" in result) return void console.error("Aborted.");
-      console.log(_formatReplyOutput(json, result));
+      console.log(deps.formatReplyOutput(json, result));
       emitPlanHint(applied, json);
     }),
   );
@@ -637,13 +585,13 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (uid, opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const results = await _threadCommand(uid, opts, {
+        const results = await deps.threadCommand(uid, opts, {
           targetAccounts,
-          forEachAccount: _forEachAccount,
-          listMailboxes: _listMailboxes,
+          forEachAccount: deps.forEachAccount,
+          listMailboxes: deps.listMailboxes,
         });
 
-        for (const { account, output } of _formatThreadOutput(json, results, opts)) {
+        for (const { account, output } of deps.formatThreadOutput(json, results, opts)) {
           console.error(`\n=== ${account} ===`);
           console.log(output);
         }
@@ -662,12 +610,12 @@ export function buildProgram(deps = defaultDeps) {
       wrapAction(async (opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { contacts, sinceLabel } = await _contactsCommand(opts, {
+        const { contacts, sinceLabel } = await deps.contactsCommand(opts, {
           targetAccounts,
-          forEachAccount: _forEachAccount,
+          forEachAccount: deps.forEachAccount,
         });
 
-        console.log(_formatContactsOutput(json, contacts, { sinceLabel }));
+        console.log(deps.formatContactsOutput(json, contacts, { sinceLabel }));
       }),
     );
 
@@ -681,12 +629,12 @@ export function buildProgram(deps = defaultDeps) {
     .action(
       wrapAction(async (opts) => {
         const json = resolveJson(opts);
-        const result = await _initCommand(program.version() ?? "0.0.0", {
+        const result = await deps.initCommand(program.version() ?? "0.0.0", {
           local: !!opts.local,
           force: !!opts.force,
         });
 
-        console.log(_formatInitOutput(json, result));
+        console.log(deps.formatInitOutput(json, result));
       }),
     );
 

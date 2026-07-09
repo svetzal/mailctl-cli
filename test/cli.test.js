@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { buildProgram } from "../src/cli.js";
+import { buildProgram, defaultDeps } from "../src/cli.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +54,6 @@ function makeStubDeps(overrides = {}) {
     DATA_DIR: "/tmp/data",
     // gateways
     _fs: {},
-    _keychain: {},
     // helpers
     requireAccounts: mock(() => FAKE_ACCOUNTS),
     getOpenAiKey: mock(() => "test-key"),
@@ -428,5 +427,11 @@ describe("buildProgram", () => {
 
       expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ local: true }));
     });
+  });
+
+  // ── drift guard ──────────────────────────────────────────────────────────────
+
+  it("stubs every production dependency", () => {
+    expect(Object.keys(makeStubDeps()).sort()).toEqual(Object.keys(defaultDeps).sort());
   });
 });
