@@ -6,6 +6,7 @@
  */
 
 import { parseIntOption } from "../parse-options.js";
+import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 import { ensureDataDir, saveScanResults } from "../scan-data.js";
 import { aggregateBySender, scanAllAccounts } from "../scanner.js";
 
@@ -37,7 +38,7 @@ export async function scanCommand(opts, deps, onProgress = () => {}) {
       onProgress,
     );
   } catch (err) {
-    throw new Error(`Scan failed: ${err.message}`);
+    rethrowWithPrefix(err, "Scan failed");
   }
 
   const senders = aggregateBySender(results);

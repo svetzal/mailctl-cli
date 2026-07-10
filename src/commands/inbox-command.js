@@ -6,6 +6,7 @@
  */
 import { fetchInbox } from "../inbox.js";
 import { parseIntOption, parseSinceOption } from "../parse-options.js";
+import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 
 /**
  * @typedef {object} InboxCommandDeps
@@ -42,7 +43,7 @@ export async function inboxCommand(opts, deps, onProgress = () => {}) {
       allResults.push(...messages);
     });
   } catch (err) {
-    throw new Error(`Inbox fetch failed: ${err.message}`);
+    rethrowWithPrefix(err, "Inbox fetch failed");
   }
 
   return { resultsByAccount, allResults };

@@ -9,6 +9,7 @@ import { getConfigSelfAddresses } from "../config.js";
 import { aggregateContacts, extractContacts } from "../contacts.js";
 import { formatShortDateWithYear } from "../format-date.js";
 import { parseIntOption, parseSinceOption } from "../parse-options.js";
+import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 
 /**
  * @typedef {object} ContactsCommandDeps
@@ -45,7 +46,7 @@ export async function contactsCommand(opts, deps, onProgress = () => {}) {
       allEntries.push(...entries);
     });
   } catch (err) {
-    throw new Error(`Contacts fetch failed: ${err.message}`);
+    rethrowWithPrefix(err, "Contacts fetch failed");
   }
 
   // Collect self addresses: config selfAddresses + each account's user address

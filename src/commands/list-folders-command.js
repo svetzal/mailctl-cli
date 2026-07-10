@@ -5,6 +5,8 @@
  * can be tested independently. All IMAP I/O is injected via deps.
  */
 
+import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
+
 /**
  * @typedef {object} ListFoldersCommandDeps
  * @property {object[]} targetAccounts - accounts to list folders for
@@ -37,7 +39,7 @@ export async function listFoldersCommand(_opts, deps, onProgress = () => {}) {
       onProgress,
     );
   } catch (err) {
-    throw new Error(`List folders failed: ${err.message}`);
+    rethrowWithPrefix(err, "List folders failed");
   }
 
   return { allAccountFolders };

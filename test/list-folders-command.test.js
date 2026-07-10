@@ -80,6 +80,47 @@ describe("listFoldersCommand", () => {
     });
   });
 
+  describe("error propagation", () => {
+    it("re-throws with prefixed message when forEachAccount rejects", async () => {
+      const deps = makeDeps({
+        forEachAccount: mock(() => Promise.reject(new Error("connection refused"))),
+      });
+
+      await expect(listFoldersCommand({}, deps)).rejects.toThrow("List folders failed: connection refused");
+    });
+
+    it("forwards error code on the re-thrown error when original has code", async () => {
+      const original = new Error("timed out");
+      /** @type {any} */ (original).code = "ETIMEDOUT";
+      const deps = makeDeps({
+        forEachAccount: mock(() => Promise.reject(original)),
+      });
+
+      let caught;
+      try {
+        await listFoldersCommand({}, deps);
+      } catch (e) {
+        caught = e;
+      }
+      expect(/** @type {any} */ (caught).code).toBe("ETIMEDOUT");
+    });
+
+    it("sets cause to the original error when forEachAccount rejects", async () => {
+      const original = new Error("connection refused");
+      const deps = makeDeps({
+        forEachAccount: mock(() => Promise.reject(original)),
+      });
+
+      let caught;
+      try {
+        await listFoldersCommand({}, deps);
+      } catch (e) {
+        caught = e;
+      }
+      expect(/** @type {any} */ (caught).cause).toBe(original);
+    });
+  });
+
   describe("return value", () => {
     it("returns allAccountFolders array with the account name for each entry", async () => {
       const { allAccountFolders } = await listFoldersCommand({}, makeDeps());

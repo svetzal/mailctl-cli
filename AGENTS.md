@@ -120,6 +120,7 @@ src/mailbox-filters.js         — filterScanMailboxes(), filterSearchMailboxes(
 src/parse-options.js           — parseIntOption(), parseSinceOption() — pure CLI option coercion/validation
 src/scan-helpers.js            — buildScanResult() — pure scan-result record builder
 src/sort-logic.js              — classifyMessage(), planMoves(), BIZ_FOLDER/PERSONAL_FOLDER constants — pure sort classification and move planning
+src/rethrow-with-prefix.js     — rethrowWithPrefix(err, prefix) — prefixes an error message while preserving stack, cause, and code
 src/with-timeout.js            — withTimeout(promiseFactory, ms, label) — races a promise against a timer; rejects with err.code="ETIMEDOUT" if ms elapses first; used by download-receipts for per-message timeouts
 src/format-scan.js             — formatScanText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
 src/format-search.js           — formatSearchText(), buildSearchJson() — pure search result formatter
@@ -188,7 +189,7 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **Two canonical error escalation patterns for command orchestrators:**
   - *Single-item commands* (`read`, `reply`, `search`, `extract-attachment`, `thread`, `classify`, `import-classifications`) throw on failure. The CLI layer catches these via `withErrorHandling` and formats the error for the user.
   - *Batch commands* (`move`, `flag`) accumulate per-item `{ status: "failed", error: … }` entries in their result list and never throw on item-level failure. They return `{ stats, results }` even when some items failed.
-  - *Thin delegators* (`scan`, `sort`, `download`, `inbox`, `contacts`, `folders`) wrap their delegate call in try/catch and re-throw with a user-facing prefix (e.g. `"Scan failed: " + err.message`) so raw IMAP protocol errors never reach the user directly.
+  - *Thin delegators* (`scan`, `sort`, `download`, `inbox`, `contacts`, `folders`) wrap their delegate call in try/catch and re-throw via `rethrowWithPrefix()`, which prefixes the message for user-facing display, sets `{ cause }` to preserve the original error stack, and forwards `code` so `withErrorHandling` can emit machine-readable `--json` errors (e.g. `{ error: "Scan failed: …", code: "ETIMEDOUT" }`).
 
 ## Engineering Standards
 

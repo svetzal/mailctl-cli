@@ -202,6 +202,47 @@ describe("scanCommand", () => {
     });
   });
 
+  describe("error propagation", () => {
+    it("re-throws with prefixed message when scanAllAccounts rejects", async () => {
+      const { scanCommand } = makeScanCommand({
+        scanAllAccounts: mock(() => Promise.reject(new Error("connection refused"))),
+      });
+
+      await expect(scanCommand({}, makeDeps())).rejects.toThrow("Scan failed: connection refused");
+    });
+
+    it("forwards error code on the re-thrown error when original has code", async () => {
+      const original = new Error("timed out");
+      /** @type {any} */ (original).code = "ETIMEDOUT";
+      const { scanCommand } = makeScanCommand({
+        scanAllAccounts: mock(() => Promise.reject(original)),
+      });
+
+      let caught;
+      try {
+        await scanCommand({}, makeDeps());
+      } catch (e) {
+        caught = e;
+      }
+      expect(/** @type {any} */ (caught).code).toBe("ETIMEDOUT");
+    });
+
+    it("sets cause to the original error when scanAllAccounts rejects", async () => {
+      const original = new Error("connection refused");
+      const { scanCommand } = makeScanCommand({
+        scanAllAccounts: mock(() => Promise.reject(original)),
+      });
+
+      let caught;
+      try {
+        await scanCommand({}, makeDeps());
+      } catch (e) {
+        caught = e;
+      }
+      expect(/** @type {any} */ (caught).cause).toBe(original);
+    });
+  });
+
   describe("return value", () => {
     it("returns total equal to the number of scan results", async () => {
       const { scanCommand } = makeScanCommand({

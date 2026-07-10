@@ -7,6 +7,7 @@
 
 import { downloadReceipts as _downloadReceipts } from "../downloader.js";
 import { parseIntOption } from "../parse-options.js";
+import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 
 /**
  * @typedef {object} DownloadCommandDeps
@@ -35,6 +36,6 @@ export async function downloadCommand(opts, deps, onProgress = () => {}) {
       onProgress,
     );
   } catch (err) {
-    throw new Error(`Download failed: ${err.message}`);
+    rethrowWithPrefix(err, "Download failed");
   }
 }

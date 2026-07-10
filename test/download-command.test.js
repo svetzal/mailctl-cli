@@ -99,6 +99,42 @@ describe("downloadCommand", () => {
     });
   });
 
+  describe("error propagation", () => {
+    it("re-throws with prefixed message when downloadReceipts rejects", async () => {
+      const downloadReceipts = mock(() => Promise.reject(new Error("connection refused")));
+      await expect(downloadCommand({}, makeDeps({ downloadReceipts }))).rejects.toThrow(
+        "Download failed: connection refused",
+      );
+    });
+
+    it("forwards error code on the re-thrown error when original has code", async () => {
+      const original = new Error("timed out");
+      /** @type {any} */ (original).code = "ETIMEDOUT";
+      const downloadReceipts = mock(() => Promise.reject(original));
+
+      let caught;
+      try {
+        await downloadCommand({}, makeDeps({ downloadReceipts }));
+      } catch (e) {
+        caught = e;
+      }
+      expect(/** @type {any} */ (caught).code).toBe("ETIMEDOUT");
+    });
+
+    it("sets cause to the original error when downloadReceipts rejects", async () => {
+      const original = new Error("connection refused");
+      const downloadReceipts = mock(() => Promise.reject(original));
+
+      let caught;
+      try {
+        await downloadCommand({}, makeDeps({ downloadReceipts }));
+      } catch (e) {
+        caught = e;
+      }
+      expect(/** @type {any} */ (caught).cause).toBe(original);
+    });
+  });
+
   describe("return value", () => {
     it("returns the stats object from downloadReceipts unchanged", async () => {
       const stats = { downloaded: 5, skipped: 2, noPdf: 1, alreadyHave: 3 };

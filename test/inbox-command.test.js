@@ -135,6 +135,45 @@ describe("inboxCommand", () => {
     expect(/** @type {any} */ (capturedCriteria)?.seen).toBe(false);
   });
 
+  it("re-throws with prefixed message when forEachAccount rejects", async () => {
+    const deps = makeDeps({
+      forEachAccount: mock(() => Promise.reject(new Error("connection refused"))),
+    });
+
+    await expect(inboxCommand({}, deps)).rejects.toThrow("Inbox fetch failed: connection refused");
+  });
+
+  it("forwards error code on the re-thrown error when original has code", async () => {
+    const original = new Error("timed out");
+    /** @type {any} */ (original).code = "ETIMEDOUT";
+    const deps = makeDeps({
+      forEachAccount: mock(() => Promise.reject(original)),
+    });
+
+    let caught;
+    try {
+      await inboxCommand({}, deps);
+    } catch (e) {
+      caught = e;
+    }
+    expect(/** @type {any} */ (caught).code).toBe("ETIMEDOUT");
+  });
+
+  it("sets cause to the original error when forEachAccount rejects", async () => {
+    const original = new Error("connection refused");
+    const deps = makeDeps({
+      forEachAccount: mock(() => Promise.reject(original)),
+    });
+
+    let caught;
+    try {
+      await inboxCommand({}, deps);
+    } catch (e) {
+      caught = e;
+    }
+    expect(/** @type {any} */ (caught).cause).toBe(original);
+  });
+
   it("returns empty results when no messages in inbox", async () => {
     const deps = makeDeps({
       forEachAccount: mock(async (_accounts, fn) => {

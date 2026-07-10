@@ -229,6 +229,31 @@ describe("withErrorHandling", () => {
     exitSpy.mockRestore();
   });
 
+  it("emits code in JSON when error has both cause and code (as from rethrowWithPrefix)", async () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const original = new Error("connection refused");
+    /** @type {any} */ (original).code = "ETIMEDOUT";
+    const wrapped = withErrorHandling(
+      async () => {
+        const err = new Error(`Scan failed: ${original.message}`, { cause: original });
+        /** @type {any} */ (err).code = /** @type {any} */ (original).code;
+        throw err;
+      },
+      () => true,
+    );
+    try {
+      await wrapped({});
+    } catch {}
+    expect(logSpy).toHaveBeenCalledWith(
+      JSON.stringify({ error: "Scan failed: connection refused", code: "ETIMEDOUT" }),
+    );
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
   it("calls debug logger with the error when DEBUG=mailctl is set", async () => {
     spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = spyOn(process, "exit").mockImplementation(() => {

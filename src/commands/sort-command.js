@@ -6,6 +6,7 @@
  */
 
 import { parseIntOption } from "../parse-options.js";
+import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 import { sortReceipts } from "../sorter.js";
 
 /**
@@ -33,6 +34,6 @@ export async function sortCommand(opts, deps, onProgress = () => {}) {
       onProgress,
     );
   } catch (err) {
-    throw new Error(`Sort failed: ${err.message}`);
+    rethrowWithPrefix(err, "Sort failed");
   }
 }

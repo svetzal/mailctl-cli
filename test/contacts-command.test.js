@@ -120,6 +120,45 @@ describe("contactsCommand", () => {
     expect(selfContact).toBeUndefined();
   });
 
+  it("re-throws with prefixed message when forEachAccount rejects", async () => {
+    const deps = makeDeps({
+      forEachAccount: mock(() => Promise.reject(new Error("connection refused"))),
+    });
+
+    await expect(contactsCommand({}, deps)).rejects.toThrow("Contacts fetch failed: connection refused");
+  });
+
+  it("forwards error code on the re-thrown error when original has code", async () => {
+    const original = new Error("timed out");
+    /** @type {any} */ (original).code = "ETIMEDOUT";
+    const deps = makeDeps({
+      forEachAccount: mock(() => Promise.reject(original)),
+    });
+
+    let caught;
+    try {
+      await contactsCommand({}, deps);
+    } catch (e) {
+      caught = e;
+    }
+    expect(/** @type {any} */ (caught).code).toBe("ETIMEDOUT");
+  });
+
+  it("sets cause to the original error when forEachAccount rejects", async () => {
+    const original = new Error("connection refused");
+    const deps = makeDeps({
+      forEachAccount: mock(() => Promise.reject(original)),
+    });
+
+    let caught;
+    try {
+      await contactsCommand({}, deps);
+    } catch (e) {
+      caught = e;
+    }
+    expect(/** @type {any} */ (caught).cause).toBe(original);
+  });
+
   it("aggregates across multiple accounts", async () => {
     const account1 = makeAccount({ name: "Account 1", user: "user1@test.com" });
     const account2 = makeAccount({ name: "Account 2", user: "user2@test.com" });
