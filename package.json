@@ -38,7 +38,7 @@
   "dependencies": {
     "cmx-core": "^0.3.0",
     "commander": "^15.0.0",
-    "imapflow": "^1.4.6",
+    "imapflow": "^1.4.7",
     "mailparser": "^3.9.14",
     "mojentic": "^1.5.0",
     "nodemailer": "^9.0.3"
