@@ -3,72 +3,90 @@ import { buildProgram, defaultDeps } from "../src/cli.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-/** Minimal stub for requireAccounts — returns a fake account list. */
 const FAKE_ACCOUNTS = [{ name: "Test Account", host: "imap.example.com" }];
 
-function makeStubDeps(overrides = {}) {
+/**
+ * Builds a minimal nested deps object that satisfies `buildProgram`.
+ * Per-command wiring assertions live in the per-noun test files under test/cli/.
+ *
+ * @param {{ receipts?: object, mail?: object, mutation?: object, init?: object }} [overrides]
+ */
+function makeIntegrationDeps(overrides = {}) {
   return {
-    // command orchestrators — all return safe canned shapes by default
-    scanCommand: mock(async () => ({ total: 0, senders: [], rawPath: "/tmp/raw.json", summaryPath: "/tmp/sum.json" })),
-    classifyCommand: mock(() => ({ unclassifiedList: [] })),
-    importClassificationsCommand: mock(() => ({ imported: 0, path: "/tmp/cls.json" })),
-    sortCommand: mock(async () => ({})),
-    downloadCommand: mock(async () => ({})),
-    downloadReceiptsCommand: mock(async () => ({})),
-    searchCommand: mock(async () => ({ allResults: [], warnings: [] })),
-    readCommand: mock(async () => ({ account: { name: "Test" }, mailbox: "INBOX", parsed: {} })),
-    listFoldersCommand: mock(async () => ({ allAccountFolders: [] })),
-    extractAttachmentCommand: mock(async () => ({ listing: [] })),
-    moveCommand: mock(async () => ({ stats: {}, results: [] })),
-    inboxCommand: mock(async () => ({ resultsByAccount: {}, allResults: [] })),
-    flagCommand: mock(async () => ({ stats: {}, results: [] })),
-    replyCommand: mock(async () => ({ sent: true })),
-    threadCommand: mock(async () => []),
-    contactsCommand: mock(async () => ({ contacts: [], sinceLabel: "6m" })),
-    initCommand: mock(async () => ({ installed: true })),
-    // formatters — return identifiable strings so assertions can distinguish them
-    formatScanOutput: mock(() => "scan-output"),
-    formatClassifyOutput: mock(() => "classify-output"),
-    formatImportClassificationsOutput: mock(() => "import-output"),
-    formatSortOutput: mock(() => "sort-output"),
-    formatDownloadOutput: mock(() => "download-output"),
-    formatDownloadReceiptsOutput: mock(() => "download-receipts-output"),
-    formatSearchOutput: mock(() => "search-output"),
-    formatReadOutput: mock(() => "read-output"),
-    formatFoldersOutput: mock(() => "folders-output"),
-    formatAttachmentOutput: mock(() => "attachment-output"),
-    formatMoveOutput: mock(() => "move-output"),
-    formatInboxOutput: mock(() => "inbox-output"),
-    formatFlagOutput: mock(() => "flag-output"),
-    formatReplyOutput: mock(() => "reply-output"),
-    formatThreadOutput: mock(() => []),
-    formatContactsOutput: mock(() => "contacts-output"),
-    formatInitOutput: mock(() => "init-output"),
-    // progress renderers
-    renderAuthEvent: mock(() => null),
-    renderScanEvent: mock(() => null),
-    renderSortEvent: mock(() => null),
-    renderDownloadEvent: mock(() => null),
-    renderDownloadReceiptsEvent: mock(() => null),
-    // data dir
-    DATA_DIR: "/tmp/data",
-    // gateways
-    _fs: {},
-    // helpers
     requireAccounts: mock(() => FAKE_ACCOUNTS),
-    getOpenAiKey: mock(() => "test-key"),
-    forEachAccount: mock(async () => {}),
-    listMailboxes: mock(async () => []),
-    simpleParser: mock(async () => ({})),
-    importDownloadReceipts: mock(() => Promise.resolve({})),
-    importVendorMap: mock(() => Promise.resolve({})),
-    ...overrides,
+    receipts: {
+      scanCommand: mock(async () => ({ total: 0, senders: [], rawPath: "/tmp/r.json", summaryPath: "/tmp/s.json" })),
+      classifyCommand: mock(() => ({ unclassifiedList: [] })),
+      importClassificationsCommand: mock(() => ({ imported: 0, path: "/tmp/c.json" })),
+      sortCommand: mock(async () => ({})),
+      downloadCommand: mock(async () => ({})),
+      downloadReceiptsCommand: mock(async () => ({})),
+      formatScanOutput: mock(() => "scan"),
+      formatClassifyOutput: mock(() => "classify"),
+      formatImportClassificationsOutput: mock(() => "import"),
+      formatSortOutput: mock(() => "sort"),
+      formatDownloadOutput: mock(() => "download"),
+      formatDownloadReceiptsOutput: mock(() => "receipts"),
+      renderScanEvent: mock(() => null),
+      renderSortEvent: mock(() => null),
+      renderDownloadEvent: mock(() => null),
+      renderDownloadReceiptsEvent: mock(() => null),
+      DATA_DIR: "/tmp",
+      _fs: { mkdir: mock(() => {}) },
+      getOpenAiKey: mock(() => null),
+      importDownloadReceipts: mock(() => Promise.resolve({})),
+      importVendorMap: mock(() => Promise.resolve({})),
+      ...overrides.receipts,
+    },
+    mail: {
+      searchCommand: mock(async () => ({ allResults: [], warnings: [] })),
+      readCommand: mock(async () => ({ account: { name: "Test" }, mailbox: "INBOX", parsed: {} })),
+      listFoldersCommand: mock(async () => ({ allAccountFolders: [] })),
+      extractAttachmentCommand: mock(async () => ({ listing: [] })),
+      inboxCommand: mock(async () => ({ resultsByAccount: {}, allResults: [] })),
+      threadCommand: mock(async () => []),
+      contactsCommand: mock(async () => ({ contacts: [], sinceLabel: "6m" })),
+      formatSearchOutput: mock(() => "search"),
+      formatReadOutput: mock(() => "read"),
+      formatFoldersOutput: mock(() => "folders"),
+      formatAttachmentOutput: mock(() => "attachment"),
+      formatInboxOutput: mock(() => "inbox"),
+      formatThreadOutput: mock(() => []),
+      formatContactsOutput: mock(() => "contacts"),
+      renderAuthEvent: mock(() => null),
+      forEachAccount: mock(async () => {}),
+      listMailboxes: mock(async () => []),
+      simpleParser: mock(async () => ({})),
+      _fs: {},
+      ...overrides.mail,
+    },
+    mutation: {
+      moveCommand: mock(async () => ({ stats: {}, results: [] })),
+      flagCommand: mock(async () => ({ stats: {}, results: [] })),
+      replyCommand: mock(async () => ({ sent: true })),
+      formatMoveOutput: mock(() => "move"),
+      formatFlagOutput: mock(() => "flag"),
+      formatReplyOutput: mock(() => "reply"),
+      forEachAccount: mock(async () => {}),
+      listMailboxes: mock(async () => []),
+      simpleParser: mock(async () => ({})),
+      _fs: {},
+      smtpGateway: {},
+      editorGateway: {},
+      confirmGateway: {},
+      ...overrides.mutation,
+    },
+    init: {
+      initCommand: mock(async () => ({ installed: true })),
+      formatInitOutput: mock(() => "init"),
+      ...overrides.init,
+    },
   };
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
-describe("buildProgram", () => {
+describe("buildProgram (integration)", () => {
   let consoleLog;
   let consoleError;
 
@@ -82,209 +100,80 @@ describe("buildProgram", () => {
     consoleError.mockRestore();
   });
 
-  // ── scan ────────────────────────────────────────────────────────────────────
+  // ── command registration ─────────────────────────────────────────────────────
 
-  describe("receipts noun-group", () => {
-    it("`receipts scan` routes to scanCommand", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "receipts", "scan"]);
-      expect(deps.scanCommand).toHaveBeenCalled();
+  describe("command registration", () => {
+    it("registers all expected top-level command names", () => {
+      const program = buildProgram(makeIntegrationDeps());
+      const names = program.commands.map((c) => c.name());
+
+      for (const expected of [
+        "receipts",
+        "search",
+        "read",
+        "folders",
+        "extract-attachment",
+        "inbox",
+        "thread",
+        "contacts",
+        "move",
+        "flag",
+        "reply",
+        "init",
+      ]) {
+        expect(names).toContain(expected);
+      }
     });
 
-    it("`receipts extract` routes to downloadReceiptsCommand", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "receipts", "extract"]);
-      expect(deps.downloadReceiptsCommand).toHaveBeenCalled();
-    });
+    it("registers all receipts sub-commands", () => {
+      const program = buildProgram(makeIntegrationDeps());
+      const receiptsCmd = program.commands.find((c) => c.name() === "receipts");
+      const subNames = receiptsCmd?.commands.map((c) => c.name()) ?? [];
 
-    it("`receipts sort` previews by default", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "receipts", "sort"]);
-      expect(deps.sortCommand).toHaveBeenCalledWith(
-        expect.objectContaining({ dryRun: true }),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-
-    it("legacy top-level `download-receipts` alias still routes to downloadReceiptsCommand", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "download-receipts"]);
-      expect(deps.downloadReceiptsCommand).toHaveBeenCalled();
-    });
-  });
-
-  describe("scan command", () => {
-    it("passes default months '12' to scanCommand", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "scan"]);
-
-      expect(deps.scanCommand).toHaveBeenCalledWith(
-        expect.objectContaining({ months: "12" }),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-
-    it("passes -m 6 as months '6' to scanCommand", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "scan", "-m", "6"]);
-
-      expect(deps.scanCommand).toHaveBeenCalledWith(
-        expect.objectContaining({ months: "6" }),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-
-    it("calls formatScanOutput with json=false by default", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "scan"]);
-
-      expect(deps.formatScanOutput).toHaveBeenCalledWith(false, expect.anything(), expect.anything());
-    });
-
-    it("calls formatScanOutput with json=true when --json is passed", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "--json", "scan"]);
-
-      expect(deps.formatScanOutput).toHaveBeenCalledWith(true, expect.anything(), expect.anything());
+      for (const expected of ["scan", "classify", "import-classifications", "sort", "download", "extract"]) {
+        expect(subNames).toContain(expected);
+      }
     });
   });
 
-  // ── download ────────────────────────────────────────────────────────────────
+  // ── cross-cutting flags ──────────────────────────────────────────────────────
 
-  describe("download command", () => {
-    it("passes default months '24' to downloadCommand", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "download"]);
+  describe("global --json flag", () => {
+    it("passes json=true to formatScanOutput when --json is set", async () => {
+      const deps = makeIntegrationDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "--json", "scan"]);
 
-      expect(deps.downloadCommand).toHaveBeenCalledWith(
-        expect.objectContaining({ months: "24" }),
-        expect.anything(),
-        expect.anything(),
-      );
+      expect(deps.receipts.formatScanOutput).toHaveBeenCalledWith(true, expect.anything(), expect.anything());
+    });
+
+    it("passes json=false to formatScanOutput by default", async () => {
+      const deps = makeIntegrationDeps();
+      await buildProgram(deps).parseAsync(["node", "mailctl", "scan"]);
+
+      expect(deps.receipts.formatScanOutput).toHaveBeenCalledWith(false, expect.anything(), expect.anything());
     });
   });
 
-  // ── sort ────────────────────────────────────────────────────────────────────
-
-  describe("sort command", () => {
-    it("passes default months '24' to sortCommand", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "sort"]);
-
-      expect(deps.sortCommand).toHaveBeenCalledWith(
-        expect.objectContaining({ months: "24" }),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-
-    it("previews by default (dryRun true when --apply omitted)", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "sort"]);
-
-      expect(deps.sortCommand).toHaveBeenCalledWith(
-        expect.objectContaining({ dryRun: true }),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-
-    it("executes with --apply (dryRun false)", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "sort", "--apply"]);
-
-      expect(deps.sortCommand).toHaveBeenCalledWith(
-        expect.objectContaining({ dryRun: false }),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-  });
-
-  // ── plan/apply safety model ─────────────────────────────────────────────────
-
-  describe("plan/apply model on mutating commands", () => {
-    it("move previews by default (dryRun true)", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "move", "42", "--to", "Archive"]);
-      expect(deps.moveCommand).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ dryRun: true }),
-        expect.anything(),
-      );
-    });
-
-    it("move executes with --apply (dryRun false)", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "move", "42", "--to", "Archive", "--apply"]);
-      expect(deps.moveCommand).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ dryRun: false }),
-        expect.anything(),
-      );
-    });
-
-    it("legacy --dry-run still forces preview even with --apply", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "flag", "42", "--read", "--apply", "--dry-run"]);
-      expect(deps.flagCommand).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ dryRun: true }),
-        expect.anything(),
-      );
-    });
-  });
-
-  // ── extract-attachment ──────────────────────────────────────────────────────
-
-  describe("extract-attachment command", () => {
-    it("parses index argument to integer 2 when '2' is given", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "extract-attachment", "100", "2"]);
-
-      expect(deps.extractAttachmentCommand).toHaveBeenCalledWith("100", 2, expect.anything(), expect.anything());
-    });
-
-    it("passes undefined for index when omitted", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "extract-attachment", "100"]);
-
-      expect(deps.extractAttachmentCommand).toHaveBeenCalledWith(
-        "100",
-        undefined,
-        expect.anything(),
-        expect.anything(),
-      );
-    });
-  });
-
-  // ── --account flag ──────────────────────────────────────────────────────────
-
-  describe("--account flag", () => {
-    it("passes account name filter to scanCommand deps when --account is specified", async () => {
-      const deps = makeStubDeps({
-        requireAccounts: mock(() => [
-          { name: "Personal", host: "imap.example.com" },
-          { name: "Work", host: "imap.work.com" },
-        ]),
+  describe("global --account flag", () => {
+    it("forwards --account name to scanCommand", async () => {
+      const deps = makeIntegrationDeps({
+        receipts: {
+          scanCommand: mock(async () => ({
+            total: 0,
+            senders: [],
+            rawPath: "/tmp/r.json",
+            summaryPath: "/tmp/s.json",
+          })),
+        },
       });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "--account", "Personal", "scan"]);
+      const requireAccounts = mock(() => [
+        { name: "Personal", host: "imap.example.com" },
+        { name: "Work", host: "imap.work.com" },
+      ]);
+      deps.requireAccounts = requireAccounts;
+      await buildProgram(deps).parseAsync(["node", "mailctl", "--account", "Personal", "scan"]);
 
-      expect(deps.scanCommand).toHaveBeenCalledWith(
+      expect(deps.receipts.scanCommand).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ account: "Personal" }),
         expect.anything(),
@@ -292,146 +181,34 @@ describe("buildProgram", () => {
     });
   });
 
-  // ── download-receipts ───────────────────────────────────────────────────────
+  // ── error handling ───────────────────────────────────────────────────────────
 
-  describe("download-receipts command", () => {
-    it("passes importDownloadReceipts thunk from deps to downloadReceiptsCommand", async () => {
-      const importDownloadReceipts = mock(() => Promise.resolve({}));
-      const deps = makeStubDeps({ importDownloadReceipts });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "download-receipts"]);
+  describe("withErrorHandling", () => {
+    it("exits process with code 1 when a command orchestrator throws", async () => {
+      const exitSpy = spyOn(process, "exit").mockImplementation(() => {
+        throw new Error("process.exit");
+      });
 
-      expect(deps.downloadReceiptsCommand).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ importDownloadReceipts }),
-        expect.anything(),
-      );
-    });
+      const deps = makeIntegrationDeps({
+        receipts: {
+          scanCommand: mock(async () => {
+            throw new Error("IMAP failure");
+          }),
+        },
+      });
 
-    it("forwards getOpenAiKey() result as openAiKey to downloadReceiptsCommand", async () => {
-      const getOpenAiKey = mock(() => "sk-test-key");
-      const deps = makeStubDeps({ getOpenAiKey });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "download-receipts"]);
+      await buildProgram(deps)
+        .parseAsync(["node", "mailctl", "scan"])
+        .catch(() => {});
 
-      expect(deps.downloadReceiptsCommand).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ openAiKey: "sk-test-key" }),
-        expect.anything(),
-      );
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      exitSpy.mockRestore();
     });
   });
 
-  // ── search warnings loop ────────────────────────────────────────────────────
+  // ── defaultDeps shape ────────────────────────────────────────────────────────
 
-  describe("search command", () => {
-    it("writes each warning to console.error", async () => {
-      const deps = makeStubDeps({
-        searchCommand: mock(async () => ({ allResults: [], warnings: ["w1", "w2"] })),
-      });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "search", "foo"]);
-
-      const stderrCalls = consoleError.mock.calls.map((c) => c[0]);
-      expect(stderrCalls).toContain("w1");
-      expect(stderrCalls).toContain("w2");
-    });
-
-    it("does not call console.log when results are empty and --json is not set", async () => {
-      const deps = makeStubDeps({
-        searchCommand: mock(async () => ({ allResults: [], warnings: [] })),
-      });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "search", "foo"]);
-
-      expect(consoleLog).not.toHaveBeenCalled();
-    });
-
-    it("calls console.log when --json is set even with empty results", async () => {
-      const deps = makeStubDeps({
-        searchCommand: mock(async () => ({ allResults: [], warnings: [] })),
-      });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "--json", "search", "foo"]);
-
-      expect(consoleLog).toHaveBeenCalledWith("search-output");
-    });
-  });
-
-  // ── reply aborted ───────────────────────────────────────────────────────────
-
-  describe("reply command", () => {
-    it("writes 'Aborted.' to console.error when replyCommand returns aborted result", async () => {
-      const deps = makeStubDeps({
-        replyCommand: mock(async () => ({ aborted: true })),
-      });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "reply", "42"]);
-
-      expect(consoleError).toHaveBeenCalledWith("Aborted.");
-      expect(deps.formatReplyOutput).not.toHaveBeenCalled();
-    });
-
-    it("calls formatReplyOutput when reply is not aborted", async () => {
-      const deps = makeStubDeps({
-        replyCommand: mock(async () => ({ sent: true })),
-      });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "reply", "42"]);
-
-      expect(deps.formatReplyOutput).toHaveBeenCalled();
-    });
-  });
-
-  // ── thread account headers ──────────────────────────────────────────────────
-
-  describe("thread command", () => {
-    it("emits === <account> === header per formatThreadOutput entry", async () => {
-      const deps = makeStubDeps({
-        threadCommand: mock(async () => []),
-        formatThreadOutput: mock(() => [
-          { account: "Account A", output: "messages-A" },
-          { account: "Account B", output: "messages-B" },
-        ]),
-      });
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "thread", "99"]);
-
-      const stderrCalls = consoleError.mock.calls.map((c) => c[0]);
-      expect(stderrCalls).toContain("\n=== Account A ===");
-      expect(stderrCalls).toContain("\n=== Account B ===");
-    });
-  });
-
-  // ── init version ────────────────────────────────────────────────────────────
-
-  describe("init command", () => {
-    it("passes the program version as the first argument to initCommand", async () => {
-      const deps = makeStubDeps();
-      const program = buildProgram(deps);
-      await program.parseAsync(["node", "mailctl", "init"]);
-
-      expect(deps.initCommand).toHaveBeenCalledWith("1.3.0", expect.anything());
-    });
-
-    it("installs to the user home by default", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "init"]);
-
-      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ local: false }));
-    });
-
-    it("installs locally with --local", async () => {
-      const deps = makeStubDeps();
-      await buildProgram(deps).parseAsync(["node", "mailctl", "init", "--local"]);
-
-      expect(deps.initCommand).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ local: true }));
-    });
-  });
-
-  // ── drift guard ──────────────────────────────────────────────────────────────
-
-  it("stubs every production dependency", () => {
-    expect(Object.keys(makeStubDeps()).sort()).toEqual(Object.keys(defaultDeps).sort());
+  it("defaultDeps has the expected top-level slice keys", () => {
+    expect(Object.keys(defaultDeps).sort()).toEqual(["init", "mail", "mutation", "receipts", "requireAccounts"].sort());
   });
 });
