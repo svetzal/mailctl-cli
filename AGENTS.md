@@ -54,8 +54,17 @@ mailctl receipts extract --since 2026-01-01 --budget 300 --apply   # 5-minute ov
 ### Project Structure
 
 ```text
-src/cli.js                     — CLI entry point: true thin dispatcher; `buildProgram(deps)` factory is dependency-injected and unit-tested in `test/cli.test.js`; each .action() is 5–15 lines with no inline event rendering logic
-src/cli-helpers.js             — resolveAccounts(), withErrorHandling(), createFormatOutput(), resolveCommandContext() — shared CLI dispatch/formatting helpers consumed by cli.js .action() handlers
+src/cli.js                     — Composition root only (~80 lines): wires named dep slices into per-noun registrars and does nothing else. New commands belong in the relevant src/cli/*-cli.js module, not here.
+src/cli-context.js             — createCliContext() — builds the shared CliContext (resolveJson, resolveAccount, wrapAction, mutating, contextDeps, progress) from global opts and requireAccounts
+src/cli-helpers.js             — resolveAccounts(), withErrorHandling(), createFormatOutput(), resolveCommandContext() — shared CLI dispatch/formatting helpers consumed by the noun-registrar modules
+
+Noun-registrar modules (src/cli/):
+Files in src/cli/ import sibling files as ./X.js and parent src/ files as ../X.js.
+Adding a new command in a noun group means editing only the matching registrar file.
+src/cli/receipts-cli.js        — registerReceiptsCommands(program, ctx, deps): `receipts` noun group (scan, classify, import-classifications, sort, download, extract) + hidden legacy aliases; exports receiptsDeps
+src/cli/mail-cli.js            — registerMailCommands(program, ctx, deps): read-only mail nouns (search, read, folders/list-folders, extract-attachment, inbox, thread, contacts); exports mailDeps
+src/cli/mutation-cli.js        — registerMutationCommands(program, ctx, deps): mutating message commands (move, flag, reply) with injected smtpGateway/editorGateway/confirmGateway; exports mutationDeps
+src/cli/init-cli.js            — registerInitCommand(program, ctx, deps): skill-distribution init command; exports initDeps
 
 Command orchestrators (testable, injected deps):
 Files in src/commands/ import sibling files as ./X.js and parent src/ files as ../X.js.
