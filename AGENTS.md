@@ -88,11 +88,16 @@ src/find-message.js            — Shared withMessage() helper: cross-account UI
 Receipt feature cluster:
 Files in src/receipts/ import sibling files as ./X.js and parent src/ files as ../X.js.
 src/receipts/download-receipts-command.js — Download-receipts orchestration (list/reprocess/download routing)
-src/receipts/download-receipts.js       — Receipt download orchestration: downloadReceiptEmails(), listReceiptVendors(), reprocessReceipts() — search → filter → extract metadata → write PDF+sidecar
+src/receipts/download-receipts.js       — Public façade: re-exports downloadReceiptEmails, listReceiptVendors, reprocessReceipts, createReceiptRunState, and three pass-throughs; ~12 lines
+src/receipts/download-receipt-emails.js — downloadReceiptEmails() orchestrator and helpers (resolveDownloadReceiptsOptions, processAccountReceipts, processReceiptMessageGroup, processOneReceiptMessage, selectAccountReceipts, toProcessContext, announceLlm)
+src/receipts/list-receipt-vendors.js    — listReceiptVendors() — aggregates vendor counts from receipt search results without downloading
+src/receipts/reprocess-receipts.js      — reprocessReceipts() and helpers (reprocessOneSidecar, resolveReprocessSource, persistReprocessedSidecar) — re-extract metadata from existing sidecars via LLM
+src/receipts/receipt-run.js             — createReceiptWriteContext(), createReceiptRun(), createReceiptRunState() — value-object factories for ReceiptWriteContext, ReceiptRunLimits, ReceiptRun
+src/receipts/receipt-gateways.js        — resolveGateways(overrides), DEFAULT_PER_MESSAGE_TIMEOUT_MS — production gateway defaults; all workflow modules import from here instead of defining their own
 src/receipts/download-receipts-event-factories.js — descriptor table for download-receipts events (44 factories covering all phases) and `renderDownloadReceiptsEvent`
 src/receipts/receipt-decisions.js       — Pure classification/transformation decisions, receipt filtering, PDF hash/validation helpers
 src/receipts/receipt-fields.js          — extractInvoiceNumber(), extractAmount(), extractTax(), extractService(), field-length/currency constants — pure receipt field extraction primitives
-src/receipts/receipt-types.js           — shared JSDoc typedefs for receipt records (no runtime exports)
+src/receipts/receipt-types.js           — shared JSDoc typedefs for receipt records (no runtime exports); includes ReceiptWriteContext, ReceiptRunLimits, ReceiptRun
 src/receipts/receipt-vendor-name.js     — cleanVendorForFilename(), vendorFromDomain(), extractForwardedSender() — vendor-name derivation for receipt filenames
 src/receipts/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors
 src/receipts/receipt-output-tree.js     — walkOutputTree(), loadExistingInvoiceNumbers(), loadExistingHashes(), uniqueBaseName(), collectSidecarFiles(), writeReceiptOutput() — output directory tree and file I/O for receipt PDFs and sidecars

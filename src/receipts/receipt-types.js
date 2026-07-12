@@ -134,3 +134,40 @@ export {};
  * @property {import('../gateways/subprocess-gateway.js').SubprocessGateway} subprocess
  * @property {function(object): void} [onProgress]
  */
+
+/**
+ * Cohesive write-side collaborator: all I/O and dedup state for a download run.
+ *
+ * @typedef {object} ReceiptWriteContext
+ * @property {string} outputDir
+ * @property {boolean} dryRun
+ * @property {boolean} includeEmpty
+ * @property {Set<string>} existingInvoiceNumbers
+ * @property {Set<string>} existingHashes
+ * @property {Set<string>} usedPaths
+ * @property {import('../gateways/fs-gateway.js').FileSystemGateway} fs
+ * @property {import('../gateways/subprocess-gateway.js').SubprocessGateway} subprocess
+ */
+
+/**
+ * Time and count limits for a download run.
+ *
+ * @typedef {object} ReceiptRunLimits
+ * @property {number} startedAt - performance.now() timestamp at run start
+ * @property {number|null} maxMessages - stop after this many messages (null = unlimited)
+ * @property {number|null} budgetMs - overall wall-clock budget in ms (null = unlimited)
+ * @property {number} perMessageTimeoutMs - per-message timeout in ms
+ */
+
+/**
+ * Everything needed to execute one download run.
+ *
+ * @typedef {object} ReceiptRun
+ * @property {ReceiptWriteContext} writeContext
+ * @property {ReceiptRunLimits} limits
+ * @property {{ broker: any }|null} llm
+ * @property {ReceiptRunState} runState
+ * @property {string|null} vendorFilter
+ * @property {function} processMessage
+ * @property {function(object): void} onProgress
+ */
