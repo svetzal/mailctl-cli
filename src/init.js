@@ -68,6 +68,14 @@ export function buildInitResult(version, scope, targets) {
 }
 
 /**
+ * @typedef {object} InitCommandOptions
+ * @property {boolean} [local] - install into the current project instead of the user home
+ * @property {boolean} [force] - overwrite drifted/newer installs
+ * @property {{ plan: function, apply: function }} [_installer] - override for testing
+ * @property {import("cmx-core").InstallerContext} [_context] - override for testing
+ */
+
+/**
  * Install the mailctl companion skill across every cmx-managed platform.
  *
  * Targets are resolved by cmx-core from `~/.config/context-mixer/config.json`
@@ -76,18 +84,16 @@ export function buildInitResult(version, scope, targets) {
  * guard are owned by cmx-core's lockfiles, not by mailctl.
  *
  * @param {string} version - current mailctl version
- * @param {object} [options]
- * @param {boolean} [options.local] - install into the current project instead of the user home
- * @param {boolean} [options.force] - overwrite drifted/newer installs
+ * @param {InitCommandOptions} [options]
  * @returns {Promise<InitResult>}
  */
-export async function initCommand(version, { local = false, force = false } = {}) {
+export async function initCommand(version, { local = false, force = false, _installer, _context } = {}) {
   /** @type {"global" | "local"} */
   const scope = local ? "local" : "global";
-  const installer = new SkillInstaller(new ToolIdentity(TOOL_NAME, version));
+  const installer = _installer ?? new SkillInstaller(new ToolIdentity(TOOL_NAME, version));
   const skill = BundledSkill.singleMd(SKILL_MD);
   /** @type {import("cmx-core").InstallerContext} */
-  const context = {
+  const context = _context ?? {
     fs: new NodeFilesystem(),
     clock: new SystemClock(),
     paths: ConfigPaths.fromEnv("claude"),

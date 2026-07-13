@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { buildInitResult, warningFor } from "../src/init.js";
+import { describe, expect, it, mock } from "bun:test";
+import { buildInitResult, initCommand, warningFor } from "../src/init.js";
 
 // Version stamping and the newer-install guard now live in cmx-core (verified in
 // that package's own suite). mailctl only owns the mapping from cmx-core's plan
@@ -55,6 +55,84 @@ describe("buildInitResult", () => {
     const result = buildInitResult("1.3.0", "local", []);
 
     expect(result.targets).toEqual([]);
+    expect(result.scope).toBe("local");
+  });
+});
+
+// ── initCommand (imperative shell) ────────────────────────────────────────────
+
+describe("initCommand", () => {
+  /** @type {import("cmx-core").InstallerContext} */
+  const fakeContext = /** @type {any} */ ({});
+
+  function makeInstaller(targetList = []) {
+    return {
+      plan: mock(() => Promise.resolve({ targets: targetList })),
+      apply: mock(() => Promise.resolve()),
+    };
+  }
+
+  it("excludes refuse-newer targets from apply()", async () => {
+    const installer = makeInstaller([
+      { platform: "claude", action: { kind: "install" } },
+      { platform: "codex", action: { kind: "refuse-newer", installed: "2.0.0" } },
+    ]);
+
+    await initCommand("1.0.0", { _installer: installer, _context: fakeContext });
+
+    const applyCall = /** @type {any[]} */ (installer.apply.mock.calls)[0];
+    const applyTargets = applyCall[1].targets;
+    expect(applyTargets.map((/** @type {any} */ t) => t.platform)).toEqual(["claude"]);
+  });
+
+  it("still includes refuse-newer targets in the returned result", async () => {
+    const installer = makeInstaller([
+      { platform: "claude", action: { kind: "install" } },
+      { platform: "codex", action: { kind: "refuse-newer", installed: "2.0.0" } },
+    ]);
+
+    const result = await initCommand("1.0.0", { _installer: installer, _context: fakeContext });
+
+    expect(result.targets.map((t) => t.platform)).toEqual(["claude", "codex"]);
+  });
+
+  it("does not call apply() when all targets are refuse-newer", async () => {
+    const installer = makeInstaller([{ platform: "claude", action: { kind: "refuse-newer", installed: "2.0.0" } }]);
+
+    await initCommand("1.0.0", { _installer: installer, _context: fakeContext });
+
+    expect(installer.apply).not.toHaveBeenCalled();
+  });
+
+  it("calls apply() once when there are writable targets", async () => {
+    const installer = makeInstaller([{ platform: "claude", action: { kind: "install" } }]);
+
+    await initCommand("1.0.0", { _installer: installer, _context: fakeContext });
+
+    expect(installer.apply).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the version passed in", async () => {
+    const installer = makeInstaller([]);
+
+    const result = await initCommand("1.2.3", { _installer: installer, _context: fakeContext });
+
+    expect(result.version).toBe("1.2.3");
+  });
+
+  it("returns global scope when local option is false", async () => {
+    const installer = makeInstaller([]);
+
+    const result = await initCommand("1.0.0", { local: false, _installer: installer, _context: fakeContext });
+
+    expect(result.scope).toBe("global");
+  });
+
+  it("returns local scope when local option is true", async () => {
+    const installer = makeInstaller([]);
+
+    const result = await initCommand("1.0.0", { local: true, _installer: installer, _context: fakeContext });
+
     expect(result.scope).toBe("local");
   });
 });

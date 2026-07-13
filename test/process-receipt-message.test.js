@@ -222,6 +222,31 @@ describe("source_body_snippet (PDF receipt)", () => {
   });
 });
 
+// ── error handling ────────────────────────────────────────────────────────────
+
+describe("error handling", () => {
+  it("returns error action when client.download rejects", async () => {
+    const client = {
+      download: mock(() => Promise.reject(new Error("connection lost"))),
+    };
+    const { mockFs } = makeMockFs();
+    const result = await processReceiptMessage(client, makeMsg(), makeContext({ mockFs }));
+
+    expect(result.action).toBe("error");
+  });
+
+  it("emits a progress event when client.download rejects", async () => {
+    const client = {
+      download: mock(() => Promise.reject(new Error("connection lost"))),
+    };
+    const onProgress = mock(() => {});
+    const { mockFs } = makeMockFs();
+    await processReceiptMessage(client, makeMsg(), makeContext({ mockFs, onProgress }));
+
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ type: "process-error", severity: "error" }));
+  });
+});
+
 // ── empty extraction skipping ─────────────────────────────────────────────────
 
 describe("empty extraction skipping", () => {

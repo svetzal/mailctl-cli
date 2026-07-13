@@ -11,13 +11,20 @@ import { fetchError, mailboxEmpty, mailboxMatches, mailboxStart, searchError } f
  *
  * @param {{ host: string, port: number, user: string, pass?: string, oauth2?: { clientId: string, tenantId: string, clientSecret: string }, name?: string }} account
  * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {typeof ImapFlow} [clientConstructor] - injectable for testing; defaults to ImapFlow
+ * @param {typeof getM365AccessToken} [getAccessToken] - injectable for testing; defaults to getM365AccessToken
  * @returns {Promise<ImapFlow>}
  */
-export async function connect(account, onProgress = () => {}) {
+export async function connect(
+  account,
+  onProgress = () => {},
+  clientConstructor = ImapFlow,
+  getAccessToken = getM365AccessToken,
+) {
   let auth;
 
   if (account.oauth2) {
-    const accessToken = await getM365AccessToken(account.oauth2, onProgress);
+    const accessToken = await getAccessToken(account.oauth2, onProgress);
     auth = { user: account.user, accessToken };
   } else {
     auth = { user: account.user, pass: account.pass };
@@ -29,7 +36,7 @@ export async function connect(account, onProgress = () => {}) {
   // that keeps data flowing will not hit this limit).
   const SOCKET_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-  const client = new ImapFlow({
+  const client = new clientConstructor({
     host: account.host,
     port: account.port,
     secure: true,

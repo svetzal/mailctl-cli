@@ -1,6 +1,74 @@
 import { describe, expect, it, mock } from "bun:test";
-import { listMailboxes, scanForReceipts } from "../src/imap-client.js";
+import { connect, listMailboxes, scanForReceipts } from "../src/imap-client.js";
 import { makeLock } from "./helpers.js";
+
+// ── connect ───────────────────────────────────────────────────────────────────
+
+describe("connect", () => {
+  /** Build a fake ImapFlow constructor that returns a mock client. */
+  function makeFakeConstructor() {
+    /** @type {object} */
+    let capturedConfig;
+    const fakeClient = { connect: mock(() => Promise.resolve()) };
+    const fakeConstructor = /** @type {any} */ (
+      mock((config) => {
+        capturedConfig = config;
+        return fakeClient;
+      })
+    );
+    return { fakeConstructor, fakeClient, getCapturedConfig: () => capturedConfig };
+  }
+
+  const passwordAccount = {
+    host: "imap.test.com",
+    port: 993,
+    user: "user@test.com",
+    pass: "s3cr3t",
+  };
+
+  it("builds password auth for accounts without oauth2", async () => {
+    const { fakeConstructor, getCapturedConfig } = makeFakeConstructor();
+    await connect(passwordAccount, () => {}, fakeConstructor);
+
+    expect(getCapturedConfig().auth).toEqual({ user: "user@test.com", pass: "s3cr3t" });
+  });
+
+  it("builds OAuth2 auth for accounts with oauth2 config", async () => {
+    const { fakeConstructor, getCapturedConfig } = makeFakeConstructor();
+    const fakeGetAccessToken = mock(() => Promise.resolve("fake-access-token"));
+    const oauth2Account = {
+      host: "outlook.office365.com",
+      port: 993,
+      user: "user@corp.com",
+      oauth2: { clientId: "cid", tenantId: "tid", clientSecret: "csec" },
+    };
+
+    await connect(oauth2Account, () => {}, fakeConstructor, fakeGetAccessToken);
+
+    expect(getCapturedConfig().auth).toEqual({ user: "user@corp.com", accessToken: "fake-access-token" });
+  });
+
+  it("sets socketTimeout on the client config", async () => {
+    const { fakeConstructor, getCapturedConfig } = makeFakeConstructor();
+    await connect(passwordAccount, () => {}, fakeConstructor);
+
+    expect(getCapturedConfig().socketTimeout).toBeGreaterThan(0);
+  });
+
+  it("calls connect() on the constructed client", async () => {
+    const { fakeConstructor, fakeClient } = makeFakeConstructor();
+    await connect(passwordAccount, () => {}, fakeConstructor);
+
+    expect(fakeClient.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the constructed client instance", async () => {
+    const { fakeConstructor, fakeClient } = makeFakeConstructor();
+    const result = /** @type {any} */ (await connect(passwordAccount, () => {}, fakeConstructor));
+
+    expect(result).toBe(fakeClient);
+  });
+});
 
 // ── listMailboxes ─────────────────────────────────────────────────────────────
 

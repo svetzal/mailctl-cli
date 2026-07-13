@@ -244,6 +244,25 @@ All five must pass before shipping:
 
 To auto-fix lint and formatting issues: `bun run lint:fix`
 
+#### Coverage caveats (Bun-specific)
+
+Bun's V8 coverage reporter can under-report execution in two ways:
+
+1. **Multi-line call expressions and `await` continuations** — Bun may mark continuation lines as uncovered even when the call executed successfully. This is a tool artifact, not a real gap.
+
+2. **`mock.module()` in test files** — When a test file calls `mock.module("../src/foo.js", ...)`, it registers a duplicate module instance under the same path. V8 tracks the mock instance with zero coverage, which can drag down the aggregate number for the original file. The fix is to use dependency injection instead of `mock.module` so no duplicate registration occurs.
+
+**Before writing tests for a suspected gap, verify it is genuinely dead with a mutation probe:**
+
+```bash
+# Insert a throw on the suspect line in the source file:
+#   throw new Error("probe");
+# Then run only the tests that should exercise that code:
+bun test test/foo.test.js
+```
+
+If tests fail, the line executes and the coverage report was wrong — do not add new tests for it. Only add tests when the probe confirms the line never executes.
+
 ### Security Rules — CRITICAL
 
 - **NEVER** store credentials in source files, .env files, or commit them

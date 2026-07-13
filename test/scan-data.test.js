@@ -1,15 +1,12 @@
 import { describe, expect, it, mock } from "bun:test";
-
-// Cache-busting dynamic import to bypass mock.module contamination from
-// scan-command.test.js which mocks "../src/scan-data.js".
-const {
+import {
   ensureDataDir,
   loadClassificationsData,
   loadSenders,
   requireClassificationsData,
   saveClassifications,
   saveScanResults,
-} = await import(`../src/scan-data.js?t=${Date.now()}`);
+} from "../src/scan-data.js";
 
 /** @returns {import("../src/gateways/fs-gateway.js").FileSystemGateway} */
 function makeMockFs(overrides = {}) {

@@ -7,14 +7,18 @@
 
 import { parseIntOption } from "../parse-options.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
-import { ensureDataDir, saveScanResults } from "../scan-data.js";
-import { aggregateBySender, scanAllAccounts } from "../scanner.js";
+import { ensureDataDir as _ensureDataDir, saveScanResults as _saveScanResults } from "../scan-data.js";
+import { aggregateBySender as _aggregateBySender, scanAllAccounts as _scanAllAccounts } from "../scanner.js";
 
 /**
  * @typedef {object} ScanCommandDeps
  * @property {string|null|undefined} account - account filter (or null/undefined for all)
  * @property {string} dataDir - path to the data directory
  * @property {object} fsGateway - FileSystemGateway instance
+ * @property {typeof _scanAllAccounts}   [scanAllAccounts]   - override for testing
+ * @property {typeof _aggregateBySender} [aggregateBySender] - override for testing
+ * @property {typeof _ensureDataDir}     [ensureDataDir]     - override for testing
+ * @property {typeof _saveScanResults}   [saveScanResults]   - override for testing
  */
 
 /**
@@ -24,7 +28,15 @@ import { aggregateBySender, scanAllAccounts } from "../scanner.js";
  * @returns {Promise<{ total: number, senders: Array, rawPath: string, summaryPath: string }>}
  */
 export async function scanCommand(opts, deps, onProgress = () => {}) {
-  const { account, dataDir, fsGateway } = deps;
+  const {
+    account,
+    dataDir,
+    fsGateway,
+    scanAllAccounts = _scanAllAccounts,
+    aggregateBySender = _aggregateBySender,
+    ensureDataDir = _ensureDataDir,
+    saveScanResults = _saveScanResults,
+  } = deps;
 
   let results;
   try {

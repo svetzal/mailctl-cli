@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildReadJson, buildReadResult, formatReadOutput } from "../src/format-read.js";
+import { buildReadJson, buildReadResult, formatReadOutput, formatReadText } from "../src/format-read.js";
 
 function mockParsed(overrides = {}) {
   return {
@@ -20,6 +20,33 @@ describe("buildReadResult", () => {
     const result = buildReadResult(mockParsed(), "icloud", 42, { maxBody: 1000, includeHeaders: false });
 
     expect(result.uid).toBe(42);
+  });
+
+  it("uses htmlToText for body when text is absent but html is present", () => {
+    const result = buildReadResult(mockParsed({ text: null, html: "<p>Hello</p>" }), "icloud", 1, {
+      maxBody: 1000,
+      includeHeaders: false,
+    });
+
+    expect(result.body).toContain("Hello");
+  });
+
+  it("includes bodyHtml when the parsed message has html", () => {
+    const result = buildReadResult(mockParsed({ text: null, html: "<p>Hello</p>" }), "icloud", 1, {
+      maxBody: 1000,
+      includeHeaders: false,
+    });
+
+    expect(result.bodyHtml).toBeDefined();
+  });
+
+  it("omits bodyHtml when the parsed message has no html", () => {
+    const result = buildReadResult(mockParsed({ html: null }), "icloud", 1, {
+      maxBody: 1000,
+      includeHeaders: false,
+    });
+
+    expect(result).not.toHaveProperty("bodyHtml");
   });
 });
 
@@ -46,6 +73,56 @@ describe("buildReadJson", () => {
     });
 
     expect(result).not.toHaveProperty("headers");
+  });
+});
+
+// ── formatReadText ────────────────────────────────────────────────────────────
+
+describe("formatReadText", () => {
+  it("includes body text in the output", () => {
+    const result = formatReadText(mockParsed(), { maxBody: 1000, showHeaders: false, showRaw: false });
+
+    expect(result).toContain("Body text");
+  });
+
+  it("uses htmlToText output when only html is present", () => {
+    const result = formatReadText(mockParsed({ text: null, html: "<p>Hello world</p>" }), {
+      maxBody: 1000,
+      showHeaders: false,
+      showRaw: false,
+    });
+
+    expect(result).toContain("Hello world");
+  });
+
+  it("lists attachment filenames when attachments are present", () => {
+    const parsed = mockParsed({ attachments: [{ filename: "invoice.pdf" }] });
+    const result = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+
+    expect(result).toContain("Attachments: invoice.pdf");
+  });
+
+  it("uses (unnamed) for attachments without a filename", () => {
+    const parsed = mockParsed({ attachments: [{ filename: null }] });
+    const result = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+
+    expect(result).toContain("(unnamed)");
+  });
+
+  it("includes headers section when showHeaders is true", () => {
+    const parsed = mockParsed();
+    parsed.headers.set("x-custom", "value123");
+    const result = formatReadText(parsed, { maxBody: 1000, showHeaders: true, showRaw: false });
+
+    expect(result).toContain("x-custom");
+  });
+
+  it("omits headers section when showHeaders is false", () => {
+    const parsed = mockParsed();
+    parsed.headers.set("x-custom", "value123");
+    const result = formatReadText(parsed, { maxBody: 1000, showHeaders: false, showRaw: false });
+
+    expect(result).not.toContain("--- Headers ---");
   });
 });
 
