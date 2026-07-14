@@ -7,6 +7,7 @@
 import { deduplicateByMessageId } from "../dedup.js";
 import { filterSearchMailboxes } from "../imap-client.js";
 import { withMailboxLock } from "../imap-orchestration.js";
+import { rethrowIfProgrammerError } from "../programmer-error.js";
 import {
   mailboxCandidates,
   mailboxFetchError,
@@ -45,6 +46,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
           const uids = await client.search(criteria, { uid: true });
           if (uids) for (const uid of uids) allUids.add(uid);
         } catch (err) {
+          rethrowIfProgrammerError(err);
           onProgress(searchTermError(err, mailboxPath));
           failures.push({ mailbox: mailboxPath, phase: "search", term, error: err });
         }
@@ -58,6 +60,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
           const uids = await client.search(criteria, { uid: true });
           if (uids) for (const uid of uids) allUids.add(uid);
         } catch (err) {
+          rethrowIfProgrammerError(err);
           onProgress(searchTermError(err, mailboxPath));
           failures.push({ mailbox: mailboxPath, phase: "search", term: pattern, error: err });
         }
@@ -93,6 +96,7 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
           });
         }
       } catch (err) {
+        rethrowIfProgrammerError(err);
         onProgress(mailboxFetchError(err));
         failures.push({ mailbox: mailboxPath, phase: "fetch", error: err });
       }

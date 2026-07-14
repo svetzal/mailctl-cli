@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { resolveAccounts } from "../cli-helpers.js";
 import { forEachMailboxGroup, groupByMailbox } from "../imap-orchestration.js";
 import { monthsAgo } from "../parse-date.js";
+import { rethrowIfProgrammerError } from "../programmer-error.js";
 import { matchesVendor } from "../vendor-map.js";
 import { withTimeout } from "../with-timeout.js";
 import {
@@ -66,6 +67,7 @@ async function processOneReceiptMessage({ client, msg, context, perMessageTimeou
     );
     return { outcome: "success", action, metadata };
   } catch (err) {
+    rethrowIfProgrammerError(err);
     if (/** @type {any} */ (err).code === "ETIMEDOUT") {
       onProgress(messageTimeout(msg.uid, perMessageTimeoutMs));
       return { outcome: "timedOut" };

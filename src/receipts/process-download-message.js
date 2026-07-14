@@ -9,6 +9,7 @@ import {
   invalidPdf,
 } from "../download-event-factories.js";
 import { buildFilename, vendorName } from "../download-filename.js";
+import { rethrowIfProgrammerError } from "../programmer-error.js";
 import { buildManifestRecord, contentHash, isValidPdf } from "./receipt-decisions.js";
 
 /**
@@ -43,6 +44,7 @@ export async function processDownloadMessage(client, msg, mailbox, context) {
       bodyStructure = fetched.bodyStructure;
     }
   } catch (err) {
+    rethrowIfProgrammerError(err);
     onProgress(fetchStructureError(err, msg.uid));
     return { action: "skipped" };
   }
@@ -94,6 +96,7 @@ export async function processDownloadMessage(client, msg, mailbox, context) {
         manifest[manifestKey] = buildManifestRecord("downloaded", { filename, hash, date: msg.date, vendor });
         action = "downloaded";
       } catch (err) {
+        rethrowIfProgrammerError(err);
         onProgress(downloadFailed(err, filename));
         action = "skipped";
       }

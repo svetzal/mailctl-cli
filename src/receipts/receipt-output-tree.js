@@ -12,6 +12,7 @@
 
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import { rethrowIfProgrammerError } from "../programmer-error.js";
 import {
   downloadedPdf,
   dryRunJson,
@@ -141,18 +142,22 @@ export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
               try {
                 visitor(join(monthPath, file), file);
               } catch (err) {
+                rethrowIfProgrammerError(err);
                 onError(err, { path: join(monthPath, file), level: "file", op: "visitor" });
               }
             }
           } catch (err) {
+            rethrowIfProgrammerError(err);
             onError(err, { path: monthPath, level: "month", op: "readdir" });
           }
         }
       } catch (err) {
+        rethrowIfProgrammerError(err);
         onError(err, { path: yearPath, level: "year", op: "readdir" });
       }
     }
   } catch (err) {
+    rethrowIfProgrammerError(err);
     onError(err, { path: outputDir, level: "root", op: "readdir" });
   }
 }
@@ -170,7 +175,13 @@ export function loadExistingInvoiceNumbers(outputDir, fs, onError = () => {}) {
     fs,
     (filePath, fileName) => {
       if (!fileName.endsWith(".json")) return;
-      const data = /** @type {any} */ (fs.readJson(filePath));
+      let data;
+      try {
+        data = /** @type {any} */ (fs.readJson(filePath));
+      } catch (err) {
+        onError(err, { path: filePath, op: "parse" });
+        return;
+      }
       if (data.invoice_number) numbers.add(data.invoice_number);
     },
     onError,
@@ -235,7 +246,13 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
     fs,
     (filePath, fileName) => {
       if (!fileName.endsWith(".json")) return;
-      const sidecar = /** @type {any} */ (fs.readJson(filePath));
+      let sidecar;
+      try {
+        sidecar = /** @type {any} */ (fs.readJson(filePath));
+      } catch (err) {
+        onError(err, { path: filePath, op: "parse" });
+        return;
+      }
       results.push({ jsonPath: filePath, sidecar });
     },
     onError,

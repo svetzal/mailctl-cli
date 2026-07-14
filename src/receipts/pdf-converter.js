@@ -4,6 +4,7 @@
 
 import { join } from "node:path";
 import { debug } from "../debug.js";
+import { rethrowIfProgrammerError } from "../programmer-error.js";
 import { doclingFailed, usingPdfContent } from "./download-receipts-event-factories.js";
 
 /**
@@ -44,6 +45,8 @@ export function pdfToText(pdfPath, fs, subprocess, onError = () => {}) {
     }
     return null;
   } catch (err) {
+    rethrowIfProgrammerError(err);
+    // Intentional fallback: if docling is missing or fails, the caller falls back to email body text (per AGENTS.md).
     onError(err, { pdfPath });
     return null;
   } finally {
@@ -86,6 +89,8 @@ export function resolveExtractionText(
       return pdfMarkdown;
     }
   } catch (err) {
+    rethrowIfProgrammerError(err);
+    // Intentional fallback: if writing the temp PDF fails, fall back to email body text (per AGENTS.md).
     onProgress(doclingFailed(err, uid));
   } finally {
     try {
