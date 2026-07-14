@@ -84,5 +84,9 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
     onProgress,
   );
 
+  if ((stats.errors ?? 0) > 0 || (stats.timedOut ?? 0) > 0) {
+    process.exitCode = 1;
+  }
+
   return { mode: "download", stats, records };
 }
