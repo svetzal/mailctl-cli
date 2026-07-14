@@ -200,10 +200,11 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **Shared helpers** — `forEachAccount()` handles connect/logout lifecycle, `filterScanMailboxes()` and `filterSearchMailboxes()` centralize mailbox exclusion logic
 - **Search dedup** — search deduplicates results by message-id header to avoid showing the same email found in multiple mailboxes (e.g. Gmail All Mail + INBOX)
 - **Consistent `--json`** — all commands support `--json` for machine-readable output; errors also output as JSON in that mode
-- **Two canonical error escalation patterns for command orchestrators:**
+- **Canonical error escalation patterns for command orchestrators:**
   - *Single-item commands* (`read`, `reply`, `search`, `extract-attachment`, `thread`, `classify`, `import-classifications`) throw on failure. The CLI layer catches these via `withErrorHandling` and formats the error for the user.
   - *Batch commands* (`move`, `flag`) accumulate per-item `{ status: "failed", error: … }` entries in their result list and never throw on item-level failure. They return `{ stats, results }` even when some items failed.
   - *Thin delegators* (`scan`, `sort`, `download`, `inbox`, `contacts`, `folders`) wrap their delegate call in try/catch and re-throw via `rethrowWithPrefix()`, which prefixes the message for user-facing display, sets `{ cause }` to preserve the original error stack, and forwards `code` so `withErrorHandling` can emit machine-readable `--json` errors (e.g. `{ error: "Scan failed: …", code: "ETIMEDOUT" }`).
+  - *Per-item degradation* (`processReceiptMessage`'s caller, `walkOutputTree`, `pdfToText`, `processDownloadMessage`, `searchMailboxForReceipts`) — long-running batch traversals catch **operational** failures per item, emit a progress event, tally into `stats.errors` / `failures[]`, and continue. They **must** call `rethrowIfProgrammerError()` (from `src/programmer-error.js`) first so `TypeError`/`ReferenceError`/`RangeError`/`SyntaxError` escape to the command boundary. A non-zero `stats.errors` or `stats.timedOut` sets a non-zero exit code.
 
 ## Engineering Standards
 
