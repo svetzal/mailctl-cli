@@ -7,6 +7,59 @@ import { sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
+ * @param {object} opts
+ * @param {string} [opts.from]
+ * @param {string} [opts.to]
+ * @param {string} [opts.subject]
+ * @param {string} [opts.body]
+ * @param {Record<string, any>} dateCriteria
+ * @returns {Record<string, any>}
+ */
+function buildFieldCriteria(opts, dateCriteria) {
+  /** @type {Record<string, any>} */
+  const criteria = { ...dateCriteria };
+  if (opts.from) criteria.from = opts.from;
+  if (opts.to) criteria.to = opts.to;
+  if (opts.subject) criteria.subject = opts.subject;
+  if (opts.body) criteria.body = opts.body;
+  return criteria;
+}
+
+/**
+ * @param {import("./imap-types.js").ImapClient} client
+ * @param {string} uidRange
+ * @param {string} acctName
+ * @param {string} mailboxPath
+ * @returns {Promise<Array>}
+ */
+async function fetchAndMap(client, uidRange, acctName, mailboxPath) {
+  const results = [];
+  for await (const msg of client.fetch(
+    uidRange,
+    { envelope: true, headers: ["message-id"], uid: true },
+    { uid: true },
+  )) {
+    const env = msg.envelope;
+    const from = env.from?.[0];
+    const to = env.to?.[0];
+    const messageId = env.messageId || "";
+    results.push({
+      account: acctName,
+      mailbox: mailboxPath,
+      uid: msg.uid,
+      messageId,
+      date: env.date,
+      from: from?.address || "",
+      fromName: sanitizeForAgentOutput(from?.name || ""),
+      to: to?.address || "",
+      toName: sanitizeForAgentOutput(to?.name || ""),
+      subject: sanitizeForAgentOutput(env.subject || ""),
+    });
+  }
+  return results;
+}
+
+/**
  * Search a single mailbox within an already-connected IMAP client.
  * Returns an array of result objects (may be empty).
  *
@@ -37,77 +90,32 @@ export async function searchMailbox(client, acctName, mailboxPath, query, opts =
       client,
       mailboxPath,
       async () => {
-        let uidsToFetch;
-
         const hasFieldCriteria = !!(opts.from || opts.to || opts.subject || opts.body);
 
-        // Date criteria apply to all search paths
         /** @type {Record<string, any>} */
         const dateCriteria = {};
         if (opts.since) dateCriteria.since = opts.since;
         if (opts.before) dateCriteria.before = opts.before;
 
-        if (!query && !hasFieldCriteria) {
-          // No query and no field criteria — nothing to search
-          return [];
-        } else if (!query && hasFieldCriteria) {
-          // No general query, but field-specific criteria — search by criteria only
-          /** @type {Record<string, any>} */
-          const criteria = { ...dateCriteria };
-          if (opts.from) criteria.from = opts.from;
-          if (opts.to) criteria.to = opts.to;
-          if (opts.subject) criteria.subject = opts.subject;
-          if (opts.body) criteria.body = opts.body;
-          uidsToFetch = await client.search(criteria, { uid: true });
-        } else if (!hasFieldCriteria) {
+        if (!query && !hasFieldCriteria) return [];
+
+        let uidsToFetch;
+        if (!hasFieldCriteria) {
           // General query only — search both From and Subject
-          // ImapFlow returns `false` when a SEARCH is unsupported — normalise to []
           const fromResult = await client.search({ from: query, ...dateCriteria }, { uid: true }).catch(() => []);
           const subjResult = await client.search({ subject: query, ...dateCriteria }, { uid: true }).catch(() => []);
           const fromUids = Array.isArray(fromResult) ? fromResult : [];
           const subjUids = Array.isArray(subjResult) ? subjResult : [];
           uidsToFetch = [...new Set([...fromUids, ...subjUids])];
         } else {
-          // Both query and field criteria — use field criteria only
-          /** @type {Record<string, any>} */
-          const criteria = { ...dateCriteria };
-          if (opts.from) criteria.from = opts.from;
-          if (opts.to) criteria.to = opts.to;
-          if (opts.subject) criteria.subject = opts.subject;
-          if (opts.body) criteria.body = opts.body;
-          uidsToFetch = await client.search(criteria, { uid: true });
+          // Field-specific criteria (with or without general query)
+          uidsToFetch = await client.search(buildFieldCriteria(opts, dateCriteria), { uid: true });
         }
 
         if (!uidsToFetch || uidsToFetch.length === 0) return [];
 
-        const recent = uidsToFetch.slice(-limit);
-        const uidRange = recent.join(",");
-        const results = [];
-
-        for await (const msg of client.fetch(
-          uidRange,
-          { envelope: true, headers: ["message-id"], uid: true },
-          { uid: true },
-        )) {
-          const env = msg.envelope;
-          const from = env.from?.[0];
-          const to = env.to?.[0];
-          const messageId = env.messageId || "";
-          results.push({
-            account: acctName,
-            mailbox: mailboxPath,
-            uid: msg.uid,
-            messageId,
-            date: env.date,
-            from: from?.address || "",
-            fromName: sanitizeForAgentOutput(from?.name || ""),
-            to: to?.address || "",
-            toName: sanitizeForAgentOutput(to?.name || ""),
-            subject: sanitizeForAgentOutput(env.subject || ""),
-          });
-        }
-
-        return results;
+        const uidRange = uidsToFetch.slice(-limit).join(",");
+        return fetchAndMap(client, uidRange, acctName, mailboxPath);
       },
       { onProgress },
     )) ?? []
