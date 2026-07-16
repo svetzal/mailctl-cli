@@ -40,6 +40,78 @@ import { parseAndGroupUids } from "../move-logic.js";
  */
 
 /**
+ * @param {object} params
+ * @param {import("../imap-types.js").ImapClient & import("../imap-types.js").ImapFlaggable} params.client
+ * @param {object} params.acct
+ * @param {string[]} params.acctUids
+ * @param {object} params.opts
+ * @param {{ add: string[], remove: string[] }} params.changes
+ * @param {ReturnType<typeof createBatchAccumulator>} params.acc
+ * @param {Function} params.listMailboxes
+ * @returns {Promise<void>}
+ */
+async function flagAccountUids({ client, acct, acctUids, opts, changes, acc, listMailboxes }) {
+  const uidRange = acctUids.join(",");
+
+  let mailbox = opts.mailbox;
+  if (!mailbox) {
+    mailbox = await detectMailboxAcrossAll(client, acctUids[0], listMailboxes);
+    if (!mailbox) {
+      const msg = `UID ${acctUids[0]} not found in any mailbox on ${acct.name}`;
+      acc.record("failed", [{ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg }]);
+      return;
+    }
+  }
+
+  if (opts.dryRun) {
+    acc.record("skipped", [
+      {
+        status: "skipped",
+        dryRun: true,
+        uids: acctUids.map(Number),
+        added: changes.add,
+        removed: changes.remove,
+        account: acct.name,
+        mailbox,
+      },
+    ]);
+    return;
+  }
+
+  const lockResult = await withMailboxLock(client, mailbox, async () => {
+    try {
+      const flagResult = await applyFlagChanges(client, uidRange, changes);
+      acc.record("flagged", [
+        {
+          status: "flagged",
+          dryRun: false,
+          uids: acctUids.map(Number),
+          added: flagResult.added,
+          removed: flagResult.removed,
+          account: acct.name,
+          mailbox,
+        },
+      ]);
+    } catch (err) {
+      acc.record("failed", [
+        {
+          status: "failed",
+          account: acct.name,
+          uids: acctUids.map(Number),
+          mailbox,
+          error: err.message,
+        },
+      ]);
+    }
+  });
+
+  if (lockResult === null) {
+    const msg = `Could not open mailbox "${mailbox}" on ${acct.name}`;
+    acc.record("failed", [{ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg }]);
+  }
+}
+
+/**
  * @param {string[]} uids - raw UID arguments from the CLI
  * @param {object} opts - CLI options (read, unread, star, unstar, mailbox, dryRun)
  * @param {FlagCommandDeps} deps - injected dependencies
@@ -67,66 +139,9 @@ export async function flagCommand(uids, opts, deps) {
       continue;
     }
 
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      const uidRange = acctUids.join(",");
-
-      let mailbox = opts.mailbox;
-      if (!mailbox) {
-        mailbox = await detectMailboxAcrossAll(client, acctUids[0], listMailboxes);
-        if (!mailbox) {
-          const msg = `UID ${acctUids[0]} not found in any mailbox on ${acct.name}`;
-          acc.record("failed", [{ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg }]);
-          return;
-        }
-      }
-
-      if (opts.dryRun) {
-        acc.record("skipped", [
-          {
-            status: "skipped",
-            dryRun: true,
-            uids: acctUids.map(Number),
-            added: changes.add,
-            removed: changes.remove,
-            account: acct.name,
-            mailbox,
-          },
-        ]);
-        return;
-      }
-
-      const lockResult = await withMailboxLock(client, mailbox, async () => {
-        try {
-          const flagResult = await applyFlagChanges(client, uidRange, changes);
-          acc.record("flagged", [
-            {
-              status: "flagged",
-              dryRun: false,
-              uids: acctUids.map(Number),
-              added: flagResult.added,
-              removed: flagResult.removed,
-              account: acct.name,
-              mailbox,
-            },
-          ]);
-        } catch (err) {
-          acc.record("failed", [
-            {
-              status: "failed",
-              account: acct.name,
-              uids: acctUids.map(Number),
-              mailbox,
-              error: err.message,
-            },
-          ]);
-        }
-      });
-
-      if (lockResult === null) {
-        const msg = `Could not open mailbox "${mailbox}" on ${acct.name}`;
-        acc.record("failed", [{ status: "failed", account: acct.name, uids: acctUids.map(Number), error: msg }]);
-      }
-    });
+    await forEachAccount(targetAccounts, (client, acct) =>
+      flagAccountUids({ client, acct, acctUids, opts, changes, acc, listMailboxes }),
+    );
   }
 
   return /** @type {{ stats: FlagStats, results: FlagResult[] }} */ (acc.getResult());
