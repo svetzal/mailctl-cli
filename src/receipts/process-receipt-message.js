@@ -17,6 +17,44 @@ import { writeReceiptOutput } from "./receipt-output-tree.js";
 const BODY_SNIPPET_MAX_CHARS = 2000;
 
 /**
+ * Download and parse a raw email message into its constituent parts.
+ *
+ * @param {object} client - connected IMAP client
+ * @param {ReceiptMessageEnvelope} msg - envelope result
+ * @returns {Promise<{ parsed: import("mailparser").ParsedMail, bodyText: string, emailDate: Date, pdfAttachments: Array }>}
+ */
+async function parseReceiptMessage(client, msg) {
+  const raw = await client.download(String(msg.uid), undefined, { uid: true });
+  const chunks = [];
+  for await (const chunk of raw.content) chunks.push(chunk);
+  const buf = Buffer.concat(chunks);
+  const parsed = await simpleParser(buf);
+
+  const bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
+  const emailDate = parsed.date || msg.date || new Date();
+  const pdfAttachments = (parsed.attachments || []).filter(
+    (a) => a.contentType === "application/pdf" || a.filename?.toLowerCase().endsWith(".pdf"),
+  );
+
+  return { parsed, bodyText, emailDate, pdfAttachments };
+}
+
+/**
+ * Stamp account- and message-level provenance fields onto the extracted metadata object.
+ * Mutates `metadata` in place.
+ *
+ * @param {ReceiptMetadata} metadata
+ * @param {{ accountName: string, msg: ReceiptMessageEnvelope, bodyText: string }} context
+ */
+function stampMetadata(metadata, { accountName, msg, bodyText }) {
+  metadata.source_account = accountName.toLowerCase();
+  metadata.email_uid = msg.uid ?? null;
+  metadata.source_body_snippet = sanitizeForAgentOutput(
+    bodyText.length > BODY_SNIPPET_MAX_CHARS ? bodyText.slice(0, BODY_SNIPPET_MAX_CHARS) : bodyText,
+  );
+}
+
+/**
  * @param {object} client - connected IMAP client
  * @param {ReceiptMessageEnvelope} msg - envelope result
  * @param {object} context
@@ -48,18 +86,7 @@ export async function processReceiptMessage(client, msg, context) {
     onProgress = () => {},
   } = context;
 
-  const raw = await client.download(String(msg.uid), undefined, { uid: true });
-  const chunks = [];
-  for await (const chunk of raw.content) chunks.push(chunk);
-  const buf = Buffer.concat(chunks);
-  const parsed = await simpleParser(buf);
-
-  const bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
-  const emailDate = parsed.date || msg.date || new Date();
-
-  const pdfAttachments = (parsed.attachments || []).filter(
-    (a) => a.contentType === "application/pdf" || a.filename?.toLowerCase().endsWith(".pdf"),
-  );
+  const { parsed, bodyText, emailDate, pdfAttachments } = await parseReceiptMessage(client, msg);
 
   const extractionText = resolveExtractionText(
     pdfAttachments,
@@ -80,11 +107,7 @@ export async function processReceiptMessage(client, msg, context) {
     onProgress,
   );
 
-  metadata.source_account = accountName.toLowerCase();
-  metadata.email_uid = msg.uid ?? null;
-  metadata.source_body_snippet = sanitizeForAgentOutput(
-    bodyText.length > BODY_SNIPPET_MAX_CHARS ? bodyText.slice(0, BODY_SNIPPET_MAX_CHARS) : bodyText,
-  );
+  stampMetadata(metadata, { accountName, msg, bodyText });
 
   const decision = classifyReceiptExtraction(metadata, pdfAttachments, {
     includeEmpty,
