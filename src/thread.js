@@ -232,6 +232,75 @@ export function collectRelatedMessageIds({ messageId, references, inReplyTo }) {
 }
 
 /**
+ * Search all mailboxes for thread members via Message-ID header matching.
+ * Returns the map of mailbox -> UID set and whether any matches were found.
+ *
+ * @param {import("./imap-types.js").ImapClient} client
+ * @param {Set<string>} relatedIds
+ * @param {string[]} searchMailboxPaths
+ * @param {function(object): void} onProgress
+ * @returns {Promise<{ uidsByMailbox: Map<string, Set<number>>, headerSearchFoundResults: boolean }>}
+ */
+async function searchThreadAcrossMailboxes(client, relatedIds, searchMailboxPaths, onProgress) {
+  /** @type {Map<string, Set<number>>} */
+  const uidsByMailbox = new Map();
+  let headerSearchFoundResults = false;
+
+  for (const mbPath of searchMailboxPaths) {
+    const foundUids = await searchMailboxForThread(client, mbPath, [...relatedIds], onProgress);
+    if (foundUids.length > 0) {
+      headerSearchFoundResults = true;
+      uidsByMailbox.set(mbPath, new Set(foundUids));
+    }
+  }
+
+  return { uidsByMailbox, headerSearchFoundResults };
+}
+
+/**
+ * Populate uidsByMailbox via subject-based fallback search.
+ * Mutates uidsByMailbox in place.
+ *
+ * @param {import("./imap-types.js").ImapClient} client
+ * @param {string} subject
+ * @param {string[]} searchMailboxPaths
+ * @param {Map<string, Set<number>>} uidsByMailbox
+ * @param {function(object): void} onProgress
+ * @returns {Promise<void>}
+ */
+async function fallbackBySubject(client, subject, searchMailboxPaths, uidsByMailbox, onProgress) {
+  const baseSubject = stripSubjectPrefixes(subject);
+  if (!baseSubject) return;
+  for (const mbPath of searchMailboxPaths) {
+    const foundUids = await searchMailboxBySubject(client, mbPath, baseSubject, onProgress);
+    if (foundUids.length > 0) {
+      const existing = uidsByMailbox.get(mbPath) || new Set();
+      for (const u of foundUids) existing.add(u);
+      uidsByMailbox.set(mbPath, existing);
+    }
+  }
+}
+
+/**
+ * Deduplicate messages by Message-ID and sort chronologically.
+ *
+ * @param {Array<{messageId: string, account: string, mailbox: string, uid: number, date: Date}>} allMessages
+ * @returns {Array}
+ */
+function dedupeAndSortMessages(allMessages) {
+  const seen = new Set();
+  const unique = [];
+  for (const msg of allMessages) {
+    const key = msg.messageId || `${msg.account}:${msg.mailbox}:${msg.uid}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(msg);
+  }
+  unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return unique;
+}
+
+/**
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} accountName
  * @param {string} mailboxPath - mailbox of the anchor message
@@ -252,16 +321,14 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   const anchor = await fetchAnchorHeaders(client, mailboxPath, uid, onProgress);
 
   // null return means lock failed — onProgress already received the event
-  if (anchor === null) {
-    return { messages: [], fallback: false };
-  }
+  if (anchor === null) return { messages: [], fallback: false };
 
   const {
     messageId: anchorMessageId,
     subject: anchorSubject,
     references: anchorReferences,
     inReplyTo: anchorInReplyTo,
-  } = anchor || {};
+  } = anchor;
 
   if (!anchorMessageId && !anchorReferences && !anchorInReplyTo) {
     // No threading headers at all — return just the anchor
@@ -273,33 +340,18 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   const relatedIds = collectRelatedMessageIds(anchor);
 
   // Step 3: Search across mailboxes for related messages
-  /** @type {Map<string, Set<number>>} mailbox -> UIDs */
-  const uidsByMailbox = new Map();
-  let headerSearchFoundResults = false;
-
-  for (const mbPath of searchMailboxPaths) {
-    const foundUids = await searchMailboxForThread(client, mbPath, [...relatedIds], onProgress);
-    if (foundUids.length > 0) {
-      headerSearchFoundResults = true;
-      uidsByMailbox.set(mbPath, new Set(foundUids));
-    }
-  }
+  const { uidsByMailbox, headerSearchFoundResults } = await searchThreadAcrossMailboxes(
+    client,
+    relatedIds,
+    searchMailboxPaths,
+    onProgress,
+  );
 
   // Step 4: Fallback to subject-based matching if header search found nothing
   let fallback = false;
   if (!headerSearchFoundResults) {
     fallback = true;
-    const baseSubject = stripSubjectPrefixes(anchorSubject || "");
-    if (baseSubject) {
-      for (const mbPath of searchMailboxPaths) {
-        const foundUids = await searchMailboxBySubject(client, mbPath, baseSubject, onProgress);
-        if (foundUids.length > 0) {
-          const existing = uidsByMailbox.get(mbPath) || new Set();
-          for (const u of foundUids) existing.add(u);
-          uidsByMailbox.set(mbPath, existing);
-        }
-      }
-    }
+    await fallbackBySubject(client, anchorSubject || "", searchMailboxPaths, uidsByMailbox, onProgress);
   }
 
   // Ensure anchor is included
@@ -307,24 +359,12 @@ export async function findThread(client, accountName, mailboxPath, uid, searchMa
   anchorSet.add(Number(uid));
   uidsByMailbox.set(mailboxPath, anchorSet);
 
-  // Step 5: Fetch all messages and deduplicate by Message-ID
+  // Step 5: Fetch all messages and Step 6: deduplicate + sort
   const allMessages = [];
   for (const [mbPath, uidSetForMb] of uidsByMailbox) {
     const fetched = await fetchThreadMessages(client, accountName, mbPath, [...uidSetForMb], full, onProgress);
     allMessages.push(...fetched);
   }
 
-  const seen = new Set();
-  const unique = [];
-  for (const msg of allMessages) {
-    const key = msg.messageId || `${msg.account}:${msg.mailbox}:${msg.uid}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(msg);
-  }
-
-  // Step 6: Sort chronologically
-  unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  return { messages: unique.slice(0, limit), fallback };
+  return { messages: dedupeAndSortMessages(allMessages).slice(0, limit), fallback };
 }
