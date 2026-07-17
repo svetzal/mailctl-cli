@@ -4,6 +4,37 @@
  * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
+/**
+ * @typedef {object} DeviceCodePromptEvent
+ * @property {'device-code-prompt'} type
+ * @property {string} verificationUri
+ * @property {string} userCode
+ */
+/**
+ * @typedef {object} AuthWaitingEvent
+ * @property {'auth-waiting'} type
+ */
+/**
+ * @typedef {object} AuthSuccessEvent
+ * @property {'auth-success'} type
+ */
+/**
+ * @typedef {object} TokenRefreshFailedEvent
+ * @property {'token-refresh-failed'} type
+ * @property {'error'} severity
+ * @property {Error} error
+ */
+/**
+ * @typedef {object} ConnectErrorEvent
+ * @property {'connect-error'} type
+ * @property {'error'} severity
+ * @property {Error} error
+ * @property {string} account
+ */
+/**
+ * @typedef {DeviceCodePromptEvent | AuthWaitingEvent | AuthSuccessEvent | TokenRefreshFailedEvent | ConnectErrorEvent} AuthEvent
+ */
+
 import { defineEventTable } from "./event-table.js";
 
 const TABLE = {

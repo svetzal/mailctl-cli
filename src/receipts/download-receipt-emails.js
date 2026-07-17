@@ -4,6 +4,7 @@
 /** @typedef {import('./receipt-types.js').ReceiptMessageEnvelope} ReceiptMessageEnvelope */
 /** @typedef {import('./receipt-types.js').ReceiptProcessContext} ReceiptProcessContext */
 /** @typedef {import('./receipt-types.js').ReceiptRun} ReceiptRun */
+/** @typedef {import('./receipt-types.js').LlmContext} LlmContext */
 
 import { resolve } from "node:path";
 import { resolveAccounts } from "../cli-helpers.js";
@@ -195,7 +196,7 @@ async function processAccountReceipts(client, account, searchResults, accountSea
 
 /**
  * Announces whether LLM extraction is enabled for this run.
- * @param {{ broker: any }|null} llm
+ * @param {LlmContext|null} llm
  * @param {function(object): void} onProgress
  */
 function announceLlm(llm, onProgress) {

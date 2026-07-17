@@ -6,6 +6,298 @@
  * Adding a new event = one descriptor entry here. No separate renderer edit needed.
  */
 
+/** @typedef {import('./receipt-types.js').ReceiptStats} ReceiptStats */
+
+// Per-message flow events
+/**
+ * @typedef {object} MessageStartEvent
+ * @property {'message-start'} type
+ * @property {number} index
+ * @property {number} total
+ * @property {string} vendor
+ * @property {string} subject
+ */
+/**
+ * @typedef {object} MessageTimeoutEvent
+ * @property {'message-timeout'} type
+ * @property {number} uid
+ * @property {number} ms
+ */
+/**
+ * @typedef {object} MaxReachedEvent
+ * @property {'max-reached'} type
+ * @property {number} max
+ */
+/**
+ * @typedef {object} BudgetExceededEvent
+ * @property {'budget-exceeded'} type
+ * @property {number} ms
+ */
+
+// Account and filter events
+/**
+ * @typedef {object} SearchAccountEvent
+ * @property {'search-account'} type
+ * @property {string} name
+ * @property {string} user
+ */
+/**
+ * @typedef {object} VendorFilterAppliedEvent
+ * @property {'vendor-filter-applied'} type
+ * @property {number} matchCount
+ * @property {number} excludedCount
+ * @property {string} vendor
+ */
+/**
+ * @typedef {object} SubjectExclusionsEvent
+ * @property {'subject-exclusions'} type
+ * @property {number} count
+ */
+/**
+ * @typedef {object} UniqueReceiptsEvent
+ * @property {'unique-receipts'} type
+ * @property {number} count
+ */
+
+// Skip decision events
+/**
+ * @typedef {object} SkipNonInvoiceEvent
+ * @property {'skip-non-invoice'} type
+ * @property {string} vendor
+ * @property {number} confidence
+ */
+/**
+ * @typedef {object} SkipLowConfidenceEvent
+ * @property {'skip-low-confidence'} type
+ * @property {string} vendor
+ * @property {number} confidence
+ */
+/**
+ * @typedef {object} SkipExistingInvoiceEvent
+ * @property {'skip-existing-invoice'} type
+ * @property {string} vendor
+ * @property {string} invoiceNumber
+ */
+/**
+ * @typedef {object} EmptyExtractionSkippedEvent
+ * @property {'empty-extraction-skipped'} type
+ * @property {string} vendor
+ * @property {string} sourceEmail
+ * @property {Date} date
+ */
+
+// LLM state events
+/**
+ * @typedef {object} LlmEnabledEvent
+ * @property {'llm-enabled'} type
+ */
+/**
+ * @typedef {object} LlmDisabledEvent
+ * @property {'llm-disabled'} type
+ */
+
+// Summary event
+/**
+ * @typedef {object} DownloadSummaryEvent
+ * @property {'download-summary'} type
+ * @property {ReceiptStats} stats
+ */
+
+// Reprocess flow events
+/**
+ * @typedef {object} ReprocessStartEvent
+ * @property {'reprocess-start'} type
+ * @property {string} outputDir
+ */
+/**
+ * @typedef {object} ReprocessDryRunEvent
+ * @property {'reprocess-dry-run'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} ReprocessDryRunBodyEvent
+ * @property {'reprocess-dry-run-body'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} ReprocessUsingBodyEvent
+ * @property {'reprocess-using-body'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} ReprocessSkippedEvent
+ * @property {'reprocess-skipped'} type
+ * @property {string} filename
+ * @property {string} reason
+ */
+/**
+ * @typedef {object} ReprocessNoDataEvent
+ * @property {'reprocess-no-data'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} ReprocessReclassifiedEvent
+ * @property {'reprocess-reclassified'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} ReprocessUpdatedEvent
+ * @property {'reprocess-updated'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} ReprocessSummaryEvent
+ * @property {'reprocess-summary'} type
+ * @property {number} reprocessed
+ * @property {number} skipped
+ * @property {number} reclassified
+ * @property {number} errors
+ */
+
+// Receipt search pipeline events
+/**
+ * @typedef {object} MailboxSearchStartEvent
+ * @property {'mailbox-search-start'} type
+ * @property {string} mailbox
+ * @property {number} messageCount
+ */
+/**
+ * @typedef {object} MailboxCandidatesEvent
+ * @property {'mailbox-candidates'} type
+ * @property {string} mailbox
+ * @property {number} count
+ */
+
+// Receipt output tree events
+/**
+ * @typedef {object} SkipDuplicateEvent
+ * @property {'skip-duplicate'} type
+ * @property {string} label
+ */
+/**
+ * @typedef {object} DryRunPdfEvent
+ * @property {'dry-run-pdf'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} DryRunJsonEvent
+ * @property {'dry-run-json'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} DryRunMetadataEvent
+ * @property {'dry-run-metadata'} type
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} DownloadedPdfEvent
+ * @property {'downloaded-pdf'} type
+ * @property {string} filename
+ * @property {number} size
+ */
+/**
+ * @typedef {object} WroteMetadataEvent
+ * @property {'wrote-metadata'} type
+ * @property {string} filename
+ */
+
+// PDF converter events
+/**
+ * @typedef {object} UsingPdfContentEvent
+ * @property {'using-pdf-content'} type
+ * @property {number} uid
+ */
+/**
+ * @typedef {object} DoclingFailedEvent
+ * @property {'docling-failed'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ * @property {number} uid
+ */
+/**
+ * @typedef {object} DoclingConversionFailedEvent
+ * @property {'docling-conversion-failed'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ * @property {number} uid
+ * @property {string} pdfPath
+ */
+
+// LLM extraction events
+/**
+ * @typedef {object} LlmNotConfiguredEvent
+ * @property {'llm-not-configured'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ */
+/**
+ * @typedef {object} LlmExtractionFailedEvent
+ * @property {'llm-extraction-failed'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ */
+
+// Search error events
+/**
+ * @typedef {object} SearchTermErrorEvent
+ * @property {'search-term-error'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ * @property {string} mailbox
+ */
+/**
+ * @typedef {object} MailboxFetchErrorEvent
+ * @property {'mailbox-fetch-error'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ */
+
+// Process error events
+/**
+ * @typedef {object} OutputTreeErrorEvent
+ * @property {'output-tree-error'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ * @property {string} path
+ * @property {string} level
+ */
+/**
+ * @typedef {object} ProcessErrorEvent
+ * @property {'process-error'} type
+ * @property {'error'} severity
+ * @property {Error} error
+ * @property {number} uid
+ */
+/**
+ * @typedef {object} ReprocessDoclingFailedEvent
+ * @property {'reprocess-docling-failed'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ * @property {string} filename
+ */
+/**
+ * @typedef {object} ReprocessErrorEvent
+ * @property {'reprocess-error'} type
+ * @property {'error'} severity
+ * @property {Error} error
+ * @property {string} filename
+ */
+
+/**
+ * @typedef {MessageStartEvent | MessageTimeoutEvent | MaxReachedEvent | BudgetExceededEvent
+ *   | SearchAccountEvent | VendorFilterAppliedEvent | SubjectExclusionsEvent | UniqueReceiptsEvent
+ *   | SkipNonInvoiceEvent | SkipLowConfidenceEvent | SkipExistingInvoiceEvent | EmptyExtractionSkippedEvent
+ *   | LlmEnabledEvent | LlmDisabledEvent | DownloadSummaryEvent
+ *   | ReprocessStartEvent | ReprocessDryRunEvent | ReprocessDryRunBodyEvent | ReprocessUsingBodyEvent
+ *   | ReprocessSkippedEvent | ReprocessNoDataEvent | ReprocessReclassifiedEvent | ReprocessUpdatedEvent | ReprocessSummaryEvent
+ *   | MailboxSearchStartEvent | MailboxCandidatesEvent
+ *   | SkipDuplicateEvent | DryRunPdfEvent | DryRunJsonEvent | DryRunMetadataEvent | DownloadedPdfEvent | WroteMetadataEvent
+ *   | UsingPdfContentEvent | DoclingFailedEvent | DoclingConversionFailedEvent
+ *   | LlmNotConfiguredEvent | LlmExtractionFailedEvent
+ *   | SearchTermErrorEvent | MailboxFetchErrorEvent
+ *   | OutputTreeErrorEvent | ProcessErrorEvent | ReprocessDoclingFailedEvent | ReprocessErrorEvent} DownloadReceiptsEvent
+ */
+
 import { defineCommandEventTable } from "../command-event-table.js";
 import { formatKB } from "../format-utils.js";
 

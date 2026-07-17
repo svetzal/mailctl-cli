@@ -1,3 +1,5 @@
+/** @typedef {import('./event-types.js').BaseEvent} BaseEvent */
+
 const ANSI_RED = "\x1b[31m";
 const ANSI_YELLOW = "\x1b[33m";
 const ANSI_RESET = "\x1b[0m";
@@ -23,15 +25,15 @@ function applySeverityColor(text, severity) {
  * When an event has a `severity` field ("error" or "warning"), the rendered string
  * is wrapped in the corresponding ANSI color code.
  *
- * @param {Record<string, (event: object) => string>} eventMap
- * @param {{ fallbackRenderer?: ((event: object) => string | null) | null }} [opts]
- * @returns {(event: object) => string | null}
+ * @param {Record<string, (event: BaseEvent) => string>} eventMap
+ * @param {{ fallbackRenderer?: ((event: BaseEvent) => string | null) | null }} [opts]
+ * @returns {(event: BaseEvent) => string | null}
  */
 export function createEventRenderer(eventMap, { fallbackRenderer = null } = {}) {
   return (event) => {
-    const handler = eventMap[/** @type {any} */ (event).type];
+    const handler = eventMap[event.type];
     const text = handler ? handler(event) : fallbackRenderer ? fallbackRenderer(event) : null;
     if (text === null) return null;
-    return applySeverityColor(text, /** @type {any} */ (event).severity);
+    return applySeverityColor(text, event.severity);
   };
 }

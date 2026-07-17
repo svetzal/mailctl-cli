@@ -4,6 +4,7 @@
  */
 
 /** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
+/** @typedef {import('./receipt-types.js').LlmContext} LlmContext */
 
 import { isOk, LlmBroker, Message, OpenAIGateway } from "mojentic";
 import { buildLlmEmailContext, sanitizeForAgentOutput } from "../content-sanitizer.js";
@@ -180,7 +181,7 @@ export async function extractMetadataWithLLM(broker, bodyText, subject, fromAddr
 /**
  * Extract receipt metadata from text content.
  * Tries LLM extraction first; falls back to regex pattern matching.
- * @param {{ broker: any }|null} llm
+ * @param {LlmContext|null} llm
  * @param {string} extractionText
  * @param {string} subject
  * @param {string} fromAddress

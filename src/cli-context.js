@@ -7,6 +7,8 @@ import {
   withErrorHandling,
 } from "./cli-helpers.js";
 
+/** @typedef {import('./event-types.js').BaseEvent} BaseEvent */
+
 /**
  * @typedef {object} CliContext
  * @property {(opts: object) => boolean} resolveJson
@@ -14,7 +16,7 @@ import {
  * @property {(fn: (...args: any[]) => Promise<void>) => (...args: any[]) => Promise<void>} wrapAction
  * @property {(cmd: import("commander").Command) => import("commander").Command} mutating
  * @property {{ resolveJson: (opts: object) => boolean, resolveAccount: (opts: object) => string|undefined, requireAccounts: () => object[], filterAccountsByName: (accounts: object[], name: string|null|undefined) => object[] }} contextDeps
- * @property {(renderEvent: (event: any) => string|null) => (event: any) => void} progress
+ * @property {(renderEvent: (event: BaseEvent) => string|null) => (event: BaseEvent) => void} progress
  */
 
 /**
@@ -45,8 +47,8 @@ export function createCliContext({ getGlobalOpts, requireAccounts }) {
       .addOption(new Option("-n, --dry-run", "deprecated: preview is the default").hideHelp());
 
   /**
-   * @param {(event: any) => string|null} renderEvent
-   * @returns {(event: any) => void}
+   * @param {(event: BaseEvent) => string|null} renderEvent
+   * @returns {(event: BaseEvent) => void}
    */
   const progress = (renderEvent) => createProgressRenderer(renderEvent);
 

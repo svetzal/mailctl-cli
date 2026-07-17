@@ -1,5 +1,6 @@
 /** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
 /** @typedef {import('./receipt-types.js').ReceiptSidecar} ReceiptSidecar */
+/** @typedef {import('./receipt-types.js').LlmContext} LlmContext */
 
 import { resolve } from "node:path";
 import {
@@ -101,7 +102,7 @@ function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, 
  * Process a single sidecar file during reprocessing.
  * Returns a stat key and result entry so the orchestrator can fold without branching.
  *
- * @param {{ jsonPath: string, sidecar: ReceiptSidecar, llm: { broker: object }, fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway, dryRun: boolean }} params
+ * @param {{ jsonPath: string, sidecar: ReceiptSidecar, llm: LlmContext, fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway, dryRun: boolean }} params
  * @param {function(object): void} onProgress
  * @returns {Promise<{ statKey: string, entry: Record<string, unknown> }>}
  */

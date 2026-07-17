@@ -1,6 +1,8 @@
 import { defineErrorEvent, defineEvent } from "./define-event.js";
 import { createEventRenderer } from "./event-renderer.js";
 
+/** @typedef {import('./event-types.js').BaseEvent} BaseEvent */
+
 /**
  * @param {string} key
  * @returns {string}
@@ -20,14 +22,14 @@ function camelToKebab(key) {
  *
  * Adding a new event = one descriptor entry. No separate renderer edit needed.
  *
- * @param {Record<string, { params?: string[], severity?: string, render?: (e: any) => string, type?: string }>} descriptors
- * @param {{ fallbackRenderer?: ((event: object) => string | null) | null }} [opts]
- * @returns {{ factories: Record<string, any>, renderEvent: (event: object) => string | null }}
+ * @param {Record<string, { params?: string[], severity?: string, render?: (e: BaseEvent) => string, type?: string }>} descriptors
+ * @param {{ fallbackRenderer?: ((event: BaseEvent) => string | null) | null }} [opts]
+ * @returns {{ factories: Record<string, object>, renderEvent: (event: BaseEvent) => string | null }}
  */
 export function defineEventTable(descriptors, opts) {
-  /** @type {Record<string, any>} */
+  /** @type {Record<string, object>} */
   const factories = {};
-  /** @type {Record<string, (event: any) => string>} */
+  /** @type {Record<string, (event: BaseEvent) => string>} */
   const renderMap = {};
 
   for (const [key, descriptor] of Object.entries(descriptors)) {

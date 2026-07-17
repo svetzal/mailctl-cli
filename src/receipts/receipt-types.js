@@ -8,6 +8,14 @@
 export {};
 
 /**
+ * The LLM broker context used for receipt metadata extraction.
+ * `broker` is an LlmBroker instance from the mojentic library.
+ *
+ * @typedef {object} LlmContext
+ * @property {object} broker
+ */
+
+/**
  * Structured metadata extracted from a receipt email or PDF.
  * Returned by extractMetadataWithLLM / extractMetadata.
  * All fields are optional to allow test fixtures to supply only the relevant subset,
@@ -126,7 +134,7 @@ export {};
  * @property {string} outputDir
  * @property {boolean} dryRun
  * @property {boolean} [includeEmpty]
- * @property {{ broker: any }|null} llm
+ * @property {LlmContext|null} llm
  * @property {Set<string>} existingInvoiceNumbers
  * @property {Set<string>} existingHashes
  * @property {Set<string>} usedPaths
@@ -165,7 +173,7 @@ export {};
  * @typedef {object} ReceiptRun
  * @property {ReceiptWriteContext} writeContext
  * @property {ReceiptRunLimits} limits
- * @property {{ broker: any }|null} llm
+ * @property {LlmContext|null} llm
  * @property {ReceiptRunState} runState
  * @property {string|null} vendorFilter
  * @property {function} processMessage

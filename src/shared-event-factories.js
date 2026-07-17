@@ -3,6 +3,54 @@
  * src/imap-orchestration.js, and other modules that search across mailboxes.
  */
 
+/**
+ * @typedef {object} MailboxStartEvent
+ * @property {'mailbox-start'} type
+ * @property {string} mailbox
+ * @property {number} count
+ */
+/**
+ * @typedef {object} MailboxEmptyEvent
+ * @property {'mailbox-empty'} type
+ * @property {string} mailbox
+ */
+/**
+ * @typedef {object} MailboxMatchesEvent
+ * @property {'mailbox-matches'} type
+ * @property {string} mailbox
+ * @property {number} count
+ */
+/**
+ * @typedef {object} MailboxLockFailedEvent
+ * @property {'mailbox-lock-failed'} type
+ * @property {'error'} severity
+ * @property {Error} error
+ * @property {string} mailbox
+ */
+/**
+ * @typedef {object} SearchFailedEvent
+ * @property {'search-failed'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ * @property {string} mailbox
+ */
+/**
+ * @typedef {object} SearchErrorEvent
+ * @property {'search-error'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ * @property {string} term
+ */
+/**
+ * @typedef {object} FetchErrorEvent
+ * @property {'fetch-error'} type
+ * @property {'warning'} severity
+ * @property {Error} error
+ */
+/**
+ * @typedef {MailboxStartEvent | MailboxEmptyEvent | MailboxMatchesEvent | MailboxLockFailedEvent | SearchFailedEvent | SearchErrorEvent | FetchErrorEvent} SharedEvent
+ */
+
 import { defineEventTable } from "./event-table.js";
 
 const TABLE = {

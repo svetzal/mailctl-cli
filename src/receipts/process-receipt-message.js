@@ -1,5 +1,6 @@
 /** @typedef {import('./receipt-types.js').ReceiptMetadata} ReceiptMetadata */
 /** @typedef {import('./receipt-types.js').ReceiptMessageEnvelope} ReceiptMessageEnvelope */
+/** @typedef {import('./receipt-types.js').LlmContext} LlmContext */
 
 import { simpleParser } from "mailparser";
 import { htmlToText } from "../html-to-text.js";
@@ -62,7 +63,7 @@ function stampMetadata(metadata, { accountName, msg, bodyText }) {
  * @param {string} context.outputDir
  * @param {boolean} context.dryRun
  * @param {boolean} [context.includeEmpty]
- * @param {{ broker: any }|null} context.llm
+ * @param {LlmContext|null} context.llm
  * @param {Set<string>} context.existingInvoiceNumbers
  * @param {Set<string>} context.existingHashes
  * @param {Set<string>} context.usedPaths

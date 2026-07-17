@@ -4,11 +4,12 @@
  * @template {string} T
  * @param {T} type
  * @param {...string} paramNames
- * @returns {((...args: any[]) => { type: T } & Record<string, any>) & { type: T }}
+ * @returns {((...args: unknown[]) => { type: T } & Record<string, unknown>) & { type: T }}
  */
 export function defineEvent(type, ...paramNames) {
-  const factory = (...args) => {
-    const event = { type };
+  const factory = (/** @type {unknown[]} */ ...args) => {
+    /** @type {{ type: T } & Record<string, unknown>} */
+    const event = /** @type {any} */ ({ type });
     for (let i = 0; i < paramNames.length; i++) {
       event[paramNames[i]] = args[i];
     }
@@ -26,11 +27,12 @@ export function defineEvent(type, ...paramNames) {
  * @param {T} type
  * @param {"error" | "warning"} severity
  * @param {...string} paramNames
- * @returns {((error: Error, ...args: any[]) => { type: T, severity: string, error: Error } & Record<string, any>) & { type: T }}
+ * @returns {((error: Error, ...args: unknown[]) => { type: T, severity: string, error: Error } & Record<string, unknown>) & { type: T }}
  */
 export function defineErrorEvent(type, severity, ...paramNames) {
-  const factory = (error, ...args) => {
-    const event = { type, severity, error };
+  const factory = (/** @type {Error} */ error, /** @type {unknown[]} */ ...args) => {
+    /** @type {{ type: T, severity: string, error: Error } & Record<string, unknown>} */
+    const event = /** @type {any} */ ({ type, severity, error });
     for (let i = 0; i < paramNames.length; i++) {
       event[paramNames[i]] = args[i];
     }

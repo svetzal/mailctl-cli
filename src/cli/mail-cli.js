@@ -35,7 +35,7 @@ import { forEachAccount, listMailboxes } from "../imap-client.js";
  * @property {Function} formatInboxOutput
  * @property {Function} formatThreadOutput
  * @property {Function} formatContactsOutput
- * @property {(event: any) => string|null} renderAuthEvent
+ * @property {(event: import('../event-types.js').BaseEvent) => string|null} renderAuthEvent
  * @property {Function} forEachAccount
  * @property {Function} listMailboxes
  * @property {Function} simpleParser

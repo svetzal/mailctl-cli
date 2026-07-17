@@ -39,10 +39,10 @@ const DOWNLOAD_RECEIPTS_DEFAULT_MONTHS = "12";
  * @property {Function} formatSortOutput
  * @property {Function} formatDownloadOutput
  * @property {Function} formatDownloadReceiptsOutput
- * @property {(event: any) => string|null} renderScanEvent
- * @property {(event: any) => string|null} renderSortEvent
- * @property {(event: any) => string|null} renderDownloadEvent
- * @property {(event: any) => string|null} renderDownloadReceiptsEvent
+ * @property {(event: import('../event-types.js').BaseEvent) => string|null} renderScanEvent
+ * @property {(event: import('../event-types.js').BaseEvent) => string|null} renderSortEvent
+ * @property {(event: import('../event-types.js').BaseEvent) => string|null} renderDownloadEvent
+ * @property {(event: import('../event-types.js').BaseEvent) => string|null} renderDownloadReceiptsEvent
  * @property {string} DATA_DIR
  * @property {{ mkdir: (path: string) => void }} _fs
  * @property {() => string|null} getOpenAiKey

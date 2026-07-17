@@ -4,6 +4,7 @@
 /** @typedef {import('./receipt-types.js').ReceiptWriteContext} ReceiptWriteContext */
 /** @typedef {import('./receipt-types.js').ReceiptRunLimits} ReceiptRunLimits */
 /** @typedef {import('./receipt-types.js').ReceiptRun} ReceiptRun */
+/** @typedef {import('./receipt-types.js').LlmContext} LlmContext */
 
 import { outputTreeError } from "./download-receipts-event-factories.js";
 import { loadExistingHashes, loadExistingInvoiceNumbers } from "./receipt-output-tree.js";
@@ -52,7 +53,7 @@ export function createReceiptWriteContext({ outputDir, dryRun, includeEmpty, fs,
 /**
  * Assembles a ReceiptRun from its resolved parts.
  *
- * @param {{ resolvedOpts: { maxMessages: number|null, perMessageTimeoutMs: number, budgetMs: number|null }, writeContext: ReceiptWriteContext, llm: { broker: any }|null, processMessage: function, startedAt: number, vendorFilter: string|null, onProgress: function(object): void }} params
+ * @param {{ resolvedOpts: { maxMessages: number|null, perMessageTimeoutMs: number, budgetMs: number|null }, writeContext: ReceiptWriteContext, llm: LlmContext|null, processMessage: function, startedAt: number, vendorFilter: string|null, onProgress: function(object): void }} params
  * @returns {ReceiptRun}
  */
 export function createReceiptRun({
