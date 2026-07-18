@@ -299,7 +299,7 @@
  */
 
 import { defineCommandEventTable } from "../command-event-table.js";
-import { formatKB } from "../format-utils.js";
+import { formatKB } from "../format-date.js";
 
 const TABLE = {
   // From download-receipts.js — per-message progress and flow control

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
-import { formatInboxText } from "../src/format-inbox.js";
+import { formatInboxText } from "../src/format-mail.js";
 import { fetchInbox } from "../src/inbox.js";
 import { makeLock } from "./helpers.js";
 

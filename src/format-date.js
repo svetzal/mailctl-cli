@@ -67,3 +67,11 @@ export function formatShortDateWithYear(date) {
   if (!isValidDate(date)) return "";
   return /** @type {Date} */ (date).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
 }
+
+/**
+ * @param {number} bytes
+ * @returns {string}
+ */
+export function formatKB(bytes) {
+  return `${(bytes / 1024).toFixed(0)} KB`;
+}

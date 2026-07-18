@@ -9,13 +9,15 @@ import { listFoldersCommand } from "../commands/list-folders-command.js";
 import { readCommand } from "../commands/read-command.js";
 import { searchCommand } from "../commands/search-command.js";
 import { threadCommand } from "../commands/thread-command.js";
-import { formatAttachmentOutput } from "../format-attachment.js";
-import { formatContactsOutput } from "../format-contacts.js";
-import { formatFoldersOutput } from "../format-folders.js";
-import { formatInboxOutput } from "../format-inbox.js";
-import { formatReadOutput } from "../format-read.js";
-import { formatSearchOutput } from "../format-search.js";
-import { formatThreadOutput } from "../format-thread.js";
+import {
+  formatAttachmentOutput,
+  formatContactsOutput,
+  formatFoldersOutput,
+  formatInboxOutput,
+  formatReadOutput,
+  formatSearchOutput,
+  formatThreadOutput,
+} from "../format-mail.js";
 import { FileSystemGateway } from "../gateways/fs-gateway.js";
 import { forEachAccount, listMailboxes } from "../imap-client.js";
 

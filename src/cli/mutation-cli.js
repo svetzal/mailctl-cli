@@ -4,9 +4,7 @@ import { emitPlanHint, resolveCommandContext, resolvePlanApply } from "../cli-he
 import { flagCommand } from "../commands/flag-command.js";
 import { moveCommand } from "../commands/move-command.js";
 import { replyCommand } from "../commands/reply-command.js";
-import { formatFlagOutput } from "../format-flag.js";
-import { formatMoveOutput } from "../format-move.js";
-import { formatReplyOutput } from "../format-reply.js";
+import { formatFlagOutput, formatMoveOutput, formatReplyOutput } from "../format-mutation.js";
 import { ConfirmGateway } from "../gateways/confirm-gateway.js";
 import { EditorGateway } from "../gateways/editor-gateway.js";
 import { FileSystemGateway } from "../gateways/fs-gateway.js";

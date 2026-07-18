@@ -1,4 +1,10 @@
-import { createFormatOutput } from "./cli-helpers.js";
+// Combined formatter module for all receipts commands (receipts-cli.js consumers).
+// Previously split across format-scan, format-sort, format-download, and
+// format-import-classifications.
+
+import { createFormatOutput, formatOutput } from "./cli-helpers.js";
+
+// ── format-scan ───────────────────────────────────────────────────────────────
 
 /**
  * @typedef {object} SenderSummary
@@ -81,3 +87,68 @@ export const formatScanOutput = createFormatOutput(buildScanJson, formatScanText
 
 /** @type {(json: boolean, unclassifiedSenders: UnclassifiedSender[]) => string} */
 export const formatClassifyOutput = createFormatOutput(buildClassifyJson, formatUnclassifiedText);
+
+// ── format-sort ───────────────────────────────────────────────────────────────
+
+/**
+ * @param {{ moved: number, skipped: number, unclassified: number }} stats
+ * @returns {string}
+ */
+export function formatSortText(stats) {
+  return [
+    "\n=== Sort Complete ===",
+    `Moved:        ${stats.moved}`,
+    `Skipped:      ${stats.skipped}`,
+    `Unclassified: ${stats.unclassified} (defaulted to personal)`,
+  ].join("\n");
+}
+
+/** @type {(json: boolean, stats: { moved: number, skipped: number, alreadySorted: number, unclassified: number }) => string} */
+export const formatSortOutput = createFormatOutput(
+  (stats) => ({
+    moved: stats.moved,
+    skipped: stats.skipped,
+    alreadySorted: stats.alreadySorted,
+    unclassified: stats.unclassified,
+  }),
+  formatSortText,
+);
+
+// ── format-download ───────────────────────────────────────────────────────────
+
+/**
+ * @param {{ downloaded: number, alreadyHave: number, noPdf: number, skipped: number }} stats
+ * @returns {string}
+ */
+export function formatDownloadText(stats) {
+  return [
+    "\n=== Download Complete ===",
+    `Downloaded:    ${stats.downloaded}`,
+    `Already had:   ${stats.alreadyHave}`,
+    `No PDF:        ${stats.noPdf}`,
+    `Skipped/Error: ${stats.skipped}`,
+  ].join("\n");
+}
+
+/** @type {(json: boolean, stats: { downloaded: number, alreadyHave: number, noPdf: number, skipped: number }) => string} */
+export const formatDownloadOutput = createFormatOutput(
+  (stats) => ({
+    downloaded: stats.downloaded,
+    alreadyHave: stats.alreadyHave,
+    noPdf: stats.noPdf,
+    skipped: stats.skipped,
+  }),
+  formatDownloadText,
+);
+
+// ── format-import-classifications ─────────────────────────────────────────────
+
+/**
+ * @param {boolean} json
+ * @param {number} imported
+ * @param {string} path
+ * @returns {string}
+ */
+export function formatImportClassificationsOutput(json, imported, path) {
+  return formatOutput(json, { imported, path }, `Imported ${imported} classifications to ${path}`);
+}

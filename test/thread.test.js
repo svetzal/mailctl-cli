@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { buildThreadJson, formatThreadText } from "../src/format-thread.js";
+import { buildThreadJson, formatThreadText } from "../src/format-mail.js";
 import { collectRelatedMessageIds, findThread, parseReferences, stripSubjectPrefixes } from "../src/thread.js";
 import { makeLock } from "./helpers.js";
 

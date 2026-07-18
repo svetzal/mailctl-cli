@@ -123,33 +123,20 @@ src/extract-attachment-logic.js — buildAttachmentListing(), validateAttachment
 src/date-filters.js            — resolveDateFilters() — pure --months/--since/--before precedence logic
 src/batch-results.js           — createBatchAccumulator(), expandPerUid() — shared stats/results accumulator for batch command orchestrators (move, flag)
 src/define-event.js            — defineEvent() — shared event factory builder, eliminates type-string duplication
-src/format-utils.js            — formatKB() — shared formatting utilities
 src/content-sanitizer.js       — detectInjectionPatterns(), neutralizeContent(), buildLlmEmailContext() — prompt-injection screening/sanitization for agent-facing email content
 src/debug.js                   — debug() — gated diagnostic logging helper
 src/download-filename.js       — vendorName(), buildFilename() — vendor-aware receipt-PDF filename construction
 src/email-address.js           — getLocalPart(), getDomain() — email-address parsing helpers
-src/error-event.js             — errorEvent() — structured error-event factory
-src/format-date.js             — formatShortDate(), formatDatetime(), formatMessageDate() — pure date formatters
+src/format-date.js             — formatShortDate(), formatDatetime(), formatMessageDate(), formatKB() — pure date and size formatters
 src/mailbox-filters.js         — filterScanMailboxes(), filterSearchMailboxes() — centralized mailbox-exclusion logic
 src/parse-options.js           — parseIntOption(), parseSinceOption() — pure CLI option coercion/validation
 src/scan-helpers.js            — buildScanResult() — pure scan-result record builder
 src/sort-logic.js              — classifyMessage(), planMoves(), BIZ_FOLDER/PERSONAL_FOLDER constants — pure sort classification and move planning
 src/rethrow-with-prefix.js     — rethrowWithPrefix(err, prefix) — prefixes an error message while preserving stack, cause, and code
 src/with-timeout.js            — withTimeout(promiseFactory, ms, label) — races a promise against a timer; rejects with err.code="ETIMEDOUT" if ms elapses first; used by download-receipts for per-message timeouts
-src/format-scan.js             — formatScanText(), formatUnclassifiedText(), buildScanJson(), buildClassifyJson() — pure scan/classify formatters
-src/format-search.js           — formatSearchText(), buildSearchJson() — pure search result formatter
-src/format-move.js             — formatMoveText(), buildMoveJson() — pure move summary formatter
-src/format-sort.js             — formatSortText(), buildSortJson() — pure sort summary formatter
-src/format-download.js         — formatDownloadText(), buildDownloadJson() — pure download summary formatter
-src/format-flag.js             — formatFlagText(), buildFlagJson() — pure flag result formatter
-src/format-reply.js            — formatReplyDryRunText(), formatReplySentText(), buildReplyDryRunJson(), buildReplySentJson() — pure reply result formatters
-src/format-attachment.js       — formatAttachmentListText(), formatAttachmentSavedText(), buildAttachmentListJson(), buildAttachmentSavedJson() — pure attachment result formatters
-src/format-folders.js          — formatFoldersText(), buildFoldersJson() — pure folder listing formatter
-src/format-read.js             — buildReadResult(), formatReadText(), buildReadJson() — pure read command formatters
-src/format-thread.js           — formatThreadText(), buildThreadJson() — pure thread result formatter
-src/format-inbox.js            — formatInboxText(), buildInboxJson() — pure inbox result formatter
-src/format-contacts.js         — formatContactsText(), buildContactsJson() — pure contacts result formatter
-src/format-import-classifications.js — buildImportClassificationsJson() — pure import-classifications JSON builder
+src/format-mail.js             — combined formatters for read-only mail commands (search, read, folders, thread, inbox, contacts, attachment); sole consumer is src/cli/mail-cli.js
+src/format-receipts.js         — combined formatters for receipts commands (scan, classify, sort, download, import-classifications); sole consumer is src/cli/receipts-cli.js
+src/format-mutation.js         — combined formatters for mutating commands (move, flag, reply); sole consumer is src/cli/mutation-cli.js
 src/format-init.js             — formatInitText(), buildInitJson() — pure init result formatters
 src/event-renderer.js          — createEventRenderer() — cycle-free renderer core; accepts optional `fallbackRenderer` injection; owns ANSI color logic
 src/event-table.js             — defineEventTable() — builds event factories + co-located renderer from a single descriptor table; adding a new event = one entry, no separate renderer edit
@@ -166,9 +153,9 @@ src/sorter.js                  — IMAP folder management, message moving
 src/downloader.js              — PDF attachment download with SHA-256 dedup
 src/mailbox-detect.js          — detectMailbox(), detectMailboxAcrossAll() — finds which mailbox contains a given UID
 src/reply.js                   — Pure reply builders: headers, body, editor template, parser
-src/thread.js                  — Thread finding logic (header search + subject fallback); formatting moved to format-thread.js
-src/inbox.js                   — fetchInbox() — inbox IMAP fetch; formatting moved to format-inbox.js
-src/contacts.js                — extractContacts(), aggregateContacts() — contact extraction; formatting moved to format-contacts.js
+src/thread.js                  — Thread finding logic (header search + subject fallback)
+src/inbox.js                   — fetchInbox() — inbox IMAP fetch
+src/contacts.js                — extractContacts(), aggregateContacts() — contact extraction
 src/flag-messages.js           — computeFlagChanges() (pure), applyFlagChanges() (IMAP)
 src/attachment-parts.js        — findAttachmentParts(), findPdfParts() — BODYSTRUCTURE parsing
 src/html-to-text.js            — Convert HTML to plain text
@@ -217,6 +204,7 @@ data/                          — Runtime data (gitignored): scan results, clas
 - Console output: `console.error` for progress/status, `console.log` for data output
 - No magic numbers — use named constants
 - **Formatting enforced by Biome** — run `bun run lint:fix` to auto-fix
+- A new single-function module/formatter is only warranted when it has more than one consumer, is part of the public `index.js` API, or carries non-trivial logic; otherwise co-locate it with its sole consumer or its sibling formatters.
 
 ### Testing
 

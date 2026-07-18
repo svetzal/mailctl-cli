@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { aggregateContacts, extractContacts } from "../src/contacts.js";
-import { formatContactsText } from "../src/format-contacts.js";
+import { formatContactsText } from "../src/format-mail.js";
 import { makeLock } from "./helpers.js";
 
 /** @typedef {{address: string, name: string, date: Date, direction: 'sent'|'received'}} Entry */

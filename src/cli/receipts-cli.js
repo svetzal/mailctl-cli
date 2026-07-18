@@ -8,10 +8,13 @@ import { scanCommand } from "../commands/scan-command.js";
 import { sortCommand } from "../commands/sort-command.js";
 import { DATA_DIR } from "../data-dir.js";
 import { renderDownloadEvent } from "../download-event-factories.js";
-import { formatDownloadOutput } from "../format-download.js";
-import { formatImportClassificationsOutput } from "../format-import-classifications.js";
-import { formatClassifyOutput, formatScanOutput } from "../format-scan.js";
-import { formatSortOutput } from "../format-sort.js";
+import {
+  formatClassifyOutput,
+  formatDownloadOutput,
+  formatImportClassificationsOutput,
+  formatScanOutput,
+  formatSortOutput,
+} from "../format-receipts.js";
 import { FileSystemGateway } from "../gateways/fs-gateway.js";
 import { downloadReceiptsCommand } from "../receipts/download-receipts-command.js";
 import { renderDownloadReceiptsEvent } from "../receipts/download-receipts-event-factories.js";
