@@ -5,6 +5,8 @@
  * be tested independently. All I/O is injected via deps.
  */
 
+import { validateClassifications, validateSenders } from "../validate-json.js";
+
 /**
  * @typedef {object} ClassifyCommandDeps
  * @property {object} fsGateway - { exists(path): boolean, readJson(path): unknown }
@@ -34,21 +36,21 @@ export function classifyCommand(inputFile, outputFile, deps) {
     throw new Error("Run 'scan' first to generate sender data.");
   }
 
-  const senders = /** @type {any[]} */ (fsGateway.readJson(inputFile));
+  const senders = validateSenders(fsGateway.readJson(inputFile));
 
   /** @type {Record<string, string>} */
   let classifications = {};
   if (fsGateway.exists(outputFile)) {
-    classifications = /** @type {Record<string, string>} */ (fsGateway.readJson(outputFile));
+    classifications = validateClassifications(fsGateway.readJson(outputFile));
   }
 
   const unclassified = senders.filter((s) => !classifications[s.address]);
 
   const unclassifiedList = unclassified.map((s) => ({
     address: s.address,
-    name: s.name,
-    count: s.count,
-    accounts: s.accounts,
+    name: s.name ?? "",
+    count: s.count ?? 0,
+    accounts: s.accounts ?? [],
     example: s.sampleSubjects?.[0] || "",
     classification: /** @type {null} */ (null),
   }));

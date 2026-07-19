@@ -2,10 +2,11 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { debug } from "./debug.js";
+import { validateConfig } from "./validate-json.js";
 
 const DEFAULT_CONFIG_PATH = join(homedir(), ".config", "mailctl", "config.json");
 
-/** @type {object|undefined} */
+/** @type {object|null|undefined} */
 let cachedConfig;
 
 /**
@@ -29,17 +30,21 @@ const realFs = {
  *
  * @param {ConfigFs} [fs] - optional filesystem gateway (defaults to real fs)
  * @param {string} [configPath] - optional path override (defaults to ~/.config/mailctl/config.json)
- * @returns {object|null} parsed config or null if not found
+ * @returns {object|null} validated config or null if not found
  */
 export function loadConfig(fs = realFs, configPath = DEFAULT_CONFIG_PATH) {
   if (cachedConfig !== undefined) return cachedConfig;
+  let raw;
   try {
-    cachedConfig = /** @type {object} */ (fs.readJson(configPath));
+    raw = fs.readJson(configPath);
   } catch (err) {
     // Config file missing or unreadable — return null
     debug("config", "config file unreadable, using null", err);
     cachedConfig = null;
+    return cachedConfig;
   }
+  // Validate shape; ValidationError propagates to the caller rather than being silenced
+  cachedConfig = validateConfig(raw);
   return cachedConfig;
 }
 

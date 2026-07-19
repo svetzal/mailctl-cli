@@ -5,6 +5,8 @@
  * so it can be tested independently. All I/O is injected via deps.
  */
 
+import { validateClassifications, validateImportEntries } from "../validate-json.js";
+
 /**
  * @typedef {object} ImportClassificationsCommandDeps
  * @property {object} fsGateway - { exists(path): boolean, readJson(path): unknown, writeJson(path, data): void }
@@ -19,12 +21,12 @@
 export function importClassificationsCommand(file, outputFile, deps) {
   const { fsGateway } = deps;
 
-  const entries = /** @type {any[]} */ (fsGateway.readJson(file));
+  const entries = validateImportEntries(fsGateway.readJson(file));
 
   /** @type {Record<string, string>} */
   let store = {};
   if (fsGateway.exists(outputFile)) {
-    store = /** @type {Record<string, string>} */ (fsGateway.readJson(outputFile));
+    store = validateClassifications(fsGateway.readJson(outputFile));
   }
 
   let count = 0;

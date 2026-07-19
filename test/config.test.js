@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { ValidationError } from "../src/validate-json.js";
 
 // Cache-busting dynamic import to bypass mock.module contamination from
 // accounts.test.js and vendor-map.test.js which mock "../src/config.js".
@@ -66,6 +67,36 @@ describe("loadConfig", () => {
     loadConfig(fs, "/missing/config.json");
 
     expect(fs.readJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws ValidationError when config is not an object", () => {
+    const fs = makeMockFs("not-an-object");
+
+    expect(() => loadConfig(fs, "/fake/config.json")).toThrow(ValidationError);
+  });
+
+  it("throws ValidationError when accounts is not an array", () => {
+    const fs = makeMockFs({ accounts: "should-be-an-array" });
+
+    expect(() => loadConfig(fs, "/fake/config.json")).toThrow(ValidationError);
+  });
+
+  it("throws ValidationError naming the field when an account has a non-numeric port", () => {
+    const fs = makeMockFs({ accounts: [{ prefix: "A", name: "Acct", port: "993" }] });
+
+    expect(() => loadConfig(fs, "/fake/config.json")).toThrow(/accounts\[0\]\.port/);
+  });
+
+  it("returns null (not ValidationError) when the file cannot be read", () => {
+    const fs = {
+      readJson: mock(() => {
+        throw new Error("ENOENT");
+      }),
+    };
+
+    const result = loadConfig(fs, "/missing/config.json");
+
+    expect(result).toBeNull();
   });
 });
 

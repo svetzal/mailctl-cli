@@ -13,6 +13,7 @@ import {
   uniqueBaseName,
   walkOutputTree,
 } from "../src/receipts/receipt-output-tree.js";
+import { ValidationError } from "../src/validate-json.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -533,6 +534,97 @@ describe("collectSidecarFiles", () => {
       const result = collectSidecarFiles(tmpDir, REAL_FS);
       expect(result[0].sidecar.vendor).toBe("Stripe");
     });
+  });
+
+  describe("continues past a malformed sidecar (array instead of object)", () => {
+    it("collects the valid sidecar and skips the malformed one", () => {
+      const monthDir = join(tmpDir, "2026", "02");
+      mkdirSync(monthDir, { recursive: true });
+      // Malformed sidecar: JSON array instead of object
+      writeFileSync(join(monthDir, "bad.json"), JSON.stringify(["not", "an", "object"]));
+      // Valid sidecar
+      writeFileSync(join(monthDir, "good.json"), JSON.stringify({ vendor: "Acme", date: "2026-02-01" }));
+
+      const errors = [];
+      const result = collectSidecarFiles(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+
+      expect(result).toHaveLength(1);
+    });
+
+    it("reports the malformed sidecar via onError with a ValidationError", () => {
+      const monthDir = join(tmpDir, "2026", "02");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(join(monthDir, "bad.json"), JSON.stringify(["not", "an", "object"]));
+      writeFileSync(join(monthDir, "good.json"), JSON.stringify({ vendor: "Acme", date: "2026-02-01" }));
+
+      const errors = [];
+      collectSidecarFiles(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+
+      expect(errors.length).toBe(1);
+    });
+
+    it("passes a ValidationError to onError for the malformed sidecar", () => {
+      const monthDir = join(tmpDir, "2026", "02");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(join(monthDir, "bad.json"), JSON.stringify(["not", "an", "object"]));
+      writeFileSync(join(monthDir, "good.json"), JSON.stringify({ vendor: "Acme", date: "2026-02-01" }));
+
+      const errors = [];
+      collectSidecarFiles(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+
+      expect(errors[0].err).toBeInstanceOf(ValidationError);
+    });
+
+    it("preserves the valid sidecar's vendor", () => {
+      const monthDir = join(tmpDir, "2026", "02");
+      mkdirSync(monthDir, { recursive: true });
+      writeFileSync(join(monthDir, "bad.json"), JSON.stringify(["not", "an", "object"]));
+      writeFileSync(join(monthDir, "good.json"), JSON.stringify({ vendor: "Acme", date: "2026-02-01" }));
+
+      const errors = [];
+      const result = collectSidecarFiles(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+
+      expect(result[0].sidecar.vendor).toBe("Acme");
+    });
+  });
+});
+
+// ── loadExistingInvoiceNumbers with malformed sidecar ────────────────────────
+
+describe("loadExistingInvoiceNumbers with a malformed sidecar (array instead of object)", () => {
+  it("calls onError for the malformed file", () => {
+    const monthDir = join(tmpDir, "2026", "02");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(join(monthDir, "bad.json"), JSON.stringify(["not", "an", "object"]));
+    writeFileSync(join(monthDir, "good.json"), JSON.stringify({ invoice_number: "INV-999" }));
+
+    const errors = [];
+    loadExistingInvoiceNumbers(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+
+    expect(errors.length).toBe(1);
+  });
+
+  it("passes a ValidationError to onError", () => {
+    const monthDir = join(tmpDir, "2026", "02");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(join(monthDir, "bad.json"), JSON.stringify(["not", "an", "object"]));
+    writeFileSync(join(monthDir, "good.json"), JSON.stringify({ invoice_number: "INV-999" }));
+
+    const errors = [];
+    loadExistingInvoiceNumbers(tmpDir, REAL_FS, (err, ctx) => errors.push({ err, ctx }));
+
+    expect(errors[0].err).toBeInstanceOf(ValidationError);
+  });
+
+  it("still collects invoice numbers from valid sidecars", () => {
+    const monthDir = join(tmpDir, "2026", "02");
+    mkdirSync(monthDir, { recursive: true });
+    writeFileSync(join(monthDir, "bad.json"), JSON.stringify(["not", "an", "object"]));
+    writeFileSync(join(monthDir, "good.json"), JSON.stringify({ invoice_number: "INV-999" }));
+
+    const result = loadExistingInvoiceNumbers(tmpDir, REAL_FS, () => {});
+
+    expect(result.has("INV-999")).toBe(true);
   });
 });
 

@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { rethrowIfProgrammerError } from "../programmer-error.js";
+import { validateSidecar } from "../validate-json.js";
 import {
   downloadedPdf,
   dryRunJson,
@@ -177,7 +178,7 @@ export function loadExistingInvoiceNumbers(outputDir, fs, onError = () => {}) {
       if (!fileName.endsWith(".json")) return;
       let data;
       try {
-        data = /** @type {any} */ (fs.readJson(filePath));
+        data = validateSidecar(fs.readJson(filePath));
       } catch (err) {
         onError(err, { path: filePath, op: "parse" });
         return;
@@ -248,7 +249,7 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
       if (!fileName.endsWith(".json")) return;
       let sidecar;
       try {
-        sidecar = /** @type {any} */ (fs.readJson(filePath));
+        sidecar = validateSidecar(fs.readJson(filePath));
       } catch (err) {
         onError(err, { path: filePath, op: "parse" });
         return;

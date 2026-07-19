@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { importClassificationsCommand } from "../src/commands/import-classifications-command.js";
+import { ValidationError } from "../src/validate-json.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -125,5 +126,32 @@ describe("importClassificationsCommand", () => {
     importClassificationsCommand("/tmp/input.json", "/data/cls.json", deps);
 
     expect(deps.fsGateway.writeJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws ValidationError when input file is not an array", () => {
+    const deps = makeDeps({
+      fsGateway: {
+        exists: mock(() => false),
+        readJson: mock(() => ({ not: "an array" })),
+        writeJson: mock(() => {}),
+      },
+    });
+
+    expect(() => importClassificationsCommand("/tmp/input.json", "/data/cls.json", deps)).toThrow(ValidationError);
+  });
+
+  it("throws ValidationError when classifications store is not an object", () => {
+    const deps = makeDeps({
+      fsGateway: {
+        exists: mock(() => true),
+        readJson: mock((path) => {
+          if (path.includes("input")) return [{ address: "a@b.com", classification: "business" }];
+          return ["not", "an", "object"];
+        }),
+        writeJson: mock(() => {}),
+      },
+    });
+
+    expect(() => importClassificationsCommand("/tmp/input.json", "/tmp/output.json", deps)).toThrow(ValidationError);
   });
 });

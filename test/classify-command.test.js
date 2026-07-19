@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { classifyCommand } from "../src/commands/classify-command.js";
+import { ValidationError } from "../src/validate-json.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -163,5 +164,30 @@ describe("classifyCommand", () => {
     const { unclassifiedList } = classifyCommand("/data/senders.json", "/data/cls.json", deps);
 
     expect(unclassifiedList[0].example).toBe("");
+  });
+
+  it("throws ValidationError when senders.json is not an array", () => {
+    const deps = makeDeps({
+      fsGateway: {
+        exists: mock(() => true),
+        readJson: mock(() => ({ not: "an array" })),
+      },
+    });
+
+    expect(() => classifyCommand("/data/senders.json", "/data/cls.json", deps)).toThrow(ValidationError);
+  });
+
+  it("throws ValidationError when classifications.json is not an object", () => {
+    const deps = makeDeps({
+      fsGateway: {
+        exists: mock(() => true),
+        readJson: mock((path) => {
+          if (path.includes("senders")) return [{ address: "a@b.com", name: "A", count: 1, accounts: [] }];
+          return ["not", "an", "object"];
+        }),
+      },
+    });
+
+    expect(() => classifyCommand("/data/senders.json", "/data/cls.json", deps)).toThrow(ValidationError);
   });
 });
