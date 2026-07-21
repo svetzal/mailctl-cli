@@ -66,19 +66,18 @@ async function refreshAccessToken(clientId, tenantId, _clientSecret, refreshToke
 }
 
 /**
- * Run the OAuth2 device code flow interactively.
- * Prints a user code and verification URL, then polls until the user authenticates.
+ * @typedef {{ device_code: string, user_code: string, verification_uri: string, interval: number, expires_in: number }} DeviceCodeData
+ */
+
+/**
+ * Request a device code from Azure AD to start the device code flow.
  * @param {string} clientId
  * @param {string} tenantId
- * @param {string} _clientSecret
- * @param {function(object): void} onProgress - receives structured progress events
  * @param {M365AuthDeps} deps
  * @throws {Error} when the device code request fails
- * @throws {Error} when the token exchange returns an error
- * @throws {Error} when the device code flow times out
- * @returns {Promise<TokenSet>}
+ * @returns {Promise<DeviceCodeData>}
  */
-async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, deps) {
+async function requestDeviceCode(clientId, tenantId, deps) {
   const deviceUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/devicecode`;
   const deviceRes = await deps.fetch(deviceUrl, {
     method: "POST",
@@ -94,15 +93,23 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
     throw new Error(`Device code request failed: ${err.error_description || deviceRes.statusText}`);
   }
 
-  const deviceData =
-    /** @type {{ device_code: string, user_code: string, verification_uri: string, interval: number, expires_in: number }} */ (
-      await deviceRes.json()
-    );
-  const { device_code, user_code, verification_uri, interval, expires_in } = deviceData;
+  return /** @type {DeviceCodeData} */ (await deviceRes.json());
+}
 
-  onProgress(deviceCodePrompt(verification_uri, user_code));
-  onProgress(authWaiting());
-
+/**
+ * Poll the token endpoint until the user completes authentication, the flow
+ * times out, or the exchange returns a fatal error.
+ * @param {string} clientId
+ * @param {string} tenantId
+ * @param {DeviceCodeData} deviceData
+ * @param {function(object): void} onProgress - receives structured progress events
+ * @param {M365AuthDeps} deps
+ * @throws {Error} when the token exchange returns an error
+ * @throws {Error} when the device code flow times out
+ * @returns {Promise<TokenSet>}
+ */
+async function pollForDeviceToken(clientId, tenantId, deviceData, onProgress, deps) {
+  const { device_code, interval, expires_in } = deviceData;
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const pollInterval = (interval || 5) * 1000;
   const deadline = deps.now() + expires_in * 1000;
@@ -150,6 +157,28 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
   }
 
   throw new Error("Device code flow timed out. Please try again.");
+}
+
+/**
+ * Run the OAuth2 device code flow interactively.
+ * Prints a user code and verification URL, then polls until the user authenticates.
+ * @param {string} clientId
+ * @param {string} tenantId
+ * @param {string} _clientSecret
+ * @param {function(object): void} onProgress - receives structured progress events
+ * @param {M365AuthDeps} deps
+ * @throws {Error} when the device code request fails
+ * @throws {Error} when the token exchange returns an error
+ * @throws {Error} when the device code flow times out
+ * @returns {Promise<TokenSet>}
+ */
+async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, deps) {
+  const deviceData = await requestDeviceCode(clientId, tenantId, deps);
+
+  onProgress(deviceCodePrompt(deviceData.verification_uri, deviceData.user_code));
+  onProgress(authWaiting());
+
+  return pollForDeviceToken(clientId, tenantId, deviceData, onProgress, deps);
 }
 
 /**

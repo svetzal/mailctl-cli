@@ -68,18 +68,12 @@ export const mailDeps = {
 };
 
 /**
- * Register the read-only mail noun commands: search, read, folders, extract-attachment,
- * inbox, thread, contacts.
- *
- * Adding a new read-only command means editing this file only.
- *
  * @param {import("commander").Command} program
  * @param {import("../cli-context.js").CliContext} ctx
- * @param {MailCliDeps} [deps]
+ * @param {MailCliDeps} deps
  */
-export function registerMailCommands(program, ctx, deps = mailDeps) {
-  const { wrapAction, contextDeps, progress } = ctx;
-  const renderAuthProgress = progress(deps.renderAuthEvent);
+function registerSearchCommand(program, ctx, deps) {
+  const { wrapAction, contextDeps } = ctx;
 
   program
     .command("search")
@@ -117,6 +111,15 @@ export function registerMailCommands(program, ctx, deps = mailDeps) {
         }
       }),
     );
+}
+
+/**
+ * @param {import("commander").Command} program
+ * @param {import("../cli-context.js").CliContext} ctx
+ * @param {MailCliDeps} deps
+ */
+function registerReadCommand(program, ctx, deps) {
+  const { wrapAction, contextDeps } = ctx;
 
   program
     .command("read")
@@ -154,6 +157,16 @@ export function registerMailCommands(program, ctx, deps = mailDeps) {
         console.log(deps.formatReadOutput(json, parsed, acct.name, uid, opts));
       }),
     );
+}
+
+/**
+ * @param {import("commander").Command} program
+ * @param {import("../cli-context.js").CliContext} ctx
+ * @param {MailCliDeps} deps
+ */
+function registerFoldersCommand(program, ctx, deps) {
+  const { wrapAction, contextDeps, progress } = ctx;
+  const renderAuthProgress = progress(deps.renderAuthEvent);
 
   program
     .command("folders")
@@ -172,6 +185,15 @@ export function registerMailCommands(program, ctx, deps = mailDeps) {
         console.log(deps.formatFoldersOutput(json, allAccountFolders));
       }),
     );
+}
+
+/**
+ * @param {import("commander").Command} program
+ * @param {import("../cli-context.js").CliContext} ctx
+ * @param {MailCliDeps} deps
+ */
+function registerExtractAttachmentCommand(program, ctx, deps) {
+  const { wrapAction, contextDeps } = ctx;
 
   program
     .command("extract-attachment")
@@ -200,6 +222,15 @@ export function registerMailCommands(program, ctx, deps = mailDeps) {
         console.log(deps.formatAttachmentOutput(json, result));
       }),
     );
+}
+
+/**
+ * @param {import("commander").Command} program
+ * @param {import("../cli-context.js").CliContext} ctx
+ * @param {MailCliDeps} deps
+ */
+function registerInboxCommand(program, ctx, deps) {
+  const { wrapAction, contextDeps } = ctx;
 
   program
     .command("inbox")
@@ -219,6 +250,15 @@ export function registerMailCommands(program, ctx, deps = mailDeps) {
         console.log(deps.formatInboxOutput(json, allResults, resultsByAccount));
       }),
     );
+}
+
+/**
+ * @param {import("commander").Command} program
+ * @param {import("../cli-context.js").CliContext} ctx
+ * @param {MailCliDeps} deps
+ */
+function registerThreadCommand(program, ctx, deps) {
+  const { wrapAction, contextDeps } = ctx;
 
   program
     .command("thread")
@@ -243,6 +283,15 @@ export function registerMailCommands(program, ctx, deps = mailDeps) {
         }
       }),
     );
+}
+
+/**
+ * @param {import("commander").Command} program
+ * @param {import("../cli-context.js").CliContext} ctx
+ * @param {MailCliDeps} deps
+ */
+function registerContactsCommand(program, ctx, deps) {
+  const { wrapAction, contextDeps } = ctx;
 
   program
     .command("contacts")
@@ -264,4 +313,24 @@ export function registerMailCommands(program, ctx, deps = mailDeps) {
         console.log(deps.formatContactsOutput(json, contacts, { sinceLabel }));
       }),
     );
+}
+
+/**
+ * Register the read-only mail noun commands: search, read, folders, extract-attachment,
+ * inbox, thread, contacts.
+ *
+ * Adding a new read-only command means editing this file only.
+ *
+ * @param {import("commander").Command} program
+ * @param {import("../cli-context.js").CliContext} ctx
+ * @param {MailCliDeps} [deps]
+ */
+export function registerMailCommands(program, ctx, deps = mailDeps) {
+  registerSearchCommand(program, ctx, deps);
+  registerReadCommand(program, ctx, deps);
+  registerFoldersCommand(program, ctx, deps);
+  registerExtractAttachmentCommand(program, ctx, deps);
+  registerInboxCommand(program, ctx, deps);
+  registerThreadCommand(program, ctx, deps);
+  registerContactsCommand(program, ctx, deps);
 }

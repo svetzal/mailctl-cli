@@ -81,71 +81,84 @@ function listUnsubscribeToString(headerValue) {
 }
 
 /**
+ * Extract unsubscribe URLs from the RFC 2369 List-Unsubscribe header
+ * (both angle-bracketed and bare URL forms).
  * @param {object} parsed - mailparser result
- * @returns {string[]} deduplicated unsubscribe URLs
+ * @returns {string[]}
  */
-function extractUnsubscribeLinks(parsed) {
-  const links = new Set();
-
-  // 1. List-Unsubscribe header (RFC 2369)
+function linksFromListUnsubscribeHeader(parsed) {
+  const links = [];
   const listUnsub = parsed.headers?.get("list-unsubscribe");
-  if (listUnsub) {
-    const headerStr = listUnsubscribeToString(listUnsub);
-    const angleMatches = headerStr.match(/<([^>]+)>/g);
-    if (angleMatches) {
-      for (const m of angleMatches) {
-        const url = cleanUrl(m.slice(1, -1).trim());
-        if (url.startsWith("http") && isValidUrl(url)) {
-          links.add(url);
-        }
-      }
-    }
-    // Also check for bare URLs not in angle brackets
-    const bareUrls = headerStr.match(/https?:\/\/[^\s<>,]+/g);
-    if (bareUrls) {
-      for (const url of bareUrls) {
-        const cleaned = cleanUrl(url);
-        if (isValidUrl(cleaned)) {
-          links.add(cleaned);
-        }
-      }
+  if (!listUnsub) return links;
+
+  const headerStr = listUnsubscribeToString(listUnsub);
+
+  const angleMatches = headerStr.match(/<([^>]+)>/g);
+  if (angleMatches) {
+    for (const m of angleMatches) {
+      const url = cleanUrl(m.slice(1, -1).trim());
+      if (url.startsWith("http") && isValidUrl(url)) links.push(url);
     }
   }
 
-  // 2. HTML body: match <a> tags by href keywords, class, and inner text
-  if (parsed.html) {
-    // Parse full <a> tags to check href, class, and inner text
-    const anchorPattern = /<a\s+([^>]*)>([\s\S]*?)<\/a>/gi;
-    let anchorMatch;
-    // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex exec loop
-    while ((anchorMatch = anchorPattern.exec(parsed.html)) !== null) {
-      const attrs = anchorMatch[1];
-      const innerText = anchorMatch[2].replace(/<[^>]*>/g, "").trim();
-
-      // Extract href
-      const hrefMatch = attrs.match(/href\s*=\s*["']([^"']+)["']/i);
-      if (!hrefMatch) continue;
-      const href = hrefMatch[1];
-
-      const hrefLower = href.toLowerCase();
-      const textLower = innerText.toLowerCase();
-      const classMatch = attrs.match(/class\s*=\s*["']([^"']+)["']/i);
-      const classValue = classMatch ? classMatch[1].toLowerCase() : "";
-
-      const matchesHref = UNSUB_URL_KEYWORDS.some((kw) => hrefLower.includes(kw));
-      const matchesText = UNSUB_TEXT_KEYWORDS.some((kw) => textLower.includes(kw));
-      const matchesClass = UNSUB_CLASS_KEYWORDS.some((kw) => classValue.includes(kw));
-
-      if (matchesHref || matchesText || matchesClass) {
-        const cleaned = cleanUrl(href);
-        if (isValidUrl(cleaned)) {
-          links.add(cleaned);
-        }
-      }
+  const bareUrls = headerStr.match(/https?:\/\/[^\s<>,]+/g);
+  if (bareUrls) {
+    for (const url of bareUrls) {
+      const cleaned = cleanUrl(url);
+      if (isValidUrl(cleaned)) links.push(cleaned);
     }
   }
 
-  // 3. Plain text body: URLs containing unsubscribe keywords
+  return links;
+}
+
+/**
+ * Extract unsubscribe URLs from HTML-body <a> tags, matched by href keywords,
+ * CSS class, or inner text.
+ * @param {object} parsed - mailparser result
+ * @returns {string[]}
+ */
+function linksFromHtmlAnchors(parsed) {
+  const links = [];
+  if (!parsed.html) return links;
+
+  const anchorPattern = /<a\s+([^>]*)>([\s\S]*?)<\/a>/gi;
+  let anchorMatch;
+  // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex exec loop
+  while ((anchorMatch = anchorPattern.exec(parsed.html)) !== null) {
+    const attrs = anchorMatch[1];
+    const innerText = anchorMatch[2].replace(/<[^>]*>/g, "").trim();
+
+    const hrefMatch = attrs.match(/href\s*=\s*["']([^"']+)["']/i);
+    if (!hrefMatch) continue;
+    const href = hrefMatch[1];
+
+    const hrefLower = href.toLowerCase();
+    const textLower = innerText.toLowerCase();
+    const classMatch = attrs.match(/class\s*=\s*["']([^"']+)["']/i);
+    const classValue = classMatch ? classMatch[1].toLowerCase() : "";
+
+    const matchesHref = UNSUB_URL_KEYWORDS.some((kw) => hrefLower.includes(kw));
+    const matchesText = UNSUB_TEXT_KEYWORDS.some((kw) => textLower.includes(kw));
+    const matchesClass = UNSUB_CLASS_KEYWORDS.some((kw) => classValue.includes(kw));
+
+    if (matchesHref || matchesText || matchesClass) {
+      const cleaned = cleanUrl(href);
+      if (isValidUrl(cleaned)) links.push(cleaned);
+    }
+  }
+
+  return links;
+}
+
+/**
+ * Extract unsubscribe URLs from the plain-text body by matching URLs that
+ * contain an unsubscribe-related keyword.
+ * @param {object} parsed - mailparser result
+ * @returns {string[]}
+ */
+function linksFromPlainText(parsed) {
+  const links = [];
   const textBody = parsed.text || "";
   const urlPattern = /https?:\/\/[^\s<>")\]]+/gi;
   let textMatch;
@@ -155,11 +168,22 @@ function extractUnsubscribeLinks(parsed) {
     const lower = url.toLowerCase();
     if (UNSUB_URL_KEYWORDS.some((kw) => lower.includes(kw))) {
       const cleaned = cleanUrl(url);
-      if (isValidUrl(cleaned)) {
-        links.add(cleaned);
-      }
+      if (isValidUrl(cleaned)) links.push(cleaned);
     }
   }
+  return links;
+}
+
+/**
+ * @param {object} parsed - mailparser result
+ * @returns {string[]} deduplicated unsubscribe URLs
+ */
+function extractUnsubscribeLinks(parsed) {
+  const links = new Set([
+    ...linksFromListUnsubscribeHeader(parsed),
+    ...linksFromHtmlAnchors(parsed),
+    ...linksFromPlainText(parsed),
+  ]);
 
   return [...links];
 }
