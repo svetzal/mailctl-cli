@@ -6,8 +6,6 @@
 
 import { deduplicateByMessageId } from "../dedup.js";
 import { filterSearchMailboxes } from "../imap-client.js";
-import { withMailboxLock } from "../imap-orchestration.js";
-import { rethrowIfProgrammerError } from "../programmer-error.js";
 import {
   mailboxCandidates,
   mailboxFetchError,
@@ -15,7 +13,7 @@ import {
   searchAccount,
   searchTermError,
 } from "./download-receipts-event-factories.js";
-import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.js";
+import { buildReceiptSearchCriteria, searchMailboxForReceiptRecords } from "./receipt-mailbox-search.js";
 
 /**
  * Returns envelope-level results only — no message bodies fetched.
@@ -27,85 +25,34 @@ import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.
  * @returns {Promise<{ results: Array, failures: Array<{ mailbox: string, phase: string, term?: string, error: Error }> }>}
  */
 export async function searchMailboxForReceipts(client, accountName, mailboxPath, since, onProgress = () => {}) {
-  const failures = [];
-  const inner = await withMailboxLock(
-    client,
-    mailboxPath,
-    async () => {
-      // client.mailbox is false | MailboxObject on a real ImapFlow; convert false → undefined
-      // so that optional chaining correctly short-circuits on "no mailbox selected".
-      const messageCount = (client.mailbox || undefined)?.exists;
-      onProgress(mailboxSearchStart(mailboxPath, messageCount));
-      const allUids = new Set();
+  /** @param {{ uid: number, envelope: { messageId?: string, date?: Date, from?: Array<{address?: string, name?: string}>, subject?: string } }} msg */
+  function buildRecord(msg) {
+    const env = msg.envelope;
+    const from = env.from?.[0];
+    return {
+      account: accountName,
+      mailbox: mailboxPath,
+      uid: msg.uid,
+      messageId: env.messageId || "",
+      date: env.date,
+      fromAddress: from?.address?.toLowerCase() || "unknown",
+      fromName: from?.name || "",
+      subject: env.subject || "",
+    };
+  }
 
-      // Subject-based search
-      for (const term of RECEIPT_SUBJECT_TERMS) {
-        const criteria = { subject: term };
-        if (since) criteria.since = since;
-        try {
-          const uids = await client.search(criteria, { uid: true });
-          if (uids) for (const uid of uids) allUids.add(uid);
-        } catch (err) {
-          rethrowIfProgrammerError(err);
-          onProgress(searchTermError(err, mailboxPath));
-          failures.push({ mailbox: mailboxPath, phase: "search", term, error: err });
-        }
-      }
-
-      // Sender-based search
-      for (const pattern of BILLING_SENDER_PATTERNS) {
-        const criteria = { from: pattern };
-        if (since) criteria.since = since;
-        try {
-          const uids = await client.search(criteria, { uid: true });
-          if (uids) for (const uid of uids) allUids.add(uid);
-        } catch (err) {
-          rethrowIfProgrammerError(err);
-          onProgress(searchTermError(err, mailboxPath));
-          failures.push({ mailbox: mailboxPath, phase: "search", term: pattern, error: err });
-        }
-      }
-
-      if (allUids.size === 0) return [];
-
-      onProgress(mailboxCandidates(mailboxPath, allUids.size));
-
-      const results = [];
-      const uidRange = [...allUids].join(",");
-      try {
-        for await (const msg of client.fetch(
-          uidRange,
-          {
-            envelope: true,
-            headers: ["message-id"],
-            uid: true,
-          },
-          { uid: true },
-        )) {
-          const env = msg.envelope;
-          const from = env.from?.[0];
-          results.push({
-            account: accountName,
-            mailbox: mailboxPath,
-            uid: msg.uid,
-            messageId: env.messageId || "",
-            date: env.date,
-            fromAddress: from?.address?.toLowerCase() || "unknown",
-            fromName: from?.name || "",
-            subject: env.subject || "",
-          });
-        }
-      } catch (err) {
-        rethrowIfProgrammerError(err);
-        onProgress(mailboxFetchError(err));
-        failures.push({ mailbox: mailboxPath, phase: "fetch", error: err });
-      }
-
-      return results;
+  return searchMailboxForReceiptRecords(client, mailboxPath, {
+    criteria: buildReceiptSearchCriteria({ since, includeSenders: true }),
+    fetchQuery: { envelope: true, headers: ["message-id"], uid: true },
+    buildRecord,
+    events: {
+      start: mailboxSearchStart,
+      candidates: mailboxCandidates,
+      searchError: (err) => searchTermError(err, mailboxPath),
+      fetchError: mailboxFetchError,
     },
-    { onProgress },
-  );
-  return { results: inner ?? [], failures };
+    onProgress,
+  });
 }
 
 /**

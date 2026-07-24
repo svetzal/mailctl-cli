@@ -394,4 +394,58 @@ describe("scanForReceipts", () => {
 
     expect(failures).toEqual([]);
   });
+
+  it("rethrows a bare TypeError raised from client.search instead of recording it as a failure", async () => {
+    const client = /** @type {any} */ ({
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
+      mailbox: { exists: 1 },
+      search: mock(() => Promise.reject(new TypeError("bad search criteria"))),
+    });
+
+    await expect(scanForReceipts(client, "TestAccount", ["INBOX"])).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it("rethrows a bare TypeError raised from client.fetch instead of recording it as a failure", async () => {
+    const client = /** @type {any} */ ({
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
+      mailbox: { exists: 1 },
+      search: mock(() => Promise.resolve([1])),
+      fetch: mock(() => {
+        // biome-ignore lint/correctness/useYield: intentionally throws before any yield to simulate a fetch failure
+        async function* gen() {
+          throw new TypeError("bad fetch query");
+        }
+        return gen();
+      }),
+    });
+
+    await expect(scanForReceipts(client, "TestAccount", ["INBOX"])).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it("still records an ordinary Error from client.search as a search-phase failure", async () => {
+    const searchErr = new Error("IMAP search failed");
+    const client = /** @type {any} */ ({
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
+      mailbox: { exists: 1 },
+      search: mock(() => Promise.reject(searchErr)),
+    });
+
+    const { failures } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+
+    expect(failures[0]).toMatchObject({ mailbox: "INBOX", phase: "search", error: searchErr });
+  });
+
+  it("still records a timeout error carrying an ETIMEDOUT code as a search-phase failure", async () => {
+    const timeoutErr = /** @type {any} */ (new Error("timed out"));
+    timeoutErr.code = "ETIMEDOUT";
+    const client = /** @type {any} */ ({
+      getMailboxLock: mock(() => Promise.resolve(makeLock())),
+      mailbox: { exists: 1 },
+      search: mock(() => Promise.reject(timeoutErr)),
+    });
+
+    const { failures } = await scanForReceipts(client, "TestAccount", ["INBOX"]);
+
+    expect(failures[0]).toMatchObject({ mailbox: "INBOX", phase: "search", error: timeoutErr });
+  });
 });

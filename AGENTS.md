@@ -99,7 +99,8 @@ src/receipts/receipt-decisions.js       — Pure classification/transformation d
 src/receipts/receipt-fields.js          — extractInvoiceNumber(), extractAmount(), extractTax(), extractService(), field-length/currency constants — pure receipt field extraction primitives
 src/receipts/receipt-types.js           — shared JSDoc typedefs for receipt records (no runtime exports); includes ReceiptWriteContext, ReceiptRunLimits, ReceiptRun
 src/receipts/receipt-vendor-name.js     — cleanVendorForFilename(), vendorFromDomain(), extractForwardedSender() — vendor-name derivation for receipt filenames
-src/receipts/receipt-search-pipeline.js — searchMailboxForReceipts(), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors
+src/receipts/receipt-mailbox-search.js  — buildReceiptSearchCriteria(), searchMailboxForReceiptRecords() — the single receipt-search algorithm (lock, per-criterion search, UID dedup, envelope fetch); shared by scanForReceipts and searchMailboxForReceipts
+src/receipts/receipt-search-pipeline.js — searchMailboxForReceipts() (thin adapter over receipt-mailbox-search.js), searchAccountForReceipts() — single-mailbox IMAP search and per-account orchestration with dedup; shared by download and list-vendors
 src/receipts/receipt-output-tree.js     — walkOutputTree(), loadExistingInvoiceNumbers(), loadExistingHashes(), uniqueBaseName(), collectSidecarFiles(), writeReceiptOutput() — output directory tree and file I/O for receipt PDFs and sidecars
 src/receipts/receipt-extraction.js      — Pattern-based metadata extraction (regex fallback)
 src/receipts/receipt-terms.js           — Single source of truth for receipt subject terms, exclusion patterns, and billing sender patterns
@@ -114,7 +115,7 @@ src/config.js                  — Loads ~/.config/mailctl/config.json (account 
 src/accounts.js                — Builds IMAP account list from config.json + env var secrets
 src/keychain.js                — loadAccountCredentials(), loadOpenAiKey() — resolve account passwords and OpenAI key from the keychain gateway
 src/m365-auth.js               — getM365AccessToken() — Microsoft 365 OAuth device-code / token-refresh flow
-src/imap-client.js             — IMAP connection, search, fetch, mailbox filtering, account iteration
+src/imap-client.js             — IMAP connection, search, fetch, mailbox filtering, account iteration; scanForReceipts() is a thin adapter over receipts/receipt-mailbox-search.js
 src/imap-orchestration.js      — Shared pure helpers: groupByMailbox(), forEachMailboxGroup()
 src/search.js                  — searchMailbox() — single-mailbox search with field/date filters
 src/dedup.js                   — deduplicateByMessageId() — shared by search and download-receipts
@@ -192,7 +193,7 @@ data/                          — Runtime data (gitignored): scan results, clas
   - *Single-item commands* (`read`, `reply`, `search`, `extract-attachment`, `thread`, `classify`, `import-classifications`) throw on failure. The CLI layer catches these via `withErrorHandling` and formats the error for the user.
   - *Batch commands* (`move`, `flag`) accumulate per-item `{ status: "failed", error: … }` entries in their result list and never throw on item-level failure. They return `{ stats, results }` even when some items failed.
   - *Thin delegators* (`scan`, `sort`, `download`, `inbox`, `contacts`, `folders`) wrap their delegate call in try/catch and re-throw via `rethrowWithPrefix()`, which prefixes the message for user-facing display, sets `{ cause }` to preserve the original error stack, and forwards `code` so `withErrorHandling` can emit machine-readable `--json` errors (e.g. `{ error: "Scan failed: …", code: "ETIMEDOUT" }`).
-  - *Per-item degradation* (`processReceiptMessage`'s caller, `walkOutputTree`, `pdfToText`, `processDownloadMessage`, `searchMailboxForReceipts`) — long-running batch traversals catch **operational** failures per item, emit a progress event, tally into `stats.errors` / `failures[]`, and continue. They **must** call `rethrowIfProgrammerError()` (from `src/programmer-error.js`) first so `TypeError`/`ReferenceError`/`RangeError`/`SyntaxError` escape to the command boundary. A non-zero `stats.errors` or `stats.timedOut` sets a non-zero exit code.
+  - *Per-item degradation* (`processReceiptMessage`'s caller, `walkOutputTree`, `pdfToText`, `processDownloadMessage`, `searchMailboxForReceiptRecords`) — long-running batch traversals catch **operational** failures per item, emit a progress event, tally into `stats.errors` / `failures[]`, and continue. They **must** call `rethrowIfProgrammerError()` (from `src/programmer-error.js`) first so `TypeError`/`ReferenceError`/`RangeError`/`SyntaxError` escape to the command boundary. A non-zero `stats.errors` or `stats.timedOut` sets a non-zero exit code. `searchMailboxForReceiptRecords` (`src/receipts/receipt-mailbox-search.js`) owns this call for both `scanForReceipts` and `searchMailboxForReceipts`, which delegate to it as thin adapters.
 
 ## Engineering Standards
 

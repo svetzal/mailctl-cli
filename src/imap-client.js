@@ -1,8 +1,7 @@
 import { ImapFlow } from "imapflow";
 import { connectError } from "./auth-event-factories.js";
-import { withMailboxLock } from "./imap-orchestration.js";
 import { getM365AccessToken } from "./m365-auth.js";
-import { RECEIPT_SUBJECT_TERMS } from "./receipts/receipt-terms.js";
+import { buildReceiptSearchCriteria, searchMailboxForReceiptRecords } from "./receipts/receipt-mailbox-search.js";
 import { buildScanResult } from "./scan-helpers.js";
 import { fetchError, mailboxEmpty, mailboxMatches, mailboxStart, searchError } from "./shared-event-factories.js";
 
@@ -50,7 +49,7 @@ export async function connect(
 }
 
 /**
- * @param {ImapFlow} client
+ * @param {import("./imap-types.js").ImapClient} client
  * @param {string} accountName
  * @param {string[]} mailboxes - mailbox paths to search (e.g. ["INBOX", "Archive"])
  * @param {object} [opts]
@@ -62,61 +61,32 @@ export async function scanForReceipts(client, accountName, mailboxes, opts = {},
   const results = [];
   const failures = [];
 
-  // Deduplicate UIDs per mailbox to avoid fetching the same message twice
+  // Scan is subject-only (includeSenders: false): its results feed sender
+  // classification (scan → sort/download), not receipt download, so the
+  // broader sender-pattern search that searchMailboxForReceipts performs
+  // would only add noise here.
+  const criteria = buildReceiptSearchCriteria({ since: opts.since, includeSenders: false });
+
   for (const mailbox of mailboxes) {
-    const perMailbox = await withMailboxLock(
+    const { results: mailboxResults, failures: mailboxFailures } = await searchMailboxForReceiptRecords(
       client,
       mailbox,
-      async () => {
-        const mailboxResults = [];
-        // @ts-expect-error — imapflow types client.mailbox as false|MailboxObject; ?. handles the false case at runtime
-        onProgress(mailboxStart(mailbox, client.mailbox?.exists));
-        const allUids = new Set();
-
-        for (const term of RECEIPT_SUBJECT_TERMS) {
-          const searchCriteria = {
-            subject: term,
-          };
-          if (opts.since) {
-            searchCriteria.since = opts.since;
-          }
-
-          let uids;
-          try {
-            uids = await client.search(searchCriteria, { uid: true });
-          } catch (err) {
-            onProgress(searchError(err, term));
-            failures.push({ mailbox, phase: "search", term, error: err });
-            continue;
-          }
-
-          if (!uids || uids.length === 0) continue;
-          for (const uid of uids) allUids.add(uid);
-        }
-
-        if (allUids.size === 0) {
-          onProgress(mailboxEmpty(mailbox));
-          return mailboxResults;
-        }
-
-        onProgress(mailboxMatches(mailbox, allUids.size));
-
-        // Fetch envelopes for all unique UIDs (as comma-separated range string)
-        const uidRange = [...allUids].join(",");
-        try {
-          for await (const msg of client.fetch(uidRange, { envelope: true, uid: true }, { uid: true })) {
-            mailboxResults.push(buildScanResult(accountName, mailbox, msg));
-          }
-        } catch (err) {
-          onProgress(fetchError(err));
-          failures.push({ mailbox, phase: "fetch", error: err });
-        }
-
-        return mailboxResults;
+      {
+        criteria,
+        fetchQuery: { envelope: true, uid: true },
+        buildRecord: (msg) => buildScanResult(accountName, mailbox, msg),
+        events: {
+          start: mailboxStart,
+          empty: mailboxEmpty,
+          candidates: mailboxMatches,
+          searchError,
+          fetchError,
+        },
+        onProgress,
       },
-      { onProgress },
     );
-    if (perMailbox) results.push(...perMailbox);
+    results.push(...mailboxResults);
+    failures.push(...mailboxFailures);
   }
 
   return { results, failures };

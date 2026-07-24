@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Extracted a shared receipt-search core** (`src/receipts/receipt-mailbox-search.js`) used by both `scanForReceipts` and `searchMailboxForReceipts`, which previously reimplemented the same lock/search-terms/UID-dedup/fetch-envelopes/tally-failures algorithm independently and had drifted on programmer-error escalation. `scanForReceipts` now escalates programmer errors (bare `TypeError`/`ReferenceError`/`RangeError`/`SyntaxError`) instead of swallowing them as ordinary search/fetch failures, matching `searchMailboxForReceipts`'s existing behavior. No change to command output or the public `{ results, failures }` shape.
+
 ## [1.3.0] - 2026-07-07
 
 ### Changed
