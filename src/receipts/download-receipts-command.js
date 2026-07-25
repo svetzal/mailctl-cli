@@ -5,6 +5,7 @@
  * be tested independently. Dynamic imports are injected for the heavy sub-modules.
  */
 import { parseIntOption, parseSinceOption } from "../parse-options.js";
+import { EXTRACT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 
 /**
  * @typedef {object} DownloadReceiptsCommandDeps
@@ -33,7 +34,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
 
     const vendors = await listReceiptVendors(
       {
-        months: parseIntOption(opts.months, 12),
+        months: parseIntOption(opts.months, EXTRACT_DEFAULT_MONTHS),
         since: sinceDate || undefined,
         account: account || null,
       },
@@ -70,7 +71,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
   const { stats, records } = await downloadReceiptEmails(
     {
       outputDir: opts.output ?? ".",
-      months: parseIntOption(opts.months, 12),
+      months: parseIntOption(opts.months, EXTRACT_DEFAULT_MONTHS),
       since: opts.since || null,
       account: account || null,
       vendor: opts.vendor || null,

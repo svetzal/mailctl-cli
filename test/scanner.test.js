@@ -121,12 +121,12 @@ describe("scanAllAccounts", () => {
 
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    // since is normalized to local midnight by monthsAgo()
+    const expectedSince = new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth(), sixMonthsAgo.getDate());
 
     if (!capturedOpts) throw new Error("scanForReceipts was not called");
 
-    // Allow a few seconds of tolerance for test execution time
-    const diff = Math.abs(capturedOpts.since.getTime() - sixMonthsAgo.getTime());
-    expect(diff).toBeLessThan(5000);
+    expect(capturedOpts.since.getTime()).toBe(expectedSince.getTime());
   });
 
   it("uses all mailboxes when allMailboxes option is true", async () => {

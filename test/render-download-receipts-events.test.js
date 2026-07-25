@@ -182,41 +182,6 @@ describe("renderDownloadReceiptsEvent", () => {
     expect(renderDownloadReceiptsEvent(event)).toBe("   8 unique receipt emails");
   });
 
-  describe("renders download-summary as multi-line string with all stats", () => {
-    const event = {
-      type: "download-summary",
-      stats: { found: 10, downloaded: 5, noPdf: 2, skipped: 1, alreadyHave: 1, errors: 1 },
-    };
-
-    it("contains the header line", () => {
-      expect(renderDownloadReceiptsEvent(event)).toContain("=== Download Complete ===");
-    });
-
-    it("contains the found count", () => {
-      expect(renderDownloadReceiptsEvent(event)).toContain("Found:       10");
-    });
-
-    it("contains the downloaded count", () => {
-      expect(renderDownloadReceiptsEvent(event)).toContain("Downloaded:  5");
-    });
-
-    it("contains the no-PDF count", () => {
-      expect(renderDownloadReceiptsEvent(event)).toContain("No PDF:      2");
-    });
-
-    it("contains the skipped count with label", () => {
-      expect(renderDownloadReceiptsEvent(event)).toContain("Skipped:     1 (non-invoice or low confidence)");
-    });
-
-    it("contains the duplicates count", () => {
-      expect(renderDownloadReceiptsEvent(event)).toContain("Duplicates:  1");
-    });
-
-    it("contains the errors count", () => {
-      expect(renderDownloadReceiptsEvent(event)).toContain("Errors:      1");
-    });
-  });
-
   it("renders reprocess-start with output directory", () => {
     const event = { type: "reprocess-start", outputDir: "/receipts" };
     expect(renderDownloadReceiptsEvent(event)).toBe("Reprocessing receipts in /receipts...");

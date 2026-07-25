@@ -6,6 +6,8 @@ import {
   listMailboxes as _listMailboxes,
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
+import { monthsAgo } from "./parse-date.js";
+import { SCAN_DEFAULT_MONTHS } from "./receipt-defaults.js";
 import { scanAccountComplete, scanAccountStart } from "./scan-event-factories.js";
 
 /**
@@ -45,9 +47,8 @@ export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () 
     ...gateways,
   };
 
-  const months = opts.months ?? 12;
-  const since = new Date();
-  since.setMonth(since.getMonth() - months);
+  const months = opts.months ?? SCAN_DEFAULT_MONTHS;
+  const since = monthsAgo(months);
 
   const accounts = resolveAccounts(opts.account || null, loadAccounts);
 

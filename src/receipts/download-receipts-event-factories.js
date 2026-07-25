@@ -96,13 +96,6 @@
  * @property {'llm-disabled'} type
  */
 
-// Summary event
-/**
- * @typedef {object} DownloadSummaryEvent
- * @property {'download-summary'} type
- * @property {ReceiptStats} stats
- */
-
 // Reprocess flow events
 /**
  * @typedef {object} ReprocessStartEvent
@@ -287,7 +280,7 @@
  * @typedef {MessageStartEvent | MessageTimeoutEvent | MaxReachedEvent | BudgetExceededEvent
  *   | SearchAccountEvent | VendorFilterAppliedEvent | SubjectExclusionsEvent | UniqueReceiptsEvent
  *   | SkipNonInvoiceEvent | SkipLowConfidenceEvent | SkipExistingInvoiceEvent | EmptyExtractionSkippedEvent
- *   | LlmEnabledEvent | LlmDisabledEvent | DownloadSummaryEvent
+ *   | LlmEnabledEvent | LlmDisabledEvent
  *   | ReprocessStartEvent | ReprocessDryRunEvent | ReprocessDryRunBodyEvent | ReprocessUsingBodyEvent
  *   | ReprocessSkippedEvent | ReprocessNoDataEvent | ReprocessReclassifiedEvent | ReprocessUpdatedEvent | ReprocessSummaryEvent
  *   | MailboxSearchStartEvent | MailboxCandidatesEvent
@@ -361,30 +354,6 @@ const TABLE = {
   llmDisabled: {
     render: () => "OPENAI_API_KEY not set — using pattern-based extraction",
   },
-  downloadSummary: {
-    params: ["stats"],
-    render: (e) => {
-      const s = e.stats;
-      const lines = [
-        `\n=== Download Complete ===`,
-        `Found:       ${s.found}`,
-        `Downloaded:  ${s.downloaded}`,
-        `No PDF:      ${s.noPdf}`,
-        `Skipped:     ${s.skipped} (non-invoice or low confidence)`,
-        `Empty:       ${s.skippedEmpty ?? 0} (no amount, no invoice number, no PDF)`,
-        `Duplicates:  ${s.alreadyHave}`,
-        `Errors:      ${s.errors}`,
-        `Timed out:   ${s.timedOut ?? 0}`,
-      ];
-      if ((s.searchFailures ?? 0) > 0) {
-        lines.push(
-          `⚠ ${s.searchFailures} mailbox search${s.searchFailures === 1 ? "" : "es"} failed — results may be incomplete`,
-        );
-      }
-      return lines.join("\n");
-    },
-  },
-
   // From download-receipts.js (reprocess flow)
   reprocessStart: {
     params: ["outputDir"],
@@ -535,7 +504,6 @@ export const {
   emptyExtractionSkipped,
   llmEnabled,
   llmDisabled,
-  downloadSummary,
   reprocessStart,
   reprocessDryRun,
   reprocessDryRunBody,

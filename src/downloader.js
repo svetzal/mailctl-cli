@@ -12,6 +12,8 @@ import {
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
+import { monthsAgo } from "./parse-date.js";
+import { DOWNLOAD_DEFAULT_MONTHS } from "./receipt-defaults.js";
 import { processDownloadMessage } from "./receipts/process-download-message.js";
 import { contentHash } from "./receipts/receipt-decisions.js";
 import { requireClassificationsData } from "./scan-data.js";
@@ -70,10 +72,9 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
   } = { ...defaultGateways, ...gateways };
 
   const dryRun = opts.dryRun ?? false;
-  const months = opts.months ?? 24;
+  const months = opts.months ?? DOWNLOAD_DEFAULT_MONTHS;
   const outputDir = opts.outputDir || getConfigDownloadDir();
-  const since = new Date();
-  since.setMonth(since.getMonth() - months);
+  const since = monthsAgo(months);
 
   const classifications = loadClassifications();
 

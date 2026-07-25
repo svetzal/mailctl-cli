@@ -162,6 +162,7 @@ src/attachment-parts.js        — findAttachmentParts(), findPdfParts() — BOD
 src/html-to-text.js            — Convert HTML to plain text
 src/unsubscribe.js             — Extract unsubscribe links from email
 src/parse-date.js              — Parse relative dates like "7d", "6m"
+src/receipt-defaults.js         — SCAN_DEFAULT_MONTHS, SORT_DEFAULT_MONTHS, DOWNLOAD_DEFAULT_MONTHS, EXTRACT_DEFAULT_MONTHS — single source of truth for every layer's lookback-month default
 
 Gateways (thin I/O wrappers, mockable in tests):
 src/gateways/fs-gateway.js     — FileSystemGateway: thin fs/path wrapper
@@ -182,7 +183,9 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **ES modules** (`"type": "module"` in package.json)
 - **imapflow** for IMAP — handles connection pooling, search, fetch, move
 - **UID range strings** for iCloud compatibility (not arrays)
-- **Content-hash dedup** (SHA-256) prevents duplicate PDF downloads
+- **Content-hash dedup** (SHA-256) prevents duplicate PDF downloads — all PDF hashing goes through `contentHash()` (`src/receipts/receipt-decisions.js`); nothing calls `createHash("sha256")` on a PDF buffer directly
+- **Single source for lookback dates** — every scan/sort/download/extract lookback date is computed via `monthsAgo()` (`src/parse-date.js`), which normalizes to local midnight so messages received earlier today aren't excluded; month-count defaults for each command come from `src/receipt-defaults.js`
+- **Single summary renderer** — the `receipts extract` run summary is rendered only by `formatDownloadReceiptsText()` (`src/receipts/format-download-receipts.js`); the library layer returns `{ stats, records }` and does not narrate its own progress summary
 - **Config-driven accounts** — account metadata (host, port, user) lives in `~/.config/mailctl/config.json`; secrets come from macOS Keychain
 - **Direct keychain access** — secrets are read from `~/.newt/newt-keychain-db` at runtime via `KeychainGateway` (`src/gateways/keychain-gateway.js`); `src/keychain.js` wraps the gateway to expose `loadAccountCredentials()` and `loadOpenAiKey()`; no wrapper script or env vars needed
 - **Shared helpers** — `forEachAccount()` handles connect/logout lifecycle, `filterScanMailboxes()` and `filterSearchMailboxes()` centralize mailbox exclusion logic

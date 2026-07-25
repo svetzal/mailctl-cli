@@ -7,6 +7,7 @@
 
 import { downloadReceipts as _downloadReceipts } from "../downloader.js";
 import { parseIntOption } from "../parse-options.js";
+import { DOWNLOAD_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 
 /**
@@ -27,7 +28,7 @@ export async function downloadCommand(opts, deps, onProgress = () => {}) {
   try {
     return await downloadReceipts(
       {
-        months: parseIntOption(opts.months, 24),
+        months: parseIntOption(opts.months, DOWNLOAD_DEFAULT_MONTHS),
         dryRun: opts.dryRun ?? false,
         outputDir: opts.output,
         account: account || undefined,

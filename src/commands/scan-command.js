@@ -6,6 +6,7 @@
  */
 
 import { parseIntOption } from "../parse-options.js";
+import { SCAN_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 import { ensureDataDir as _ensureDataDir, saveScanResults as _saveScanResults } from "../scan-data.js";
 import { aggregateBySender as _aggregateBySender, scanAllAccounts as _scanAllAccounts } from "../scanner.js";
@@ -42,7 +43,7 @@ export async function scanCommand(opts, deps, onProgress = () => {}) {
   try {
     results = await scanAllAccounts(
       {
-        months: parseIntOption(opts.months, 12),
+        months: parseIntOption(opts.months, SCAN_DEFAULT_MONTHS),
         allMailboxes: opts.allMailboxes ?? false,
         account: account || undefined,
       },

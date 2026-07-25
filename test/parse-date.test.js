@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseDate } from "../src/parse-date.js";
+import { monthsAgo, parseDate } from "../src/parse-date.js";
 
 describe("parseDate", () => {
   describe("parses ISO date 2026-01-15", () => {
@@ -244,5 +244,19 @@ describe("parseDate", () => {
       const d = parseDate(futureMonth);
       expect(d.getFullYear()).toBe(now.getFullYear() - 1);
     }
+  });
+});
+
+describe("monthsAgo", () => {
+  it("normalizes the result to local midnight", () => {
+    expect(monthsAgo(3).getHours()).toBe(0);
+    expect(monthsAgo(3).getMinutes()).toBe(0);
+    expect(monthsAgo(3).getSeconds()).toBe(0);
+  });
+
+  it("subtracts the given number of months", () => {
+    const now = new Date();
+    const expected = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    expect(monthsAgo(3).getTime()).toBe(expected.getTime());
   });
 });

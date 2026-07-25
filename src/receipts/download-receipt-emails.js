@@ -11,10 +11,10 @@ import { resolveAccounts } from "../cli-helpers.js";
 import { forEachMailboxGroup, groupByMailbox } from "../imap-orchestration.js";
 import { monthsAgo } from "../parse-date.js";
 import { rethrowIfProgrammerError } from "../programmer-error.js";
+import { EXTRACT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { matchesVendor } from "../vendor-map.js";
 import { withTimeout } from "../with-timeout.js";
 import {
-  downloadSummary,
   llmDisabled,
   llmEnabled,
   messageStart,
@@ -41,7 +41,7 @@ import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 export function resolveDownloadReceiptsOptions(opts) {
   const dryRun = opts.dryRun ?? false;
   const includeEmpty = opts.includeEmpty ?? false;
-  const months = opts.months ?? 12;
+  const months = opts.months ?? EXTRACT_DEFAULT_MONTHS;
   const outputDir = resolve(opts.outputDir || ".");
   const accountFilter = opts.account || null;
   const maxMessages = opts.max ?? null;
@@ -256,6 +256,5 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
       processAccountReceipts(client, account, searchResults, accountSearchFailures, run),
   );
 
-  onProgress(downloadSummary(run.runState.stats));
   return { stats: run.runState.stats, records: run.runState.records };
 }

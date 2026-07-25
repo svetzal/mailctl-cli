@@ -10,6 +10,8 @@ import {
   scanForReceipts as _scanForReceipts,
 } from "./imap-client.js";
 import { forEachMailboxGroup, groupByMailbox } from "./imap-orchestration.js";
+import { monthsAgo } from "./parse-date.js";
+import { SORT_DEFAULT_MONTHS } from "./receipt-defaults.js";
 import { requireClassificationsData } from "./scan-data.js";
 import {
   accountStart,
@@ -101,9 +103,8 @@ export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => 
   };
 
   const dryRun = opts.dryRun ?? false;
-  const months = opts.months ?? 24;
-  const since = new Date();
-  since.setMonth(since.getMonth() - months);
+  const months = opts.months ?? SORT_DEFAULT_MONTHS;
+  const since = monthsAgo(months);
 
   const classifications = loadClassifications();
   const accounts = resolveAccounts(opts.account || null, loadAccounts);

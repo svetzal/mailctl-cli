@@ -3,7 +3,6 @@ import {
   doclingConversionFailed,
   doclingFailed,
   downloadedPdf,
-  downloadSummary,
   dryRunJson,
   dryRunMetadata,
   dryRunPdf,
@@ -119,16 +118,6 @@ describe("llmEnabled", () => {
 describe("llmDisabled", () => {
   it("builds the llm-disabled event", () => {
     expect(llmDisabled()).toEqual({ type: "llm-disabled" });
-  });
-});
-
-describe("downloadSummary", () => {
-  it("builds the download-summary event", () => {
-    const stats = { total: 5 };
-    expect(downloadSummary(stats)).toEqual({
-      type: "download-summary",
-      stats,
-    });
   });
 });
 

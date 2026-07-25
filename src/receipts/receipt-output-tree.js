@@ -10,7 +10,6 @@
 /** @typedef {import('./receipt-types.js').ReceiptPdfAttachment} ReceiptPdfAttachment */
 /** @typedef {import('./receipt-types.js').ReceiptMessageEnvelope} ReceiptMessageEnvelope */
 
-import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { rethrowIfProgrammerError } from "../programmer-error.js";
 import { validateSidecar } from "../validate-json.js";
@@ -22,6 +21,7 @@ import {
   skipDuplicate,
   wroteMetadata,
 } from "./download-receipts-event-factories.js";
+import { contentHash } from "./receipt-decisions.js";
 import { cleanVendorForFilename } from "./receipt-extraction.js";
 
 // Cap derived filename base length
@@ -88,9 +88,9 @@ export function planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir,
 
   if (pdfAttachments.length > 0) {
     const att = pdfAttachments[0];
-    const contentHash = createHash("sha256").update(att.content).digest("hex");
+    const pdfHash = contentHash(att.content);
 
-    if (existingHashes.has(contentHash)) {
+    if (existingHashes.has(pdfHash)) {
       const dupLabel = metadata.invoice_number
         ? `${vendorClean} ${metadata.invoice_number}`
         : `${vendorClean} (${metadata.date})`;
@@ -204,7 +204,7 @@ export function loadExistingHashes(outputDir, fs, onError = () => {}) {
     (filePath, fileName) => {
       if (!fileName.toLowerCase().endsWith(".pdf")) return;
       const buf = fs.readBuffer(filePath);
-      hashes.add(createHash("sha256").update(buf).digest("hex"));
+      hashes.add(contentHash(buf));
     },
     onError,
   );

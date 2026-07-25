@@ -7,7 +7,7 @@ import { createFormatOutput } from "../cli-helpers.js";
 /**
  * @typedef {{ mode: "listVendors", configVendors: string[], recentVendors: VendorEntry[] }
  *   | { mode: "reprocess", reprocessed: number, skipped: number, errors: number }
- *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, alreadyHave: number, errors: number, searchFailures?: number }, records?: object[] }
+ *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, skipped?: number, skippedEmpty?: number, alreadyHave: number, errors: number, timedOut?: number, searchFailures?: number }, records?: object[] }
  * } DownloadReceiptsResult
  */
 
@@ -50,8 +50,11 @@ export function formatDownloadReceiptsText(result, opts) {
     `Found:         ${result.stats.found}`,
     `Downloaded:    ${result.stats.downloaded}`,
     `No PDF:        ${result.stats.noPdf}`,
+    `Skipped:       ${result.stats.skipped ?? 0}`,
+    `Empty:         ${result.stats.skippedEmpty ?? 0}`,
     `Already have:  ${result.stats.alreadyHave}`,
     `Errors:        ${result.stats.errors}`,
+    `Timed out:     ${result.stats.timedOut ?? 0}`,
   ];
   if ((result.stats.searchFailures ?? 0) > 0) {
     lines.push(

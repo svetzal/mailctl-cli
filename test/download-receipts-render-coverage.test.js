@@ -8,7 +8,6 @@ import {
   budgetExceeded,
   doclingFailed,
   downloadedPdf,
-  downloadSummary,
   dryRunJson,
   dryRunMetadata,
   dryRunPdf,
@@ -108,11 +107,6 @@ describe("download-receipts render coverage", () => {
 
   it("renders llmDisabled", () => {
     expect(renderDownloadReceiptsEvent(llmDisabled())).not.toBeNull();
-  });
-
-  it("renders downloadSummary", () => {
-    const stats = { found: 1, downloaded: 1, noPdf: 0, skipped: 0, alreadyHave: 0, errors: 0 };
-    expect(renderDownloadReceiptsEvent(downloadSummary(stats))).not.toBeNull();
   });
 
   it("renders reprocessStart", () => {

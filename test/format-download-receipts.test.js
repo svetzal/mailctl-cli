@@ -165,6 +165,48 @@ describe("formatDownloadReceiptsText", () => {
       expect(text).toContain("Errors:        1");
     });
 
+    it("shows skipped count", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats: { ...stats, skipped: 4 } };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("Skipped:       4");
+    });
+
+    it("defaults skipped to 0 when absent", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("Skipped:       0");
+    });
+
+    it("shows empty (skippedEmpty) count", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats: { ...stats, skippedEmpty: 3 } };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("Empty:         3");
+    });
+
+    it("defaults empty (skippedEmpty) to 0 when absent", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("Empty:         0");
+    });
+
+    it("shows timed out count", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats: { ...stats, timedOut: 2 } };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("Timed out:     2");
+    });
+
+    it("defaults timed out to 0 when absent", () => {
+      /** @type {DownloadReceiptsResult} */
+      const result = { mode: "download", stats };
+      const text = formatDownloadReceiptsText(result, {});
+      expect(text).toContain("Timed out:     0");
+    });
+
     it("shows search failures warning when searchFailures > 0", () => {
       /** @type {DownloadReceiptsResult} */
       const result = { mode: "download", stats: { ...stats, searchFailures: 3 } };

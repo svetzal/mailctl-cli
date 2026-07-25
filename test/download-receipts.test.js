@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { EXTRACT_DEFAULT_MONTHS } from "../src/receipt-defaults.js";
 import { downloadReceiptEmails, listReceiptVendors, reprocessReceipts } from "../src/receipts/download-receipts.js";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
@@ -1043,6 +1044,39 @@ describe("listReceiptVendors", () => {
         },
       ),
     ).rejects.toThrow("No accounts configured");
+  });
+
+  it("defaults months to EXTRACT_DEFAULT_MONTHS, matching its CLI caller's default", async () => {
+    /** Client that records the `since` value passed into every search criterion and finds nothing. */
+    function makeSinceCapturingClient(onSince) {
+      return {
+        getMailboxLock: mock(() => Promise.resolve({ release: mock(() => {}) })),
+        mailbox: { exists: 0 },
+        search: mock((criteria) => {
+          onSince(criteria.since);
+          return Promise.resolve([]);
+        }),
+      };
+    }
+    const gatewaysFor = (client) => ({
+      loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
+      forEachAccount: async (accounts, fn) => fn(client, accounts[0]),
+      listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
+    });
+
+    /** @type {Date|undefined} */
+    let capturedSinceDefault;
+    /** @type {Date|undefined} */
+    let capturedSinceExplicit;
+
+    await listReceiptVendors({}, gatewaysFor(makeSinceCapturingClient((s) => (capturedSinceDefault = s))));
+    await listReceiptVendors(
+      { months: EXTRACT_DEFAULT_MONTHS },
+      gatewaysFor(makeSinceCapturingClient((s) => (capturedSinceExplicit = s))),
+    );
+
+    if (!capturedSinceDefault || !capturedSinceExplicit) throw new Error("since was not captured");
+    expect(capturedSinceDefault.getTime()).toBe(capturedSinceExplicit.getTime());
   });
 
   it("returns an empty array when no receipts are found", async () => {

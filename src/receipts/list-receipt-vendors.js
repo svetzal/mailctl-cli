@@ -1,5 +1,6 @@
 import { resolveAccounts } from "../cli-helpers.js";
 import { monthsAgo } from "../parse-date.js";
+import { EXTRACT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { resolveGateways } from "./receipt-gateways.js";
 import { forEachReceiptSearchAccount } from "./receipt-search-pipeline.js";
 
@@ -21,7 +22,7 @@ function tallyVendor(vendorCounts, msg) {
 /**
  * Returns an array of { vendor, count } sorted by count descending.
  * @param {object} [opts]
- * @param {number}  [opts.months=3] - how far back to search
+ * @param {number}  [opts.months=12] - how far back to search
  * @param {Date}    [opts.since] - search from this date instead of months
  * @param {string}  [opts.account] - only search this account
  * @param {object} [gateways] - injectable implementations for testing
@@ -31,7 +32,7 @@ function tallyVendor(vendorCounts, msg) {
 export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = () => {}) {
   const { loadAccounts, forEachAccount, listMailboxes } = resolveGateways(gateways);
 
-  const months = opts.months ?? 3;
+  const months = opts.months ?? EXTRACT_DEFAULT_MONTHS;
   const accountFilter = opts.account || null;
   const since = opts.since ? opts.since : monthsAgo(months);
   const targetAccounts = resolveAccounts(accountFilter, loadAccounts);

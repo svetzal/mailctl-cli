@@ -4,8 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`scan`, `sort`, and `download` no longer exclude messages received earlier today.** They previously computed their lookback date inline with unnormalized `new Date()` arithmetic; a message that arrived at, say, 8am today could fall just outside the `--months` window computed later the same day. All three now route through `monthsAgo()` (`src/parse-date.js`), which normalizes to local midnight, matching `receipts extract`'s existing behavior.
+- **`listReceiptVendors()` (the `--list-vendors` library entry point) now defaults to a 12-month lookback, not 3.** Its only caller (`receipts extract --list-vendors`) has always passed 12 explicitly, so the 3-month library default was dead unless the function was called directly — but it was wrong, and is now corrected to match.
+
 ### Changed
 
+- **Consolidated per-command month-lookback defaults into `src/receipt-defaults.js`.** Each of `scan` (12), `sort` (24), `download` (24), and `extract` (12) previously had its default declared three times — once in the CLI option, once in the command orchestrator, once in the library function — with no single place to change it. All three layers now import from the shared constants.
+- **PDF content hashing now goes through the single `contentHash()` helper** (`src/receipts/receipt-decisions.js`) everywhere; `src/receipts/receipt-output-tree.js` previously computed the same SHA-256 digest inline in two places that had to stay in sync for PDF dedup to work correctly.
+- **The `receipts extract` run summary is now rendered in exactly one place** (`formatDownloadReceiptsText()`), instead of also being narrated mid-run by a `download-summary` progress event that had drifted from the final formatter (missing `skipped`, `skippedEmpty`, and `timedOut`). A non-JSON `extract` run now prints one summary block, not two.
 - **Extracted a shared receipt-search core** (`src/receipts/receipt-mailbox-search.js`) used by both `scanForReceipts` and `searchMailboxForReceipts`, which previously reimplemented the same lock/search-terms/UID-dedup/fetch-envelopes/tally-failures algorithm independently and had drifted on programmer-error escalation. `scanForReceipts` now escalates programmer errors (bare `TypeError`/`ReferenceError`/`RangeError`/`SyntaxError`) instead of swallowing them as ordinary search/fetch failures, matching `searchMailboxForReceipts`'s existing behavior. No change to command output or the public `{ results, failures }` shape.
 
 ## [1.3.0] - 2026-07-07

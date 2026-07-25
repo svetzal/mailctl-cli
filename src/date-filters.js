@@ -4,7 +4,7 @@
  * No I/O — same inputs always produce the same outputs.
  */
 
-import { parseDate } from "./parse-date.js";
+import { monthsAgo, parseDate } from "./parse-date.js";
 
 /**
  * @typedef {object} DateFilterOptions
@@ -37,9 +37,7 @@ export function resolveDateFilters({ months, since: sinceStr, before: beforeStr 
   let before = /** @type {Date|undefined} */ (undefined);
 
   if (months && !sinceStr) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - parseInt(months, 10));
-    since = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    since = monthsAgo(parseInt(months, 10));
   }
 
   if (sinceStr) {

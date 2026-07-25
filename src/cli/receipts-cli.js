@@ -16,17 +16,17 @@ import {
   formatSortOutput,
 } from "../format-receipts.js";
 import { FileSystemGateway } from "../gateways/fs-gateway.js";
+import {
+  DOWNLOAD_DEFAULT_MONTHS,
+  EXTRACT_DEFAULT_MONTHS,
+  SCAN_DEFAULT_MONTHS,
+  SORT_DEFAULT_MONTHS,
+} from "../receipt-defaults.js";
 import { downloadReceiptsCommand } from "../receipts/download-receipts-command.js";
 import { renderDownloadReceiptsEvent } from "../receipts/download-receipts-event-factories.js";
 import { formatDownloadReceiptsOutput } from "../receipts/format-download-receipts.js";
 import { renderScanEvent } from "../scan-event-factories.js";
 import { renderSortEvent } from "../sort-event-factories.js";
-
-// Default lookback periods (strings match Commander's option contract)
-const SCAN_DEFAULT_MONTHS = "12";
-const SORT_DEFAULT_MONTHS = "24";
-const DOWNLOAD_DEFAULT_MONTHS = "24";
-const DOWNLOAD_RECEIPTS_DEFAULT_MONTHS = "12";
 
 /**
  * @typedef {object} ReceiptsCliDeps
@@ -103,7 +103,7 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
   const buildScanCommand = (name) =>
     new Command(name)
       .description("Scan configured email accounts for receipt-like messages")
-      .option("-m, --months <n>", "months to look back", SCAN_DEFAULT_MONTHS)
+      .option("-m, --months <n>", "months to look back", String(SCAN_DEFAULT_MONTHS))
       .option("-a, --all-mailboxes", "scan all mailboxes (slower)", false)
       .option("-o, --output <file>", "write raw results to JSON file")
       .option("--summary", "output aggregated sender summary (default)", true)
@@ -162,7 +162,7 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
     mutating(
       new Command(name)
         .description("Move receipt emails into Receipts/Business and Receipts/Personal folders [Mutates with --apply]")
-        .option("-m, --months <n>", "months to look back", SORT_DEFAULT_MONTHS),
+        .option("-m, --months <n>", "months to look back", String(SORT_DEFAULT_MONTHS)),
     ).action(
       wrapAction(async (opts) => {
         const json = resolveJson(opts);
@@ -180,7 +180,7 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
     mutating(
       new Command(name)
         .description("Download PDF attachments from business receipt emails [Mutates with --apply]")
-        .option("-m, --months <n>", "months to look back", DOWNLOAD_DEFAULT_MONTHS)
+        .option("-m, --months <n>", "months to look back", String(DOWNLOAD_DEFAULT_MONTHS))
         .option("-o, --output <dir>", "override output directory"),
     ).action(
       wrapAction(async (opts) => {
@@ -200,7 +200,7 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
       new Command(name)
         .description("Download receipt PDFs and create JSON sidecar metadata files [Mutates with --apply]")
         .option("-o, --output <dir>", "root output directory", ".")
-        .option("-m, --months <n>", "how far back to search", DOWNLOAD_RECEIPTS_DEFAULT_MONTHS)
+        .option("-m, --months <n>", "how far back to search", String(EXTRACT_DEFAULT_MONTHS))
         .option("--since <date>", "search from this date instead of months")
         .option("--reprocess", "re-run LLM extraction on existing receipt files", false)
         .option("--vendor <name>", "filter to a specific vendor (substring match)")

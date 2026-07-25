@@ -6,6 +6,7 @@
  */
 
 import { parseIntOption } from "../parse-options.js";
+import { SORT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 import { sortReceipts } from "../sorter.js";
 
@@ -26,7 +27,7 @@ export async function sortCommand(opts, deps, onProgress = () => {}) {
   try {
     return await sortReceipts(
       {
-        months: parseIntOption(opts.months, 24),
+        months: parseIntOption(opts.months, SORT_DEFAULT_MONTHS),
         dryRun: opts.dryRun ?? false,
         account: account || undefined,
       },
