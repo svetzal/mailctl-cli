@@ -60,6 +60,17 @@ describe("flagCommand", () => {
         result: { status: "failed", error: expect.stringContaining('Account "test" not found.') },
       });
     });
+
+    it("records a failed status when the account fails to connect", async () => {
+      const deps = makeDeps({
+        forEachAccount: mock(async () => ({
+          accountFailures: [{ account: "Test Account", error: "connect refused" }],
+        })),
+      });
+      const { stats } = await flagCommand(["42"], { read: true }, deps);
+
+      expect(stats.failed).toBe(1);
+    });
   });
 
   describe("happy path", () => {

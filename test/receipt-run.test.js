@@ -60,6 +60,32 @@ describe("createReceiptWriteContext", () => {
     expect(ctx.existingHashes).toBeInstanceOf(Set);
     expect(ctx.existingHashes.size).toBe(0);
   });
+
+  describe("when the output directory cannot be read", () => {
+    const fs = makeFakeFs({
+      exists: () => true,
+      readdir: () => {
+        throw new Error("EACCES: permission denied");
+      },
+    });
+
+    it("returns a context with indexErrors > 0", () => {
+      const ctx = createReceiptWriteContext(
+        { outputDir: "/out", dryRun: false, includeEmpty: false, fs, subprocess: fakeSubprocess },
+        () => {},
+      );
+      expect(ctx.indexErrors).toBeGreaterThan(0);
+    });
+
+    it("still emits an onProgress event for each index-load failure", () => {
+      const events = [];
+      createReceiptWriteContext(
+        { outputDir: "/out", dryRun: false, includeEmpty: false, fs, subprocess: fakeSubprocess },
+        (event) => events.push(event),
+      );
+      expect(events.length).toBeGreaterThan(0);
+    });
+  });
 });
 
 // ── createReceiptRun ──────────────────────────────────────────────────────────

@@ -30,7 +30,7 @@ import { buildManifestRecord, contentHash, isValidPdf } from "./receipt-decision
  * @param {Set<string>} context.existingHashes
  * @param {{ writeFile: Function, mkdir?: Function }} context.fs
  * @param {function(object): void} context.onProgress
- * @returns {Promise<'downloaded'|'alreadyHave'|'skipped'|null>} the resulting action, or
+ * @returns {Promise<'downloaded'|'alreadyHave'|'error'|null>} the resulting action, or
  *   `null` for an invalid PDF, which leaves the caller's running action untouched
  */
 async function downloadAndRecordPdfPart(client, msg, part, vendor, context) {
@@ -70,7 +70,7 @@ async function downloadAndRecordPdfPart(client, msg, part, vendor, context) {
   } catch (err) {
     rethrowIfProgrammerError(err);
     onProgress(downloadFailed(err, filename));
-    return "skipped";
+    return "error";
   }
 }
 
@@ -90,7 +90,7 @@ async function downloadAndRecordPdfPart(client, msg, part, vendor, context) {
  * @param {Set<string>} context.existingHashes
  * @param {{ writeFile: Function, mkdir?: Function }} context.fs
  * @param {function(object): void} [context.onProgress]
- * @returns {Promise<{ action: 'alreadyHave'|'noPdf'|'downloaded'|'skipped' }>}
+ * @returns {Promise<{ action: 'alreadyHave'|'noPdf'|'downloaded'|'skipped'|'error' }>}
  */
 export async function processDownloadMessage(client, msg, mailbox, context) {
   const { account, manifest, dryRun, outputDir, existingFiles, existingHashes, fs, onProgress = () => {} } = context;
@@ -108,7 +108,7 @@ export async function processDownloadMessage(client, msg, mailbox, context) {
   } catch (err) {
     rethrowIfProgrammerError(err);
     onProgress(fetchStructureError(err, msg.uid));
-    return { action: "skipped" };
+    return { action: "error" };
   }
 
   if (!bodyStructure) return { action: "skipped" };
@@ -122,7 +122,7 @@ export async function processDownloadMessage(client, msg, mailbox, context) {
 
   const vendor = vendorName(msg.address, msg.name);
   const partContext = { manifestKey, manifest, dryRun, outputDir, existingFiles, existingHashes, fs, onProgress };
-  /** @type {'downloaded'|'alreadyHave'|'noPdf'|'skipped'} */
+  /** @type {'downloaded'|'alreadyHave'|'noPdf'|'skipped'|'error'} */
   let action = "skipped";
 
   for (const part of pdfParts) {

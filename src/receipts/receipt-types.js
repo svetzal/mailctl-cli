@@ -81,6 +81,7 @@ export {};
  * @property {number} errors - messages that failed with an error
  * @property {number} [timedOut] - messages that exceeded the per-message timeout
  * @property {number} [searchFailures] - IMAP search errors
+ * @property {number} [indexErrors] - dedup-index (invoice-number/hash) load failures
  */
 
 /**
@@ -155,6 +156,7 @@ export {};
  * @property {Set<string>} usedPaths
  * @property {import('../gateways/fs-gateway.js').FileSystemGateway} fs
  * @property {import('../gateways/subprocess-gateway.js').SubprocessGateway} subprocess
+ * @property {number} indexErrors - count of dedup-index load failures encountered while building this context
  */
 
 /**

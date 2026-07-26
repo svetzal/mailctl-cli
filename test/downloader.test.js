@@ -336,6 +336,14 @@ describe("downloadReceipts", () => {
       const event = events.find((e) => e.type === "fetch-structure-error");
       expect(event.severity).toBe("error");
     });
+
+    it("counts the failure in stats.errors, not stats.skipped", async () => {
+      const deps = makeBaseDeps(makeFetchThrowClient());
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+
+      expect(stats.errors).toBe(1);
+      expect(stats.skipped).toBe(0);
+    });
   });
 
   describe("emits invalid-pdf with severity: warning when content is not a real PDF", () => {
@@ -403,6 +411,14 @@ describe("downloadReceipts", () => {
 
       const event = events.find((e) => e.type === "download-failed");
       expect(event.severity).toBe("error");
+    });
+
+    it("counts the failure in stats.errors, not stats.skipped", async () => {
+      const deps = makeBaseDeps(makeDownloadThrowClient());
+      const stats = await downloadReceipts({ outputDir: "/tmp/test-dl" }, deps);
+
+      expect(stats.errors).toBe(1);
+      expect(stats.skipped).toBe(0);
     });
   });
 });

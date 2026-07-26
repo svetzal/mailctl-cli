@@ -20,10 +20,15 @@ import { detectMailbox } from "./mailbox-detect.js";
 
 /**
  * @param {string} uid
+ * @param {Array<{account: string, error: string}>} [accountFailures] - per-account connect failures, if any
  * @returns {Error}
  */
-export function uidNotFoundError(uid) {
-  return new Error(`Could not find UID ${uid} in any account.`);
+export function uidNotFoundError(uid, accountFailures = []) {
+  if (accountFailures.length === 0) {
+    return new Error(`Could not find UID ${uid} in any account.`);
+  }
+  const reasons = accountFailures.map((f) => `${f.account} (${f.error})`).join(", ");
+  return new Error(`Could not find UID ${uid} in any account. Could not connect to: ${reasons}`);
 }
 
 /**
@@ -48,30 +53,31 @@ export async function withMessage(uid, opts, deps, fn, onProgress = () => {}) {
   /** @type {{ result: T, account: object, mailbox: string } | null} */
   let outcome = null;
 
-  await forEachAccount(targetAccounts, async (client, acct) => {
-    if (outcome) return;
+  const { accountFailures = [] } =
+    (await forEachAccount(targetAccounts, async (client, acct) => {
+      if (outcome) return;
 
-    let mailbox = opts.mailbox;
-    if (!mailbox) {
-      const allBoxes = await listMailboxes(client);
-      const paths = filterSearchMailboxes(allBoxes);
-      mailbox = await detectMailbox(client, uid, paths);
-      if (!mailbox) return;
-    }
+      let mailbox = opts.mailbox;
+      if (!mailbox) {
+        const allBoxes = await listMailboxes(client);
+        const paths = filterSearchMailboxes(allBoxes);
+        mailbox = await detectMailbox(client, uid, paths);
+        if (!mailbox) return;
+      }
 
-    await withMailboxLock(
-      client,
-      mailbox,
-      async () => {
-        const result = await fn(client, acct, mailbox);
-        outcome = { result, account: acct, mailbox };
-      },
-      { onProgress },
-    );
-  });
+      await withMailboxLock(
+        client,
+        mailbox,
+        async () => {
+          const result = await fn(client, acct, mailbox);
+          outcome = { result, account: acct, mailbox };
+        },
+        { onProgress },
+      );
+    })) ?? {};
 
   if (!outcome) {
-    throw uidNotFoundError(uid);
+    throw uidNotFoundError(uid, accountFailures);
   }
 
   return outcome;

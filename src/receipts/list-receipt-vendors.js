@@ -27,7 +27,7 @@ function tallyVendor(vendorCounts, msg) {
  * @param {string}  [opts.account] - only search this account
  * @param {object} [gateways] - injectable implementations for testing
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<Array<{ vendor: string, address: string, count: number }>>}
+ * @returns {Promise<{ vendors: Array<{ vendor: string, address: string, count: number }>, stats: { searchFailures: number } }>}
  */
 export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = () => {}) {
   const { loadAccounts, forEachAccount, listMailboxes } = resolveGateways(gateways);
@@ -39,17 +39,20 @@ export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = 
 
   /** @type {Map<string, { vendor: string, address: string, count: number }>} */
   const vendorCounts = new Map();
+  let searchFailures = 0;
 
   await forEachReceiptSearchAccount(
     targetAccounts,
     since,
     { forEachAccount, listMailboxes, onProgress },
-    async (_client, _account, unique) => {
+    async (_client, _account, unique, failures) => {
+      searchFailures += failures?.length ?? 0;
       for (const msg of unique) {
         tallyVendor(vendorCounts, msg);
       }
     },
   );
 
-  return [...vendorCounts.values()].sort((a, b) => b.count - a.count);
+  const vendors = [...vendorCounts.values()].sort((a, b) => b.count - a.count);
+  return { vendors, stats: { searchFailures } };
 }

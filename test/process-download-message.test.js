@@ -175,4 +175,29 @@ describe("processDownloadMessage", () => {
       expect(context.fs.writeFile).not.toHaveBeenCalled();
     });
   });
+
+  describe("operational failures", () => {
+    it("returns action: 'error' (not 'skipped') when client.fetch throws", async () => {
+      const client = {
+        getMailboxLock: mock(() => Promise.resolve(makeLock())),
+        fetch: mock(() => {
+          throw new Error("fetch failed");
+        }),
+        download: mock(() => {
+          throw new Error("should not be called");
+        }),
+      };
+      const context = makeContext();
+      const { action } = await processDownloadMessage(client, makeMsg(), "INBOX", context);
+      expect(action).toBe("error");
+    });
+
+    it("returns action: 'error' (not 'skipped') when client.download throws", async () => {
+      const client = makeBodyStructureClient();
+      client.download = mock(() => Promise.reject(new Error("download failed")));
+      const context = makeContext();
+      const { action } = await processDownloadMessage(client, makeMsg(), "INBOX", context);
+      expect(action).toBe("error");
+    });
+  });
 });

@@ -98,17 +98,20 @@ function registerSearchCommand(program, ctx, deps) {
       wrapAction(async (query, opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { allResults, warnings } = await deps.searchCommand(query, opts, {
+        const result = await deps.searchCommand(query, opts, {
           targetAccounts,
           forEachAccount: deps.forEachAccount,
           listMailboxes: deps.listMailboxes,
         });
+        const { allResults, warnings, accountFailures = [] } = result;
 
         for (const w of warnings) console.error(w);
 
-        if (json || allResults.length > 0) {
-          console.log(deps.formatSearchOutput(json, allResults));
+        if (json || allResults.length > 0 || accountFailures.length > 0) {
+          console.log(deps.formatSearchOutput(json, allResults, accountFailures));
         }
+
+        return result;
       }),
     );
 }
@@ -133,16 +136,13 @@ function registerReadCommand(program, ctx, deps) {
       wrapAction(async (uid, opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const {
-          account: acct,
-          parsed,
-          mailbox,
-        } = await deps.readCommand(uid, opts, {
+        const result = await deps.readCommand(uid, opts, {
           targetAccounts,
           forEachAccount: deps.forEachAccount,
           listMailboxes: deps.listMailboxes,
           simpleParser: deps.simpleParser,
         });
+        const { account: acct, parsed, mailbox } = result;
 
         // Surface the resolved location. UIDs are per-mailbox, so a bare `read <uid>`
         // auto-detects a mailbox and can land on a different message than intended —
@@ -155,6 +155,8 @@ function registerReadCommand(program, ctx, deps) {
           );
         }
         console.log(deps.formatReadOutput(json, parsed, acct.name, uid, opts));
+
+        return result;
       }),
     );
 }
@@ -176,13 +178,15 @@ function registerFoldersCommand(program, ctx, deps) {
       wrapAction(async (opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { allAccountFolders } = await deps.listFoldersCommand(
+        const result = await deps.listFoldersCommand(
           opts,
           { targetAccounts, forEachAccount: deps.forEachAccount, listMailboxes: deps.listMailboxes },
           renderAuthProgress,
         );
 
-        console.log(deps.formatFoldersOutput(json, allAccountFolders));
+        console.log(deps.formatFoldersOutput(json, result.allAccountFolders, result.accountFailures));
+
+        return result;
       }),
     );
 }
@@ -220,6 +224,8 @@ function registerExtractAttachmentCommand(program, ctx, deps) {
         );
 
         console.log(deps.formatAttachmentOutput(json, result));
+
+        return result;
       }),
     );
 }
@@ -242,12 +248,15 @@ function registerInboxCommand(program, ctx, deps) {
       wrapAction(async (opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { resultsByAccount, allResults } = await deps.inboxCommand(opts, {
+        const result = await deps.inboxCommand(opts, {
           targetAccounts,
           forEachAccount: deps.forEachAccount,
         });
+        const { resultsByAccount, allResults, accountFailures } = result;
 
-        console.log(deps.formatInboxOutput(json, allResults, resultsByAccount));
+        console.log(deps.formatInboxOutput(json, allResults, resultsByAccount, accountFailures));
+
+        return result;
       }),
     );
 }
@@ -281,6 +290,8 @@ function registerThreadCommand(program, ctx, deps) {
           console.error(`\n=== ${account} ===`);
           console.log(output);
         }
+
+        return results;
       }),
     );
 }
@@ -305,12 +316,15 @@ function registerContactsCommand(program, ctx, deps) {
       wrapAction(async (opts) => {
         const { json, targetAccounts } = resolveCommandContext(opts, contextDeps);
 
-        const { contacts, sinceLabel } = await deps.contactsCommand(opts, {
+        const result = await deps.contactsCommand(opts, {
           targetAccounts,
           forEachAccount: deps.forEachAccount,
         });
+        const { contacts, sinceLabel, accountFailures } = result;
 
-        console.log(deps.formatContactsOutput(json, contacts, { sinceLabel }));
+        console.log(deps.formatContactsOutput(json, contacts, { sinceLabel, accountFailures }));
+
+        return result;
       }),
     );
 }

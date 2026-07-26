@@ -228,6 +228,17 @@ describe("formatSearchText", () => {
     expect(formatSearchText([])).toBe("");
   });
 
+  it("renders the account-failure warning when results are empty but an account failed to connect", () => {
+    const text = formatSearchText([], [{ account: "Test Account", error: "connect refused" }]);
+    expect(text).toContain("⚠");
+    expect(text).toContain("Test Account");
+  });
+
+  it("does not render a warning when results are empty and there are no account failures", () => {
+    const text = formatSearchText([], []);
+    expect(text).not.toContain("⚠");
+  });
+
   it("handles missing fromName gracefully", () => {
     const noName = { ...result, fromName: undefined };
     const text = formatSearchText([noName]);

@@ -134,65 +134,48 @@ describe("withErrorHandling", () => {
 
   it("outputs JSON error when resolveJsonFn returns true", async () => {
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("exit");
-    });
     const wrapped = withErrorHandling(
       async () => {
         throw new Error("boom");
       },
       () => true,
+      () => {},
     );
-    try {
-      await wrapped({});
-    } catch {}
+    await wrapped({});
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify({ error: "boom" }));
     logSpy.mockRestore();
-    exitSpy.mockRestore();
   });
 
   it("outputs text error when resolveJsonFn returns false", async () => {
     const errSpy = spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("exit");
-    });
     const wrapped = withErrorHandling(
       async () => {
         throw new Error("boom");
       },
       () => false,
+      () => {},
     );
-    try {
-      await wrapped({});
-    } catch {}
+    await wrapped({});
     expect(errSpy).toHaveBeenCalledWith("Error: boom");
     errSpy.mockRestore();
-    exitSpy.mockRestore();
   });
 
-  it("calls process.exit(1) on error", async () => {
+  it("sets the failure exit code via the injected setter on error", async () => {
     spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("exit");
-    });
+    const setExitCode = mock(() => {});
     const wrapped = withErrorHandling(
       async () => {
         throw new Error("boom");
       },
       () => false,
+      setExitCode,
     );
-    try {
-      await wrapped({});
-    } catch {}
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    exitSpy.mockRestore();
+    await wrapped({});
+    expect(setExitCode).toHaveBeenCalledWith(1);
   });
 
   it("includes error code in JSON output when err.code is set", async () => {
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("exit");
-    });
     const wrapped = withErrorHandling(
       async () => {
         const err = new Error("timed out");
@@ -200,40 +183,30 @@ describe("withErrorHandling", () => {
         throw err;
       },
       () => true,
+      () => {},
     );
-    try {
-      await wrapped({});
-    } catch {}
+    await wrapped({});
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify({ error: "timed out", code: "ETIMEDOUT" }));
     logSpy.mockRestore();
-    exitSpy.mockRestore();
   });
 
   it("omits code field from JSON output when err.code is absent", async () => {
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("exit");
-    });
     const wrapped = withErrorHandling(
       async () => {
         throw new Error("plain error");
       },
       () => true,
+      () => {},
     );
-    try {
-      await wrapped({});
-    } catch {}
+    await wrapped({});
     const parsed = JSON.parse(/** @type {string} */ (logSpy.mock.calls[0][0]));
     expect(parsed).not.toHaveProperty("code");
     logSpy.mockRestore();
-    exitSpy.mockRestore();
   });
 
   it("emits code in JSON when error has both cause and code (as from rethrowWithPrefix)", async () => {
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("exit");
-    });
     const original = new Error("connection refused");
     /** @type {any} */ (original).code = "ETIMEDOUT";
     const wrapped = withErrorHandling(
@@ -243,22 +216,16 @@ describe("withErrorHandling", () => {
         throw err;
       },
       () => true,
+      () => {},
     );
-    try {
-      await wrapped({});
-    } catch {}
+    await wrapped({});
     expect(logSpy).toHaveBeenCalledWith(
       JSON.stringify({ error: "Scan failed: connection refused", code: "ETIMEDOUT" }),
     );
     logSpy.mockRestore();
-    exitSpy.mockRestore();
   });
 
   it("calls debug logger with the error when DEBUG=mailctl is set", async () => {
-    spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("exit");
-    });
     const originalDebug = process.env.DEBUG;
     process.env.DEBUG = "mailctl";
     const errSpy = spyOn(console, "error").mockImplementation(() => {});
@@ -268,17 +235,48 @@ describe("withErrorHandling", () => {
         throw thrownErr;
       },
       () => false,
+      () => {},
     );
-    try {
-      await wrapped({});
-    } catch {}
+    await wrapped({});
     const calls = errSpy.mock.calls;
     const debugCall = calls.find((c) => typeof c[0] === "string" && c[0].includes("[mailctl:cli]"));
     expect(debugCall).toBeDefined();
     expect(debugCall?.[1]).toBe(thrownErr);
     process.env.DEBUG = originalDebug;
     errSpy.mockRestore();
-    exitSpy.mockRestore();
+  });
+
+  it("calls the injected setter with the failure exit code when the action resolves a result with failures", async () => {
+    const setExitCode = mock(() => {});
+    const wrapped = withErrorHandling(
+      async () => ({ stats: { failed: 1 } }),
+      () => false,
+      setExitCode,
+    );
+    await wrapped({});
+    expect(setExitCode).toHaveBeenCalledWith(1);
+  });
+
+  it("never calls the injected setter when the action resolves a result without failures", async () => {
+    const setExitCode = mock(() => {});
+    const wrapped = withErrorHandling(
+      async () => ({ stats: { failed: 0 } }),
+      () => false,
+      setExitCode,
+    );
+    await wrapped({});
+    expect(setExitCode).not.toHaveBeenCalled();
+  });
+
+  it("never calls the injected setter when the action resolves undefined", async () => {
+    const setExitCode = mock(() => {});
+    const wrapped = withErrorHandling(
+      async () => undefined,
+      () => false,
+      setExitCode,
+    );
+    await wrapped({});
+    expect(setExitCode).not.toHaveBeenCalled();
   });
 });
 

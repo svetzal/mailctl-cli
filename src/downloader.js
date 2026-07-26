@@ -56,7 +56,7 @@ const defaultGateways = {
  * @param {string}  [opts.account]   - only download from this account (case-insensitive)
  * @param {object} [gateways] - injectable implementations for testing
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{downloaded: number, skipped: number, noPdf: number, alreadyHave: number}>}
+ * @returns {Promise<{downloaded: number, skipped: number, noPdf: number, alreadyHave: number, errors: number}>}
  */
 export async function downloadReceipts(opts = {}, gateways = {}, onProgress = () => {}) {
   const {
@@ -86,7 +86,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
   const manifest = loadManifest();
   const accounts = resolveAccounts(opts.account || null, loadAccounts);
 
-  const stats = { downloaded: 0, skipped: 0, noPdf: 0, alreadyHave: 0 };
+  const stats = { downloaded: 0, skipped: 0, noPdf: 0, alreadyHave: 0, errors: 0 };
 
   // Track existing files and content hashes for dedup
   const existingFiles = new Set();
@@ -136,6 +136,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
         if (action === "downloaded") stats.downloaded++;
         else if (action === "noPdf") stats.noPdf++;
         else if (action === "alreadyHave") stats.alreadyHave++;
+        else if (action === "error") stats.errors++;
         else if (action === "skipped") stats.skipped++;
       }
     });

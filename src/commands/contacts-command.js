@@ -21,7 +21,7 @@ import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
  * @param {object} opts - CLI options (limit, since, sent, received, search)
  * @param {ContactsCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{ contacts: Array, sinceLabel: string }>}
+ * @returns {Promise<{ contacts: Array, sinceLabel: string, accountFailures: Array<{account: string, error: string}> }>}
  */
 export async function contactsCommand(opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount } = deps;
@@ -32,19 +32,21 @@ export async function contactsCommand(opts, deps, onProgress = () => {}) {
   const sinceLabel = opts.since ? `since ${formatShortDateWithYear(since)}` : "last 6 months";
 
   const allEntries = [];
+  let accountFailures = [];
 
   try {
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      const entries = await extractContacts(client, acct.name, {
-        since,
-        limit,
-        sentOnly: opts.sent ?? false,
-        receivedOnly: opts.received ?? false,
-        onProgress,
-      });
+    ({ accountFailures = [] } =
+      (await forEachAccount(targetAccounts, async (client, acct) => {
+        const entries = await extractContacts(client, acct.name, {
+          since,
+          limit,
+          sentOnly: opts.sent ?? false,
+          receivedOnly: opts.received ?? false,
+          onProgress,
+        });
 
-      allEntries.push(...entries);
-    });
+        allEntries.push(...entries);
+      })) ?? {});
   } catch (err) {
     rethrowWithPrefix(err, "Contacts fetch failed");
   }
@@ -61,5 +63,5 @@ export async function contactsCommand(opts, deps, onProgress = () => {}) {
     selfAddresses,
   });
 
-  return { contacts, sinceLabel };
+  return { contacts, sinceLabel, accountFailures };
 }

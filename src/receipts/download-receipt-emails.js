@@ -247,6 +247,7 @@ export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress
     vendorFilter: opts.vendor ?? null,
     onProgress,
   });
+  run.runState.stats.indexErrors = writeContext.indexErrors;
 
   await forEachReceiptSearchAccount(
     targetAccounts,

@@ -23,7 +23,7 @@ import { searchMailbox } from "../search.js";
  * @param {object} opts - CLI options (from, to, subject, body, since, before, months, mailbox, excludeMailbox, limit)
  * @param {SearchCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{ allResults: Array, warnings: string[] }>}
+ * @returns {Promise<{ allResults: Array, warnings: string[], accountFailures: Array<{account: string, error: string}> }>}
  * @throws {Error} when neither a query nor field criteria are provided
  */
 export async function searchCommand(query, opts, deps, onProgress = () => {}) {
@@ -43,38 +43,39 @@ export async function searchCommand(query, opts, deps, onProgress = () => {}) {
 
   const allResults = [];
 
-  await forEachAccount(targetAccounts, async (client, acct) => {
-    let mailboxPaths;
-    const mailboxOption = opts.mailbox ?? [];
-    if (mailboxOption.length > 0) {
-      mailboxPaths = mailboxOption;
-    } else {
-      const allBoxes = await listMailboxes(client);
-      mailboxPaths = filterSearchMailboxes(allBoxes, {
-        excludePaths: opts.excludeMailbox ?? [],
-      });
-    }
+  const { accountFailures = [] } =
+    (await forEachAccount(targetAccounts, async (client, acct) => {
+      let mailboxPaths;
+      const mailboxOption = opts.mailbox ?? [];
+      if (mailboxOption.length > 0) {
+        mailboxPaths = mailboxOption;
+      } else {
+        const allBoxes = await listMailboxes(client);
+        mailboxPaths = filterSearchMailboxes(allBoxes, {
+          excludePaths: opts.excludeMailbox ?? [],
+        });
+      }
 
-    // Search mailboxes sequentially (IMAP requires one mailbox lock at a time)
-    const accountResults = [];
-    for (const mbPath of mailboxPaths) {
-      const results = await searchMailbox(client, acct.name, mbPath, query, {
-        from: opts.from,
-        to: opts.to,
-        subject: opts.subject,
-        body: opts.body,
-        since,
-        before,
-        limit,
-        onProgress,
-      });
-      accountResults.push(...results);
-    }
+      // Search mailboxes sequentially (IMAP requires one mailbox lock at a time)
+      const accountResults = [];
+      for (const mbPath of mailboxPaths) {
+        const results = await searchMailbox(client, acct.name, mbPath, query, {
+          from: opts.from,
+          to: opts.to,
+          subject: opts.subject,
+          body: opts.body,
+          since,
+          before,
+          limit,
+          onProgress,
+        });
+        accountResults.push(...results);
+      }
 
-    // Deduplicate by message-id before adding to global results
-    const dedupedResults = deduplicateByMessageId(accountResults);
-    allResults.push(...dedupedResults);
-  });
+      // Deduplicate by message-id before adding to global results
+      const dedupedResults = deduplicateByMessageId(accountResults);
+      allResults.push(...dedupedResults);
+    })) ?? {};
 
-  return { allResults, warnings };
+  return { allResults, warnings, accountFailures };
 }

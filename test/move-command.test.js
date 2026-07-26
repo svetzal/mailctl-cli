@@ -180,6 +180,18 @@ describe("moveCommand", () => {
       expect(result).toMatchObject({ stats: { failed: 1 }, results: [{ status: "failed" }] });
     });
 
+    it("records a failed status per UID when the account fails to connect", async () => {
+      const deps = makeDeps({
+        account: "Test Account",
+        forEachAccount: mock(async () => ({
+          accountFailures: [{ account: "Test Account", error: "connect refused" }],
+        })),
+      });
+      const result = await moveCommand(["12345", "67890"], { to: "Archive" }, deps);
+
+      expect(result.stats.failed).toBe(2);
+    });
+
     describe("records failed status when source mailbox lock fails", () => {
       function makeLockFailDeps() {
         const lockFailClient = {

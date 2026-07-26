@@ -139,9 +139,15 @@ export async function flagCommand(uids, opts, deps) {
       continue;
     }
 
-    await forEachAccount(targetAccounts, (client, acct) =>
-      flagAccountUids({ client, acct, acctUids, opts, changes, acc, listMailboxes }),
-    );
+    const { accountFailures = [] } =
+      (await forEachAccount(targetAccounts, (client, acct) =>
+        flagAccountUids({ client, acct, acctUids, opts, changes, acc, listMailboxes }),
+      )) ?? {};
+
+    for (const failure of accountFailures) {
+      const msg = `Could not connect to ${failure.account}: ${failure.error}`;
+      acc.record("failed", [{ status: "failed", account: failure.account, uids: acctUids.map(Number), error: msg }]);
+    }
   }
 
   return /** @type {{ stats: FlagStats, results: FlagResult[] }} */ (acc.getResult());

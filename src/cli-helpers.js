@@ -3,6 +3,7 @@
  * No I/O, no Commander imports — these are isolated and testable.
  */
 import { debug } from "./debug.js";
+import { applyExitCode } from "./exit-status.js";
 
 /**
  * Sanitize a value for safe JSON output.
@@ -180,14 +181,23 @@ export function createResolveAccount(getGlobalOpts) {
  * Wrap a command action with consistent error handling.
  * Catches errors and outputs them appropriately for --json or human mode.
  *
- * @param {(...args: any[]) => Promise<void>} fn - the command action to wrap
+ * @param {(...args: any[]) => Promise<any>} fn - the command action to wrap; its resolved value (if any) is
+ *   passed to applyExitCode so orchestrator results with failure counts can escalate the exit code
  * @param {(opts: object) => boolean} resolveJsonFn - resolves the json flag from command opts
+ * @param {(code: number) => void} [setExitCode] - injected exit-code setter (defaults to process.exitCode)
  * @returns {(...args: any[]) => Promise<void>}
  */
-export function withErrorHandling(fn, resolveJsonFn) {
+export function withErrorHandling(
+  fn,
+  resolveJsonFn,
+  setExitCode = (code) => {
+    process.exitCode = code;
+  },
+) {
   return async (...args) => {
     try {
-      await fn(...args);
+      const result = await fn(...args);
+      applyExitCode(result, setExitCode);
     } catch (err) {
       const localOpts = args[args.length - 1]?.opts?.() ?? args[args.length - 1] ?? {};
       const json = resolveJsonFn(localOpts);
@@ -200,7 +210,7 @@ export function withErrorHandling(fn, resolveJsonFn) {
       } else {
         console.error(`Error: ${/** @type {Error} */ (err).message}`);
       }
-      process.exit(1);
+      setExitCode(1);
     }
   };
 }

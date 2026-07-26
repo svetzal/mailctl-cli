@@ -112,15 +112,18 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
           const json = resolveJson(opts);
           const account = resolveAccount(opts);
 
-          const { total, senders, rawPath, summaryPath } = await deps.scanCommand(
+          const result = await deps.scanCommand(
             opts,
             { account: account || null, dataDir: deps.DATA_DIR, fsGateway: deps._fs },
             renderScanProgress,
           );
+          const { total, senders, rawPath, summaryPath } = result;
 
           console.error(`Saved raw results to ${rawPath}`);
           console.error(`Saved sender summary to ${summaryPath}`);
           console.log(deps.formatScanOutput(json, total, senders));
+
+          return result;
         }),
       );
 
@@ -133,11 +136,13 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
         wrapAction(async (opts) => {
           const json = resolveJson(opts);
 
-          const { unclassifiedList } = deps.classifyCommand(opts.input, opts.output, {
+          const result = deps.classifyCommand(opts.input, opts.output, {
             fsGateway: deps._fs,
           });
 
-          console.log(deps.formatClassifyOutput(json, unclassifiedList));
+          console.log(deps.formatClassifyOutput(json, result.unclassifiedList));
+
+          return result;
         }),
       );
 
@@ -152,9 +157,11 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
 
           // Ensure the state dir exists before writing the default output path.
           deps._fs.mkdir(join(opts.output, ".."));
-          const { imported, path } = deps.importClassificationsCommand(file, opts.output, { fsGateway: deps._fs });
+          const result = deps.importClassificationsCommand(file, opts.output, { fsGateway: deps._fs });
 
-          console.log(deps.formatImportClassificationsOutput(json, imported, path));
+          console.log(deps.formatImportClassificationsOutput(json, result.imported, result.path));
+
+          return result;
         }),
       );
 
@@ -173,6 +180,8 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
 
         console.log(deps.formatSortOutput(json, stats));
         emitPlanHint(applied, json);
+
+        return { stats };
       }),
     );
 
@@ -192,6 +201,8 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
 
         console.log(deps.formatDownloadOutput(json, stats));
         emitPlanHint(applied, json);
+
+        return { stats };
       }),
     );
 
@@ -229,6 +240,8 @@ export function registerReceiptsCommands(program, ctx, deps = receiptsDeps) {
         const result = await deps.downloadReceiptsCommand(opts, commandDeps, renderDownloadReceiptsProgress);
         console.log(deps.formatDownloadReceiptsOutput(json, result, opts));
         emitPlanHint(applied, json);
+
+        return result;
       }),
     );
 

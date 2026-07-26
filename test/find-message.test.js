@@ -80,6 +80,16 @@ describe("withMessage", () => {
     );
   });
 
+  it("names the failed account in the error message when a connect failure prevented the search", async () => {
+    const deps = makeDeps({
+      forEachAccount: mock(async () => ({
+        accountFailures: [{ account: "Test Account", error: "connect refused" }],
+      })),
+    });
+
+    await expect(withMessage("99", {}, deps, async () => "never")).rejects.toThrow(/Test Account \(connect refused\)/);
+  });
+
   describe("tries next account when UID not found in current one (mailbox detection returns null)", () => {
     const account1 = makeAccount({ name: "First" });
     const account2 = makeAccount({ name: "Second" });

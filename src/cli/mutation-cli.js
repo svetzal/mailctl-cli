@@ -70,15 +70,17 @@ export function registerMutationCommands(program, ctx, deps = mutationDeps) {
       const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
       const applied = resolvePlanApply(opts);
 
-      const { stats, results } = await deps.moveCommand(uids, opts, {
+      const result = await deps.moveCommand(uids, opts, {
         accounts,
         account: account || null,
         forEachAccount: deps.forEachAccount,
         listMailboxes: deps.listMailboxes,
       });
 
-      console.log(deps.formatMoveOutput(json, stats, results));
+      console.log(deps.formatMoveOutput(json, result.stats, result.results));
       emitPlanHint(applied, json);
+
+      return result;
     }),
   );
 
@@ -97,15 +99,17 @@ export function registerMutationCommands(program, ctx, deps = mutationDeps) {
       const { json, account, accounts } = resolveCommandContext(opts, contextDeps);
       const applied = resolvePlanApply(opts);
 
-      const { stats, results } = await deps.flagCommand(uids, opts, {
+      const result = await deps.flagCommand(uids, opts, {
         accounts,
         account: account || null,
         forEachAccount: deps.forEachAccount,
         listMailboxes: deps.listMailboxes,
       });
 
-      console.log(deps.formatFlagOutput(json, stats, results));
+      console.log(deps.formatFlagOutput(json, result.stats, result.results));
       emitPlanHint(applied, json);
+
+      return result;
     }),
   );
 
@@ -139,6 +143,8 @@ export function registerMutationCommands(program, ctx, deps = mutationDeps) {
       if ("aborted" in result) return void console.error("Aborted.");
       console.log(deps.formatReplyOutput(json, result));
       emitPlanHint(applied, json);
+
+      return result;
     }),
   );
 }

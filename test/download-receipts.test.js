@@ -1089,7 +1089,7 @@ describe("listReceiptVendors", () => {
       listMailboxes: async () => [{ path: "INBOX", specialUse: null, flags: new Set() }],
     };
 
-    const vendors = await listReceiptVendors({}, gateways);
+    const { vendors } = await listReceiptVendors({}, gateways);
 
     expect(vendors).toEqual([]);
   });
@@ -1161,7 +1161,7 @@ describe("listReceiptVendors", () => {
       }),
     };
 
-    const vendors = await listReceiptVendors(
+    const { vendors } = await listReceiptVendors(
       {},
       {
         loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
@@ -1224,7 +1224,7 @@ describe("listReceiptVendors", () => {
       }),
     };
 
-    const vendors = await listReceiptVendors(
+    const { vendors } = await listReceiptVendors(
       {},
       {
         loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
@@ -1272,7 +1272,7 @@ describe("listReceiptVendors", () => {
       }),
     };
 
-    const vendors = await listReceiptVendors(
+    const { vendors } = await listReceiptVendors(
       {},
       {
         loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
@@ -1316,7 +1316,7 @@ describe("listReceiptVendors", () => {
       }),
     };
 
-    const vendors = await listReceiptVendors(
+    const { vendors } = await listReceiptVendors(
       {},
       {
         loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
@@ -1349,7 +1349,7 @@ describe("listReceiptVendors", () => {
       }),
     };
 
-    const vendors = await listReceiptVendors(
+    const { vendors } = await listReceiptVendors(
       {},
       {
         loadAccounts: () => [{ name: "Test", user: "test@example.com" }],
@@ -1383,7 +1383,7 @@ describe("listReceiptVendors", () => {
       }),
     };
 
-    const vendors = await listReceiptVendors(
+    const { vendors } = await listReceiptVendors(
       {},
       {
         loadAccounts: () => [{ name: "Test", user: "test@example.com" }],

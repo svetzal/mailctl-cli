@@ -32,7 +32,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
     const { getVendorDisplayNames, getVendorDomainMap } = await importVendorMap();
     const sinceDate = parseSinceOption(opts.since, null);
 
-    const vendors = await listReceiptVendors(
+    const { vendors, stats } = await listReceiptVendors(
       {
         months: parseIntOption(opts.months, EXTRACT_DEFAULT_MONTHS),
         since: sinceDate || undefined,
@@ -46,7 +46,7 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
     const knownDomains = getVendorDomainMap();
     const configVendors = [...new Set([...Object.values(knownNames), ...Object.values(knownDomains)])].sort();
 
-    return { mode: "listVendors", configVendors, recentVendors: vendors };
+    return { mode: "listVendors", configVendors, recentVendors: vendors, stats };
   }
 
   if (opts.reprocess) {
@@ -64,7 +64,11 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
       onProgress,
     );
 
-    return { mode: "reprocess", ...result };
+    // `result` keeps its historical flat shape (reprocessed/skipped/errors) for
+    // formatDownloadReceiptsText/buildDownloadReceiptsJson; `stats` is added
+    // alongside so the exit-code contract (src/exit-status.js) can read
+    // result.stats.errors like every other command result.
+    return { mode: "reprocess", ...result, stats: { errors: result.errors } };
   }
 
   const { downloadReceiptEmails } = await importDownloadReceipts();
@@ -84,10 +88,6 @@ export async function downloadReceiptsCommand(opts, deps, onProgress = () => {})
     llmGateways,
     onProgress,
   );
-
-  if ((stats.errors ?? 0) > 0 || (stats.timedOut ?? 0) > 0) {
-    process.exitCode = 1;
-  }
 
   return { mode: "download", stats, records };
 }

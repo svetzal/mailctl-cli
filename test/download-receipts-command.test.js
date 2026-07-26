@@ -1,14 +1,18 @@
 import { describe, expect, it, mock } from "bun:test";
+import { operationalFailureCount } from "../src/exit-status.js";
 import { downloadReceiptsCommand } from "../src/receipts/download-receipts-command.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function makeDeps(overrides = {}) {
   const importDownloadReceipts = mock(async () => ({
-    listReceiptVendors: mock(async () => [
-      { vendor: "Amazon", count: 5 },
-      { vendor: "Stripe", count: 2 },
-    ]),
+    listReceiptVendors: mock(async () => ({
+      vendors: [
+        { vendor: "Amazon", count: 5 },
+        { vendor: "Stripe", count: 2 },
+      ],
+      stats: { searchFailures: 0 },
+    })),
     reprocessReceipts: mock(async () => ({ reprocessed: 3, skipped: 1, errors: 0 })),
     downloadReceiptEmails: mock(async () => ({
       stats: { found: 5, downloaded: 3, noPdf: 1, alreadyHave: 1, errors: 0 },
@@ -54,7 +58,7 @@ describe("downloadReceiptsCommand", () => {
     });
 
     it("calls listReceiptVendors with months option", async () => {
-      const listReceiptVendors = mock(async () => []);
+      const listReceiptVendors = mock(async () => ({ vendors: [], stats: { searchFailures: 0 } }));
       const deps = makeDeps({
         importDownloadReceipts: mock(async () => ({
           listReceiptVendors,
@@ -145,7 +149,7 @@ describe("downloadReceiptsCommand", () => {
       const deps = makeDeps({
         account: "icloud",
         importDownloadReceipts: mock(async () => ({
-          listReceiptVendors: mock(async () => []),
+          listReceiptVendors: mock(async () => ({ vendors: [], stats: { searchFailures: 0 } })),
           reprocessReceipts: mock(async () => ({})),
           downloadReceiptEmails,
         })),
@@ -167,7 +171,7 @@ describe("downloadReceiptsCommand", () => {
       }));
       const deps = makeDeps({
         importDownloadReceipts: mock(async () => ({
-          listReceiptVendors: mock(async () => []),
+          listReceiptVendors: mock(async () => ({ vendors: [], stats: { searchFailures: 0 } })),
           reprocessReceipts: mock(async () => ({})),
           downloadReceiptEmails,
         })),
@@ -189,7 +193,7 @@ describe("downloadReceiptsCommand", () => {
       }));
       const deps = makeDeps({
         importDownloadReceipts: mock(async () => ({
-          listReceiptVendors: mock(async () => []),
+          listReceiptVendors: mock(async () => ({ vendors: [], stats: { searchFailures: 0 } })),
           reprocessReceipts: mock(async () => ({})),
           downloadReceiptEmails,
         })),
@@ -211,7 +215,7 @@ describe("downloadReceiptsCommand", () => {
       }));
       const deps = makeDeps({
         importDownloadReceipts: mock(async () => ({
-          listReceiptVendors: mock(async () => []),
+          listReceiptVendors: mock(async () => ({ vendors: [], stats: { searchFailures: 0 } })),
           reprocessReceipts: mock(async () => ({})),
           downloadReceiptEmails,
         })),
@@ -224,6 +228,67 @@ describe("downloadReceiptsCommand", () => {
         expect.anything(),
         expect.any(Function),
       );
+    });
+  });
+
+  // ── exit-code escalation (src/exit-status.js reads the result this command returns) ──
+
+  describe("exit-code contract", () => {
+    it("download mode: a result with searchFailures but no errors still counts as an operational failure", async () => {
+      const deps = makeDeps({
+        importDownloadReceipts: mock(async () => ({
+          listReceiptVendors: mock(async () => ({ vendors: [], stats: { searchFailures: 0 } })),
+          reprocessReceipts: mock(async () => ({})),
+          downloadReceiptEmails: mock(async () => ({
+            stats: { found: 0, downloaded: 0, noPdf: 0, alreadyHave: 0, errors: 0, searchFailures: 3 },
+            records: [],
+          })),
+        })),
+      });
+
+      const result = await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
+
+      expect(operationalFailureCount(result)).toBeGreaterThan(0);
+    });
+
+    it("reprocess mode: a result with errors counts as an operational failure", async () => {
+      const deps = makeDeps({
+        importDownloadReceipts: mock(async () => ({
+          listReceiptVendors: mock(async () => ({ vendors: [], stats: { searchFailures: 0 } })),
+          reprocessReceipts: mock(async () => ({ reprocessed: 1, skipped: 0, errors: 2 })),
+          downloadReceiptEmails: mock(async () => ({ stats: {}, records: [] })),
+        })),
+      });
+
+      const result = await downloadReceiptsCommand({ reprocess: true, output: "." }, deps);
+
+      expect(operationalFailureCount(result)).toBeGreaterThan(0);
+    });
+
+    it("listVendors mode: a result with a search failure counts as an operational failure", async () => {
+      const deps = makeDeps({
+        importDownloadReceipts: mock(async () => ({
+          listReceiptVendors: mock(async () => ({ vendors: [], stats: { searchFailures: 1 } })),
+          reprocessReceipts: mock(async () => ({})),
+          downloadReceiptEmails: mock(async () => ({ stats: {}, records: [] })),
+        })),
+      });
+
+      const result = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+
+      expect(operationalFailureCount(result)).toBeGreaterThan(0);
+    });
+
+    it("a clean run of each mode counts as zero operational failures", async () => {
+      const deps = makeDeps();
+
+      const download = await downloadReceiptsCommand({ output: ".", months: "12" }, deps);
+      const reprocess = await downloadReceiptsCommand({ reprocess: true, output: "." }, deps);
+      const listVendors = await downloadReceiptsCommand({ listVendors: true, months: "12" }, deps);
+
+      expect(operationalFailureCount(download)).toBe(0);
+      expect(operationalFailureCount(reprocess)).toBe(0);
+      expect(operationalFailureCount(listVendors)).toBe(0);
     });
   });
 });

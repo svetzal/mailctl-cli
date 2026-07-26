@@ -4,17 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Fixed
-
-- **`scan`, `sort`, and `download` no longer exclude messages received earlier today.** They previously computed their lookback date inline with unnormalized `new Date()` arithmetic; a message that arrived at, say, 8am today could fall just outside the `--months` window computed later the same day. All three now route through `monthsAgo()` (`src/parse-date.js`), which normalizes to local midnight, matching `receipts extract`'s existing behavior.
-- **`listReceiptVendors()` (the `--list-vendors` library entry point) now defaults to a 12-month lookback, not 3.** Its only caller (`receipts extract --list-vendors`) has always passed 12 explicitly, so the 3-month library default was dead unless the function was called directly — but it was wrong, and is now corrected to match.
-
 ### Changed
 
+- **BREAKING: commands now exit non-zero when any operational failure occurred, even if the overall command otherwise "completed."** Previously, a total IMAP account outage during `search`/`inbox`/`contacts`/`folders` printed an empty result and exited 0 — indistinguishable from "no matches." Per-account connect failures now surface as `accountFailures` in the result (and, in `--json` mode, in the payload), a `⚠` warning prints in text mode, and the process exits 1. `move`/`flag` now fold connect failures into `stats.failed` the same way they already fold per-UID failures. `receipts extract`'s `download`, `reprocess`, and `--list-vendors` modes previously only checked `stats.errors`/`stats.timedOut` for the `download` mode and silently ignored search failures and dedup-index load failures elsewhere; all three modes now escalate consistently via a shared `src/exit-status.js` contract. Scripts that previously treated exit 0 as "ran clean" should now check the exit code instead of (or in addition to) parsing stdout/stderr for warnings.
 - **Consolidated per-command month-lookback defaults into `src/receipt-defaults.js`.** Each of `scan` (12), `sort` (24), `download` (24), and `extract` (12) previously had its default declared three times — once in the CLI option, once in the command orchestrator, once in the library function — with no single place to change it. All three layers now import from the shared constants.
 - **PDF content hashing now goes through the single `contentHash()` helper** (`src/receipts/receipt-decisions.js`) everywhere; `src/receipts/receipt-output-tree.js` previously computed the same SHA-256 digest inline in two places that had to stay in sync for PDF dedup to work correctly.
 - **The `receipts extract` run summary is now rendered in exactly one place** (`formatDownloadReceiptsText()`), instead of also being narrated mid-run by a `download-summary` progress event that had drifted from the final formatter (missing `skipped`, `skippedEmpty`, and `timedOut`). A non-JSON `extract` run now prints one summary block, not two.
 - **Extracted a shared receipt-search core** (`src/receipts/receipt-mailbox-search.js`) used by both `scanForReceipts` and `searchMailboxForReceipts`, which previously reimplemented the same lock/search-terms/UID-dedup/fetch-envelopes/tally-failures algorithm independently and had drifted on programmer-error escalation. `scanForReceipts` now escalates programmer errors (bare `TypeError`/`ReferenceError`/`RangeError`/`SyntaxError`) instead of swallowing them as ordinary search/fetch failures, matching `searchMailboxForReceipts`'s existing behavior. No change to command output or the public `{ results, failures }` shape.
+
+### Fixed
+
+- **`scan`, `sort`, and `download` no longer exclude messages received earlier today.** They previously computed their lookback date inline with unnormalized `new Date()` arithmetic; a message that arrived at, say, 8am today could fall just outside the `--months` window computed later the same day. All three now route through `monthsAgo()` (`src/parse-date.js`), which normalizes to local midnight, matching `receipts extract`'s existing behavior.
+- **`listReceiptVendors()` (the `--list-vendors` library entry point) now defaults to a 12-month lookback, not 3.** Its only caller (`receipts extract --list-vendors`) has always passed 12 explicitly, so the 3-month library default was dead unless the function was called directly — but it was wrong, and is now corrected to match.
 
 ## [1.3.0] - 2026-07-07
 
@@ -69,25 +70,30 @@ All notable changes to this project will be documented in this file.
 ## [1.0.4] - 2026-05-25
 
 ### Added
+
 - `download-receipts` now skips writing JSON sidecars when LLM extraction produces no useful data (no amount, no invoice number, no PDF). Use `--include-empty` to restore the previous behavior and write sidecars for all processed emails.
 
 ## [1.0.3] - 2026-04-13
 
 ### Security
+
 - Updated dependencies to address known CVE vulnerabilities (automated nightly maintenance patch)
 
 ## [0.7.2] - 2026-03-17
 
 ### Fixed
+
 - Version string in cli.js now stays in sync with package.json
 - Added local installation instructions to AGENTS.md
 
 ## [0.7.1] - 2026-03-17
 
 ### Added
+
 - Skill distribution infrastructure (`mailctl init` command)
 
 ### Updated
+
 - imapflow to 1.2.15
 - @types/node to 25.5.0
 

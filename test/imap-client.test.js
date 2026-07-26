@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { connect, listMailboxes, scanForReceipts } from "../src/imap-client.js";
+import { connect, forEachAccount, listMailboxes, scanForReceipts } from "../src/imap-client.js";
 import { makeLock } from "./helpers.js";
 
 // ── connect ───────────────────────────────────────────────────────────────────
@@ -219,6 +219,40 @@ describe("forEachAccount contract (simulated)", () => {
     it("continues and calls fn for the succeeding account", () => {
       expect(fnCallCount).toBe(1);
     });
+  });
+});
+
+// ── forEachAccount ────────────────────────────────────────────────────────────
+
+describe("forEachAccount", () => {
+  const accounts = [
+    { name: "Acc1", user: "a@test.com" },
+    { name: "Acc2", user: "b@test.com" },
+  ];
+
+  it("resolves with an accountFailures entry per account when every connect rejects", async () => {
+    const connectFn = /** @type {any} */ (mock(() => Promise.reject(new Error("connect refused"))));
+    const fn = /** @type {any} */ (mock(() => Promise.resolve()));
+
+    const result = await forEachAccount(accounts, fn, () => {}, connectFn);
+
+    expect(result.accountFailures).toHaveLength(2);
+    expect(result.accountFailures).toEqual([
+      { account: "Acc1", error: "connect refused" },
+      { account: "Acc2", error: "connect refused" },
+    ]);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("resolves with an empty accountFailures list when every account connects", async () => {
+    const fakeClient = /** @type {any} */ ({ logout: mock(() => Promise.resolve()) });
+    const connectFn = /** @type {any} */ (mock(() => Promise.resolve(fakeClient)));
+    const fn = /** @type {any} */ (mock(() => Promise.resolve()));
+
+    const result = await forEachAccount(accounts, fn, () => {}, connectFn);
+
+    expect(result.accountFailures).toEqual([]);
+    expect(fn).toHaveBeenCalledTimes(2);
   });
 });
 

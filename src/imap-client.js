@@ -114,15 +114,19 @@ export { filterScanMailboxes, filterSearchMailboxes } from "./mailbox-filters.js
  * @param {Array} accounts - from loadAccounts()
  * @param {function(import("imapflow").ImapFlow, object): Promise<void>} fn - callback receiving (client, account)
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<void>}
+ * @param {typeof connect} [connectFn] - injectable for testing; defaults to connect
+ * @returns {Promise<{accountFailures: Array<{account: string, error: string}>}>} per-account connect failures; empty when every account connected
  */
-export async function forEachAccount(accounts, fn, onProgress = () => {}) {
+export async function forEachAccount(accounts, fn, onProgress = () => {}, connectFn = connect) {
+  /** @type {Array<{account: string, error: string}>} */
+  const accountFailures = [];
   for (const account of accounts) {
     let client;
     try {
-      client = await connect(account, onProgress);
+      client = await connectFn(account, onProgress);
     } catch (err) {
       onProgress(connectError(err, account.name));
+      accountFailures.push({ account: account.name, error: /** @type {Error} */ (err).message });
       continue;
     }
     try {
@@ -131,4 +135,5 @@ export async function forEachAccount(accounts, fn, onProgress = () => {}) {
       await client.logout();
     }
   }
+  return { accountFailures };
 }

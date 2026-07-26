@@ -8,6 +8,21 @@ import { formatDatetime, formatMessageDate, formatShortDate } from "./format-dat
 import { htmlToText } from "./html-to-text.js";
 import { extractUnsubscribeLinks } from "./unsubscribe.js";
 
+/**
+ * Builds the "results may be incomplete" warning line for a non-empty list of
+ * per-account connect failures, mirroring the pattern used by
+ * formatDownloadReceiptsText for search failures. Returns null when there are
+ * no failures to report.
+ *
+ * @param {Array<{account: string, error: string}>} [accountFailures]
+ * @returns {string|null}
+ */
+export function accountFailuresWarning(accountFailures = []) {
+  if (accountFailures.length === 0) return null;
+  const names = accountFailures.map((f) => f.account).join(", ");
+  return `⚠ ${accountFailures.length} account${accountFailures.length === 1 ? "" : "s"} failed to connect (${names}) — results may be incomplete`;
+}
+
 // ── format-read ───────────────────────────────────────────────────────────────
 
 const DEFAULT_MAX_BODY_CHARS = 3000;
@@ -153,11 +168,13 @@ export function formatReadOutput(json, parsed, acctName, uid, opts) {
  * Each result appears on one line: [mailbox] UID:N date | fromName <from> | subject
  *
  * @param {SearchResult[]} results
+ * @param {Array<{account: string, error: string}>} [accountFailures]
  * @returns {string}
  */
-export function formatSearchText(results) {
+export function formatSearchText(results, accountFailures = []) {
+  const warning = accountFailuresWarning(accountFailures);
   if (results.length === 0) {
-    return "";
+    return warning ?? "";
   }
 
   const lines = results.map((r) => {
@@ -166,20 +183,26 @@ export function formatSearchText(results) {
     return `  [${r.mailbox}] UID:${r.uid} ${r.date ?? ""} | ${fromPart}${toPart} | ${r.subject ?? ""}`;
   });
 
+  if (warning) lines.push(warning);
+
   return lines.join("\n");
 }
 
 /**
  * Strips the internal messageId field (used for dedup) before output.
+ * When there are account connect failures, wraps the results so consumers of
+ * --json output can distinguish "no results" from "some accounts unreachable".
  *
  * @param {SearchResult[]} results
- * @returns {object[]}
+ * @param {Array<{account: string, error: string}>} [accountFailures]
+ * @returns {object[] | { results: object[], accountFailures: Array<{account: string, error: string}> }}
  */
-export function buildSearchJson(results) {
-  return results.map(({ messageId, ...rest }) => rest);
+export function buildSearchJson(results, accountFailures = []) {
+  const stripped = results.map(({ messageId, ...rest }) => rest);
+  return accountFailures.length === 0 ? stripped : { results: stripped, accountFailures };
 }
 
-/** @type {(json: boolean, results: SearchResult[]) => string} */
+/** @type {(json: boolean, results: SearchResult[], accountFailures?: Array<{account: string, error: string}>) => string} */
 export const formatSearchOutput = createFormatOutput(buildSearchJson, formatSearchText);
 
 // ── format-folders ────────────────────────────────────────────────────────────
@@ -198,11 +221,13 @@ export const formatSearchOutput = createFormatOutput(buildSearchJson, formatSear
 
 /**
  * @param {AccountFolders[]} foldersByAccount - folder data grouped by account
+ * @param {Array<{account: string, error: string}>} [accountFailures]
  * @returns {string}
  */
-export function formatFoldersText(foldersByAccount) {
+export function formatFoldersText(foldersByAccount, accountFailures = []) {
+  const warning = accountFailuresWarning(accountFailures);
   if (foldersByAccount.length === 0) {
-    return "";
+    return warning ?? "";
   }
 
   const lines = [];
@@ -215,20 +240,25 @@ export function formatFoldersText(foldersByAccount) {
     }
   }
 
+  if (warning) lines.push(`\n${warning}`);
+
   return lines.join("\n");
 }
 
 /**
  * Flattens per-account folder groups into a single array, tagging each entry with its account name.
+ * When there are account connect failures, wraps the array with an accountFailures field.
  *
  * @param {AccountFolders[]} foldersByAccount
- * @returns {{ account: string, path: string, specialUse: string|null }[]}
+ * @param {Array<{account: string, error: string}>} [accountFailures]
+ * @returns {{ account: string, path: string, specialUse: string|null }[] | { folders: { account: string, path: string, specialUse: string|null }[], accountFailures: Array<{account: string, error: string}> }}
  */
-export function buildFoldersJson(foldersByAccount) {
-  return foldersByAccount.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
+export function buildFoldersJson(foldersByAccount, accountFailures = []) {
+  const folders = foldersByAccount.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
+  return accountFailures.length === 0 ? folders : { folders, accountFailures };
 }
 
-/** @type {(json: boolean, foldersByAccount: AccountFolders[]) => string} */
+/** @type {(json: boolean, foldersByAccount: AccountFolders[], accountFailures?: Array<{account: string, error: string}>) => string} */
 export const formatFoldersOutput = createFormatOutput(buildFoldersJson, formatFoldersText);
 
 // ── format-thread ─────────────────────────────────────────────────────────────
@@ -308,9 +338,10 @@ export function formatThreadOutput(json, results, opts) {
 
 /**
  * @param {Map<string, Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>>} resultsByAccount
+ * @param {Array<{account: string, error: string}>} [accountFailures]
  * @returns {string}
  */
-export function formatInboxText(resultsByAccount) {
+export function formatInboxText(resultsByAccount, accountFailures = []) {
   const lines = [];
 
   for (const [accountName, messages] of resultsByAccount) {
@@ -333,15 +364,19 @@ export function formatInboxText(resultsByAccount) {
     lines.push("");
   }
 
+  const warning = accountFailuresWarning(accountFailures);
+  if (warning) lines.push(warning);
+
   return lines.join("\n");
 }
 
 /**
  * @param {Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>} allResults
- * @returns {object[]}
+ * @param {Array<{account: string, error: string}>} [accountFailures]
+ * @returns {object[] | { results: object[], accountFailures: Array<{account: string, error: string}> }}
  */
-export function buildInboxJson(allResults) {
-  return allResults.map((msg) => ({
+export function buildInboxJson(allResults, accountFailures = []) {
+  const results = allResults.map((msg) => ({
     account: msg.account,
     uid: msg.uid,
     date: msg.date instanceof Date ? msg.date.toISOString() : msg.date,
@@ -351,16 +386,22 @@ export function buildInboxJson(allResults) {
     unread: msg.unread,
     mailbox: msg.mailbox,
   }));
+  return accountFailures.length === 0 ? results : { results, accountFailures };
 }
 
 /**
  * @param {boolean} json
  * @param {Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>} allResults
  * @param {Map<string, Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>>} resultsByAccount
+ * @param {Array<{account: string, error: string}>} [accountFailures]
  * @returns {string}
  */
-export function formatInboxOutput(json, allResults, resultsByAccount) {
-  return formatOutput(json, buildInboxJson(allResults), formatInboxText(resultsByAccount));
+export function formatInboxOutput(json, allResults, resultsByAccount, accountFailures = []) {
+  return formatOutput(
+    json,
+    buildInboxJson(allResults, accountFailures),
+    formatInboxText(resultsByAccount, accountFailures),
+  );
 }
 
 // ── format-contacts ───────────────────────────────────────────────────────────
@@ -369,6 +410,7 @@ export function formatInboxOutput(json, allResults, resultsByAccount) {
  * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
  * @param {object} opts
  * @param {string} opts.sinceLabel
+ * @param {Array<{account: string, error: string}>} [opts.accountFailures]
  * @returns {string}
  */
 export function formatContactsText(contacts, opts) {
@@ -386,6 +428,9 @@ export function formatContactsText(contacts, opts) {
     lines.push(`${num}. ${display.padEnd(50)} ${msgs.padStart(8)}  (${dir})   last: ${dateStr}`);
   }
 
+  const warning = accountFailuresWarning(opts.accountFailures);
+  if (warning) lines.push(warning);
+
   return lines.join("\n");
 }
 
@@ -393,6 +438,7 @@ export function formatContactsText(contacts, opts) {
  * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
  * @param {object} opts
  * @param {string} opts.sinceLabel
+ * @param {Array<{account: string, error: string}>} [opts.accountFailures]
  * @returns {object}
  */
 export function buildContactsJson(contacts, opts) {
@@ -405,10 +451,11 @@ export function buildContactsJson(contacts, opts) {
       lastSeen: c.lastSeen instanceof Date ? c.lastSeen.toISOString() : c.lastSeen,
       direction: c.direction,
     })),
+    ...(opts.accountFailures?.length ? { accountFailures: opts.accountFailures } : {}),
   };
 }
 
-/** @type {(json: boolean, contacts: Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>, opts: {sinceLabel: string}) => string} */
+/** @type {(json: boolean, contacts: Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>, opts: {sinceLabel: string, accountFailures?: Array<{account: string, error: string}>}) => string} */
 export const formatContactsOutput = createFormatOutput(buildContactsJson, formatContactsText);
 
 // ── format-attachment ─────────────────────────────────────────────────────────

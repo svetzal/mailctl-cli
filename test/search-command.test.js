@@ -98,6 +98,18 @@ describe("searchCommand", () => {
 
       expect(Array.isArray(result.warnings)).toBe(true);
     });
+
+    it("returns empty allResults and a populated accountFailures list when every account fails to connect", async () => {
+      const deps = makeDeps({
+        forEachAccount: mock(async () => ({
+          accountFailures: [{ account: "Test Account", error: "connect refused" }],
+        })),
+      });
+      const result = await searchCommand("test", {}, deps);
+
+      expect(result.allResults).toHaveLength(0);
+      expect(result.accountFailures).toHaveLength(1);
+    });
   });
 
   describe("mailbox selection", () => {

@@ -18,7 +18,7 @@ import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
  * @param {object} opts - CLI options (limit, unread, since)
  * @param {InboxCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{ resultsByAccount: Map<string, Array>, allResults: Array }>}
+ * @returns {Promise<{ resultsByAccount: Map<string, Array>, allResults: Array, accountFailures: Array<{account: string, error: string}> }>}
  */
 export async function inboxCommand(opts, deps, onProgress = () => {}) {
   const { targetAccounts, forEachAccount } = deps;
@@ -29,22 +29,24 @@ export async function inboxCommand(opts, deps, onProgress = () => {}) {
   /** @type {Map<string, Array>} */
   const resultsByAccount = new Map();
   const allResults = [];
+  let accountFailures = [];
 
   try {
-    await forEachAccount(targetAccounts, async (client, acct) => {
-      const messages = await fetchInbox(client, acct.name, {
-        limit,
-        since,
-        unreadOnly: opts.unread ?? false,
-        onProgress,
-      });
+    ({ accountFailures = [] } =
+      (await forEachAccount(targetAccounts, async (client, acct) => {
+        const messages = await fetchInbox(client, acct.name, {
+          limit,
+          since,
+          unreadOnly: opts.unread ?? false,
+          onProgress,
+        });
 
-      resultsByAccount.set(acct.name, messages);
-      allResults.push(...messages);
-    });
+        resultsByAccount.set(acct.name, messages);
+        allResults.push(...messages);
+      })) ?? {});
   } catch (err) {
     rethrowWithPrefix(err, "Inbox fetch failed");
   }
 
-  return { resultsByAccount, allResults };
+  return { resultsByAccount, allResults, accountFailures };
 }

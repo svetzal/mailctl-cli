@@ -13,7 +13,7 @@ import {
  * @typedef {object} CliContext
  * @property {(opts: object) => boolean} resolveJson
  * @property {(opts: object) => string|undefined} resolveAccount
- * @property {(fn: (...args: any[]) => Promise<void>) => (...args: any[]) => Promise<void>} wrapAction
+ * @property {(fn: (...args: any[]) => Promise<any>) => (...args: any[]) => Promise<void>} wrapAction
  * @property {(cmd: import("commander").Command) => import("commander").Command} mutating
  * @property {{ resolveJson: (opts: object) => boolean, resolveAccount: (opts: object) => string|undefined, requireAccounts: () => object[], filterAccountsByName: (accounts: object[], name: string|null|undefined) => object[] }} contextDeps
  * @property {(renderEvent: (event: BaseEvent) => string|null) => (event: BaseEvent) => void} progress
@@ -31,7 +31,7 @@ export function createCliContext({ getGlobalOpts, requireAccounts }) {
   const resolveJson = createResolveJson(getGlobalOpts);
   const resolveAccount = createResolveAccount(getGlobalOpts);
   const contextDeps = { resolveJson, resolveAccount, requireAccounts, filterAccountsByName };
-  const wrapAction = (/** @type {(...args: any[]) => Promise<void>} */ fn) => withErrorHandling(fn, resolveJson);
+  const wrapAction = (/** @type {(...args: any[]) => Promise<any>} */ fn) => withErrorHandling(fn, resolveJson);
 
   /**
    * Attach the canonical plan/apply options to a mutating command: a visible

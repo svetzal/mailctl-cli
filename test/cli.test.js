@@ -184,10 +184,8 @@ describe("buildProgram (integration)", () => {
   // ── error handling ───────────────────────────────────────────────────────────
 
   describe("withErrorHandling", () => {
-    it("exits process with code 1 when a command orchestrator throws", async () => {
-      const exitSpy = spyOn(process, "exit").mockImplementation(() => {
-        throw new Error("process.exit");
-      });
+    it("sets process.exitCode to 1 when a command orchestrator throws", async () => {
+      process.exitCode = 0;
 
       const deps = makeIntegrationDeps({
         receipts: {
@@ -201,8 +199,42 @@ describe("buildProgram (integration)", () => {
         .parseAsync(["node", "mailctl", "scan"])
         .catch(() => {});
 
-      expect(exitSpy).toHaveBeenCalledWith(1);
-      exitSpy.mockRestore();
+      expect(process.exitCode).toBe(1);
+      process.exitCode = 0;
+    });
+  });
+
+  // ── exit-code escalation ────────────────────────────────────────────────────
+
+  describe("exit code escalation", () => {
+    it("sets process.exitCode to 1 when search reports account connect failures", async () => {
+      process.exitCode = 0;
+
+      const deps = makeIntegrationDeps({
+        mail: {
+          searchCommand: mock(async () => ({
+            allResults: [],
+            warnings: [],
+            accountFailures: [{ account: "Test Account", error: "connect refused" }],
+          })),
+        },
+      });
+
+      await buildProgram(deps).parseAsync(["node", "mailctl", "search", "test"]);
+
+      expect(process.exitCode).toBe(1);
+      process.exitCode = 0;
+    });
+
+    it("never sets process.exitCode when search reports no account connect failures", async () => {
+      process.exitCode = 0;
+
+      const deps = makeIntegrationDeps();
+
+      await buildProgram(deps).parseAsync(["node", "mailctl", "search", "test"]);
+
+      expect(process.exitCode).toBe(0);
+      process.exitCode = 0;
     });
   });
 

@@ -25,6 +25,7 @@ export function createReceiptRunState() {
       errors: 0,
       timedOut: 0,
       searchFailures: 0,
+      indexErrors: 0,
     },
     records: /** @type {ReceiptMetadata[]} */ ([]),
     processedCount: 0,
@@ -40,14 +41,25 @@ export function createReceiptRunState() {
  * @returns {ReceiptWriteContext}
  */
 export function createReceiptWriteContext({ outputDir, dryRun, includeEmpty, fs, subprocess }, onProgress) {
-  const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs, (err, ctx) =>
-    onProgress(outputTreeError(err, ctx.path, ctx.level)),
-  );
-  const existingHashes = loadExistingHashes(outputDir, fs, (err, ctx) =>
-    onProgress(outputTreeError(err, ctx.path, ctx.level)),
-  );
+  let indexErrors = 0;
+  const onIndexError = (err, ctx) => {
+    indexErrors++;
+    onProgress(outputTreeError(err, ctx.path, ctx.level));
+  };
+  const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs, onIndexError);
+  const existingHashes = loadExistingHashes(outputDir, fs, onIndexError);
   const usedPaths = new Set();
-  return { outputDir, dryRun, includeEmpty, existingInvoiceNumbers, existingHashes, usedPaths, fs, subprocess };
+  return {
+    outputDir,
+    dryRun,
+    includeEmpty,
+    existingInvoiceNumbers,
+    existingHashes,
+    usedPaths,
+    fs,
+    subprocess,
+    indexErrors,
+  };
 }
 
 /**
