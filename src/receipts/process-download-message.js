@@ -1,13 +1,6 @@
 import { join } from "node:path";
 import { findPdfParts } from "../attachment-parts.js";
-import {
-  downloadDryRun,
-  downloaded,
-  downloadFailed,
-  duplicateContent,
-  fetchStructureError,
-  invalidPdf,
-} from "../download-event-factories.js";
+import { downloadEvents } from "../download-event-factories.js";
 import { buildFilename, vendorName } from "../download-filename.js";
 import { rethrowIfProgrammerError } from "../programmer-error.js";
 import { buildManifestRecord, contentHash, isValidPdf } from "./receipt-decisions.js";
@@ -38,7 +31,7 @@ async function downloadAndRecordPdfPart(client, msg, part, vendor, context) {
   const filename = buildFilename(vendor, msg.date, part.filename, existingFiles);
 
   if (dryRun) {
-    onProgress(downloadDryRun(filename));
+    onProgress(downloadEvents.downloadDryRun(filename));
     return "downloaded";
   }
 
@@ -49,13 +42,13 @@ async function downloadAndRecordPdfPart(client, msg, part, vendor, context) {
     const buffer = Buffer.concat(chunks);
 
     if (!isValidPdf(buffer)) {
-      onProgress(invalidPdf(new Error("Invalid PDF content"), filename));
+      onProgress(downloadEvents.invalidPdf(new Error("Invalid PDF content"), filename));
       return null;
     }
 
     const hash = contentHash(buffer);
     if (existingHashes.has(hash)) {
-      onProgress(duplicateContent(filename));
+      onProgress(downloadEvents.duplicateContent(filename));
       manifest[manifestKey] = buildManifestRecord("duplicate", { hash, date: msg.date, vendor });
       return "alreadyHave";
     }
@@ -64,12 +57,12 @@ async function downloadAndRecordPdfPart(client, msg, part, vendor, context) {
     const outPath = join(outputDir, filename);
     fs.writeFile(outPath, buffer);
     existingFiles.add(filename.toLowerCase());
-    onProgress(downloaded(filename, buffer.length));
+    onProgress(downloadEvents.downloaded(filename, buffer.length));
     manifest[manifestKey] = buildManifestRecord("downloaded", { filename, hash, date: msg.date, vendor });
     return "downloaded";
   } catch (err) {
     rethrowIfProgrammerError(err);
-    onProgress(downloadFailed(err, filename));
+    onProgress(downloadEvents.downloadFailed(err, filename));
     return "error";
   }
 }
@@ -107,7 +100,7 @@ export async function processDownloadMessage(client, msg, mailbox, context) {
     }
   } catch (err) {
     rethrowIfProgrammerError(err);
-    onProgress(fetchStructureError(err, msg.uid));
+    onProgress(downloadEvents.fetchStructureError(err, msg.uid));
     return { action: "error" };
   }
 

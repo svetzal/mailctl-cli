@@ -1,19 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import {
-  downloadAccountStart,
-  downloadBizCount,
-  downloadDryRun,
-  downloaded,
-  downloadFailed,
-  duplicateContent,
-  fetchStructureError,
-  hashReadError,
-  invalidPdf,
-} from "../src/download-event-factories.js";
+import { downloadEvents } from "../src/download-event-factories.js";
 
-describe("downloadAccountStart", () => {
+describe("downloadEvents.downloadAccountStart", () => {
   it("builds the download-account-start event", () => {
-    expect(downloadAccountStart("TestAccount", "user@example.com")).toEqual({
+    expect(downloadEvents.downloadAccountStart("TestAccount", "user@example.com")).toEqual({
       type: "download-account-start",
       name: "TestAccount",
       user: "user@example.com",
@@ -21,36 +11,36 @@ describe("downloadAccountStart", () => {
   });
 });
 
-describe("downloadBizCount", () => {
+describe("downloadEvents.downloadBizCount", () => {
   it("builds the download-biz-count event", () => {
-    expect(downloadBizCount(7)).toEqual({
+    expect(downloadEvents.downloadBizCount(7)).toEqual({
       type: "download-biz-count",
       count: 7,
     });
   });
 });
 
-describe("downloadDryRun", () => {
+describe("downloadEvents.downloadDryRun", () => {
   it("builds the download-dry-run event", () => {
-    expect(downloadDryRun("receipt.pdf")).toEqual({
+    expect(downloadEvents.downloadDryRun("receipt.pdf")).toEqual({
       type: "download-dry-run",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("duplicateContent", () => {
+describe("downloadEvents.duplicateContent", () => {
   it("builds the duplicate-content event", () => {
-    expect(duplicateContent("receipt.pdf")).toEqual({
+    expect(downloadEvents.duplicateContent("receipt.pdf")).toEqual({
       type: "duplicate-content",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("downloaded", () => {
+describe("downloadEvents.downloaded", () => {
   it("builds the downloaded event", () => {
-    expect(downloaded("receipt.pdf", 1024)).toEqual({
+    expect(downloadEvents.downloaded("receipt.pdf", 1024)).toEqual({
       type: "downloaded",
       filename: "receipt.pdf",
       size: 1024,
@@ -58,10 +48,10 @@ describe("downloaded", () => {
   });
 });
 
-describe("fetchStructureError", () => {
+describe("downloadEvents.fetchStructureError", () => {
   it("builds the fetch-structure-error event", () => {
     const err = new Error("failed");
-    expect(fetchStructureError(err, 42)).toEqual({
+    expect(downloadEvents.fetchStructureError(err, 42)).toEqual({
       type: "fetch-structure-error",
       severity: "error",
       error: err,
@@ -70,10 +60,10 @@ describe("fetchStructureError", () => {
   });
 });
 
-describe("invalidPdf", () => {
+describe("downloadEvents.invalidPdf", () => {
   it("builds the invalid-pdf event", () => {
     const err = new Error("not a pdf");
-    expect(invalidPdf(err, "receipt.pdf")).toEqual({
+    expect(downloadEvents.invalidPdf(err, "receipt.pdf")).toEqual({
       type: "invalid-pdf",
       severity: "warning",
       error: err,
@@ -82,10 +72,10 @@ describe("invalidPdf", () => {
   });
 });
 
-describe("downloadFailed", () => {
+describe("downloadEvents.downloadFailed", () => {
   it("builds the download-failed event", () => {
     const err = new Error("timeout");
-    expect(downloadFailed(err, "receipt.pdf")).toEqual({
+    expect(downloadEvents.downloadFailed(err, "receipt.pdf")).toEqual({
       type: "download-failed",
       severity: "error",
       error: err,
@@ -94,10 +84,10 @@ describe("downloadFailed", () => {
   });
 });
 
-describe("hashReadError", () => {
+describe("downloadEvents.hashReadError", () => {
   it("builds the hash-read-error event", () => {
     const err = new Error("permission denied");
-    expect(hashReadError(err, "receipt.pdf")).toEqual({
+    expect(downloadEvents.hashReadError(err, "receipt.pdf")).toEqual({
       type: "hash-read-error",
       severity: "warning",
       error: err,

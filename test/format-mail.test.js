@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  attachAccountFailures,
   buildAttachmentListJson,
   buildAttachmentSavedJson,
   buildContactsJson,
@@ -303,6 +304,36 @@ describe("buildSearchJson", () => {
     const output = buildSearchJson(results);
 
     expect(output).toHaveLength(2);
+  });
+});
+
+// ── attachAccountFailures ───────────────────────────────────────────────────────
+
+describe("attachAccountFailures", () => {
+  it("returns the payload unchanged when there are no account failures", () => {
+    const payload = [{ subject: "Hello" }];
+    expect(attachAccountFailures(payload, [], "results")).toBe(payload);
+  });
+
+  it("wraps an array payload under arrayKey alongside accountFailures when failures exist", () => {
+    const payload = [{ subject: "Hello" }];
+    const failures = [{ account: "icloud", error: "timeout" }];
+
+    expect(attachAccountFailures(payload, failures, "results")).toEqual({
+      results: payload,
+      accountFailures: failures,
+    });
+  });
+
+  it("merges accountFailures directly onto an object payload when failures exist", () => {
+    const payload = { sinceLabel: "30 days", contacts: [] };
+    const failures = [{ account: "icloud", error: "timeout" }];
+
+    expect(attachAccountFailures(payload, failures)).toEqual({
+      sinceLabel: "30 days",
+      contacts: [],
+      accountFailures: failures,
+    });
   });
 });
 

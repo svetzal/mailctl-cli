@@ -6,6 +6,7 @@ import { mailDeps, registerMailCommands } from "./cli/mail-cli.js";
 import { mutationDeps, registerMutationCommands } from "./cli/mutation-cli.js";
 import { receiptsDeps, registerReceiptsCommands } from "./cli/receipts-cli.js";
 import { createCliContext } from "./cli-context.js";
+import { NO_ACCOUNTS_CONFIGURED_MESSAGE } from "./cli-helpers.js";
 import { KeychainGateway } from "./gateways/keychain-gateway.js";
 import { loadOpenAiKey } from "./keychain.js";
 
@@ -15,7 +16,7 @@ function makeRequireAccounts(keychain) {
   return () => {
     const accounts = loadAccounts(keychain);
     if (accounts.length === 0) {
-      throw new Error("No accounts configured. Check ~/.config/mailctl/config.json and macOS Keychain.");
+      throw new Error(NO_ACCOUNTS_CONFIGURED_MESSAGE);
     }
     return accounts;
   };

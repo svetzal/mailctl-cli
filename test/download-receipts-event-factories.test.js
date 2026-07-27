@@ -1,48 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import {
-  doclingConversionFailed,
-  doclingFailed,
-  downloadedPdf,
-  dryRunJson,
-  dryRunMetadata,
-  dryRunPdf,
-  emptyExtractionSkipped,
-  llmDisabled,
-  llmEnabled,
-  llmExtractionFailed,
-  llmNotConfigured,
-  mailboxCandidates,
-  mailboxFetchError,
-  mailboxSearchStart,
-  outputTreeError,
-  processError,
-  reprocessDoclingFailed,
-  reprocessDryRun,
-  reprocessDryRunBody,
-  reprocessError,
-  reprocessNoData,
-  reprocessReclassified,
-  reprocessSkipped,
-  reprocessStart,
-  reprocessSummary,
-  reprocessUpdated,
-  reprocessUsingBody,
-  searchAccount,
-  searchTermError,
-  skipDuplicate,
-  skipExistingInvoice,
-  skipLowConfidence,
-  skipNonInvoice,
-  subjectExclusions,
-  uniqueReceipts,
-  usingPdfContent,
-  vendorFilterApplied,
-  wroteMetadata,
-} from "../src/receipts/download-receipts-event-factories.js";
+import { receiptEvents } from "../src/receipts/download-receipts-event-factories.js";
 
-describe("searchAccount", () => {
+describe("receiptEvents.searchAccount", () => {
   it("builds the search-account event", () => {
-    expect(searchAccount("TestAccount", "user@example.com")).toEqual({
+    expect(receiptEvents.searchAccount("TestAccount", "user@example.com")).toEqual({
       type: "search-account",
       name: "TestAccount",
       user: "user@example.com",
@@ -50,9 +11,9 @@ describe("searchAccount", () => {
   });
 });
 
-describe("vendorFilterApplied", () => {
+describe("receiptEvents.vendorFilterApplied", () => {
   it("builds the vendor-filter-applied event", () => {
-    expect(vendorFilterApplied(5, 2, "acme")).toEqual({
+    expect(receiptEvents.vendorFilterApplied(5, 2, "acme")).toEqual({
       type: "vendor-filter-applied",
       matchCount: 5,
       excludedCount: 2,
@@ -61,27 +22,27 @@ describe("vendorFilterApplied", () => {
   });
 });
 
-describe("subjectExclusions", () => {
+describe("receiptEvents.subjectExclusions", () => {
   it("builds the subject-exclusions event", () => {
-    expect(subjectExclusions(3)).toEqual({
+    expect(receiptEvents.subjectExclusions(3)).toEqual({
       type: "subject-exclusions",
       count: 3,
     });
   });
 });
 
-describe("uniqueReceipts", () => {
+describe("receiptEvents.uniqueReceipts", () => {
   it("builds the unique-receipts event", () => {
-    expect(uniqueReceipts(12)).toEqual({
+    expect(receiptEvents.uniqueReceipts(12)).toEqual({
       type: "unique-receipts",
       count: 12,
     });
   });
 });
 
-describe("skipNonInvoice", () => {
+describe("receiptEvents.skipNonInvoice", () => {
   it("builds the skip-non-invoice event", () => {
-    expect(skipNonInvoice("acme", 0.4)).toEqual({
+    expect(receiptEvents.skipNonInvoice("acme", 0.4)).toEqual({
       type: "skip-non-invoice",
       vendor: "acme",
       confidence: 0.4,
@@ -89,9 +50,9 @@ describe("skipNonInvoice", () => {
   });
 });
 
-describe("skipLowConfidence", () => {
+describe("receiptEvents.skipLowConfidence", () => {
   it("builds the skip-low-confidence event", () => {
-    expect(skipLowConfidence("acme", 0.3)).toEqual({
+    expect(receiptEvents.skipLowConfidence("acme", 0.3)).toEqual({
       type: "skip-low-confidence",
       vendor: "acme",
       confidence: 0.3,
@@ -99,9 +60,9 @@ describe("skipLowConfidence", () => {
   });
 });
 
-describe("skipExistingInvoice", () => {
+describe("receiptEvents.skipExistingInvoice", () => {
   it("builds the skip-existing-invoice event", () => {
-    expect(skipExistingInvoice("acme", "INV-001")).toEqual({
+    expect(receiptEvents.skipExistingInvoice("acme", "INV-001")).toEqual({
       type: "skip-existing-invoice",
       vendor: "acme",
       invoiceNumber: "INV-001",
@@ -109,57 +70,57 @@ describe("skipExistingInvoice", () => {
   });
 });
 
-describe("llmEnabled", () => {
+describe("receiptEvents.llmEnabled", () => {
   it("builds the llm-enabled event", () => {
-    expect(llmEnabled()).toEqual({ type: "llm-enabled" });
+    expect(receiptEvents.llmEnabled()).toEqual({ type: "llm-enabled" });
   });
 });
 
-describe("llmDisabled", () => {
+describe("receiptEvents.llmDisabled", () => {
   it("builds the llm-disabled event", () => {
-    expect(llmDisabled()).toEqual({ type: "llm-disabled" });
+    expect(receiptEvents.llmDisabled()).toEqual({ type: "llm-disabled" });
   });
 });
 
-describe("reprocessStart", () => {
+describe("receiptEvents.reprocessStart", () => {
   it("builds the reprocess-start event", () => {
-    expect(reprocessStart("/tmp/receipts")).toEqual({
+    expect(receiptEvents.reprocessStart("/tmp/receipts")).toEqual({
       type: "reprocess-start",
       outputDir: "/tmp/receipts",
     });
   });
 });
 
-describe("reprocessDryRun", () => {
+describe("receiptEvents.reprocessDryRun", () => {
   it("builds the reprocess-dry-run event", () => {
-    expect(reprocessDryRun("receipt.pdf")).toEqual({
+    expect(receiptEvents.reprocessDryRun("receipt.pdf")).toEqual({
       type: "reprocess-dry-run",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("reprocessDryRunBody", () => {
+describe("receiptEvents.reprocessDryRunBody", () => {
   it("builds the reprocess-dry-run-body event", () => {
-    expect(reprocessDryRunBody("receipt.pdf")).toEqual({
+    expect(receiptEvents.reprocessDryRunBody("receipt.pdf")).toEqual({
       type: "reprocess-dry-run-body",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("reprocessUsingBody", () => {
+describe("receiptEvents.reprocessUsingBody", () => {
   it("builds the reprocess-using-body event", () => {
-    expect(reprocessUsingBody("receipt.pdf")).toEqual({
+    expect(receiptEvents.reprocessUsingBody("receipt.pdf")).toEqual({
       type: "reprocess-using-body",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("reprocessSkipped", () => {
+describe("receiptEvents.reprocessSkipped", () => {
   it("builds the reprocess-skipped event", () => {
-    expect(reprocessSkipped("receipt.pdf", "already up to date")).toEqual({
+    expect(receiptEvents.reprocessSkipped("receipt.pdf", "already up to date")).toEqual({
       type: "reprocess-skipped",
       filename: "receipt.pdf",
       reason: "already up to date",
@@ -167,36 +128,36 @@ describe("reprocessSkipped", () => {
   });
 });
 
-describe("reprocessNoData", () => {
+describe("receiptEvents.reprocessNoData", () => {
   it("builds the reprocess-no-data event", () => {
-    expect(reprocessNoData("receipt.pdf")).toEqual({
+    expect(receiptEvents.reprocessNoData("receipt.pdf")).toEqual({
       type: "reprocess-no-data",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("reprocessReclassified", () => {
+describe("receiptEvents.reprocessReclassified", () => {
   it("builds the reprocess-reclassified event", () => {
-    expect(reprocessReclassified("receipt.pdf")).toEqual({
+    expect(receiptEvents.reprocessReclassified("receipt.pdf")).toEqual({
       type: "reprocess-reclassified",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("reprocessUpdated", () => {
+describe("receiptEvents.reprocessUpdated", () => {
   it("builds the reprocess-updated event", () => {
-    expect(reprocessUpdated("receipt.pdf")).toEqual({
+    expect(receiptEvents.reprocessUpdated("receipt.pdf")).toEqual({
       type: "reprocess-updated",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("reprocessSummary", () => {
+describe("receiptEvents.reprocessSummary", () => {
   it("builds the reprocess-summary event", () => {
-    expect(reprocessSummary(3, 1, 2, 0)).toEqual({
+    expect(receiptEvents.reprocessSummary(3, 1, 2, 0)).toEqual({
       type: "reprocess-summary",
       reprocessed: 3,
       skipped: 1,
@@ -206,9 +167,9 @@ describe("reprocessSummary", () => {
   });
 });
 
-describe("mailboxSearchStart", () => {
+describe("receiptEvents.mailboxSearchStart", () => {
   it("builds the mailbox-search-start event", () => {
-    expect(mailboxSearchStart("INBOX", 100)).toEqual({
+    expect(receiptEvents.mailboxSearchStart("INBOX", 100)).toEqual({
       type: "mailbox-search-start",
       mailbox: "INBOX",
       messageCount: 100,
@@ -216,9 +177,9 @@ describe("mailboxSearchStart", () => {
   });
 });
 
-describe("mailboxCandidates", () => {
+describe("receiptEvents.mailboxCandidates", () => {
   it("builds the mailbox-candidates event", () => {
-    expect(mailboxCandidates("INBOX", 5)).toEqual({
+    expect(receiptEvents.mailboxCandidates("INBOX", 5)).toEqual({
       type: "mailbox-candidates",
       mailbox: "INBOX",
       count: 5,
@@ -226,45 +187,45 @@ describe("mailboxCandidates", () => {
   });
 });
 
-describe("skipDuplicate", () => {
+describe("receiptEvents.skipDuplicate", () => {
   it("builds the skip-duplicate event", () => {
-    expect(skipDuplicate("acme-2024-01.pdf")).toEqual({
+    expect(receiptEvents.skipDuplicate("acme-2024-01.pdf")).toEqual({
       type: "skip-duplicate",
       label: "acme-2024-01.pdf",
     });
   });
 });
 
-describe("dryRunPdf", () => {
+describe("receiptEvents.dryRunPdf", () => {
   it("builds the dry-run-pdf event", () => {
-    expect(dryRunPdf("receipt.pdf")).toEqual({
+    expect(receiptEvents.dryRunPdf("receipt.pdf")).toEqual({
       type: "dry-run-pdf",
       filename: "receipt.pdf",
     });
   });
 });
 
-describe("dryRunJson", () => {
+describe("receiptEvents.dryRunJson", () => {
   it("builds the dry-run-json event", () => {
-    expect(dryRunJson("receipt.json")).toEqual({
+    expect(receiptEvents.dryRunJson("receipt.json")).toEqual({
       type: "dry-run-json",
       filename: "receipt.json",
     });
   });
 });
 
-describe("dryRunMetadata", () => {
+describe("receiptEvents.dryRunMetadata", () => {
   it("builds the dry-run-metadata event", () => {
-    expect(dryRunMetadata("receipt.txt")).toEqual({
+    expect(receiptEvents.dryRunMetadata("receipt.txt")).toEqual({
       type: "dry-run-metadata",
       filename: "receipt.txt",
     });
   });
 });
 
-describe("downloadedPdf", () => {
+describe("receiptEvents.downloadedPdf", () => {
   it("builds the downloaded-pdf event", () => {
-    expect(downloadedPdf("receipt.pdf", 2048)).toEqual({
+    expect(receiptEvents.downloadedPdf("receipt.pdf", 2048)).toEqual({
       type: "downloaded-pdf",
       filename: "receipt.pdf",
       size: 2048,
@@ -272,28 +233,28 @@ describe("downloadedPdf", () => {
   });
 });
 
-describe("wroteMetadata", () => {
+describe("receiptEvents.wroteMetadata", () => {
   it("builds the wrote-metadata event", () => {
-    expect(wroteMetadata("receipt.json")).toEqual({
+    expect(receiptEvents.wroteMetadata("receipt.json")).toEqual({
       type: "wrote-metadata",
       filename: "receipt.json",
     });
   });
 });
 
-describe("usingPdfContent", () => {
+describe("receiptEvents.usingPdfContent", () => {
   it("builds the using-pdf-content event", () => {
-    expect(usingPdfContent(42)).toEqual({
+    expect(receiptEvents.usingPdfContent(42)).toEqual({
       type: "using-pdf-content",
       uid: 42,
     });
   });
 });
 
-describe("doclingFailed", () => {
+describe("receiptEvents.doclingFailed", () => {
   it("builds the docling-failed event", () => {
     const err = new Error("docling not found");
-    expect(doclingFailed(err, 42)).toEqual({
+    expect(receiptEvents.doclingFailed(err, 42)).toEqual({
       type: "docling-failed",
       severity: "warning",
       error: err,
@@ -302,10 +263,10 @@ describe("doclingFailed", () => {
   });
 });
 
-describe("doclingConversionFailed", () => {
+describe("receiptEvents.doclingConversionFailed", () => {
   it("builds the docling-conversion-failed event", () => {
     const err = new Error("subprocess failed");
-    expect(doclingConversionFailed(err, 7, "/tmp/x.pdf")).toEqual({
+    expect(receiptEvents.doclingConversionFailed(err, 7, "/tmp/x.pdf")).toEqual({
       type: "docling-conversion-failed",
       severity: "warning",
       error: err,
@@ -315,10 +276,10 @@ describe("doclingConversionFailed", () => {
   });
 });
 
-describe("llmNotConfigured", () => {
+describe("receiptEvents.llmNotConfigured", () => {
   it("builds the llm-not-configured event", () => {
     const err = new Error("bad api key");
-    expect(llmNotConfigured(err)).toEqual({
+    expect(receiptEvents.llmNotConfigured(err)).toEqual({
       type: "llm-not-configured",
       severity: "warning",
       error: err,
@@ -326,10 +287,10 @@ describe("llmNotConfigured", () => {
   });
 });
 
-describe("llmExtractionFailed", () => {
+describe("receiptEvents.llmExtractionFailed", () => {
   it("builds the llm-extraction-failed event", () => {
     const err = new Error("api timeout");
-    expect(llmExtractionFailed(err)).toEqual({
+    expect(receiptEvents.llmExtractionFailed(err)).toEqual({
       type: "llm-extraction-failed",
       severity: "warning",
       error: err,
@@ -337,10 +298,10 @@ describe("llmExtractionFailed", () => {
   });
 });
 
-describe("searchTermError", () => {
+describe("receiptEvents.searchTermError", () => {
   it("builds the search-term-error event", () => {
     const err = new Error("server error");
-    expect(searchTermError(err, "INBOX")).toEqual({
+    expect(receiptEvents.searchTermError(err, "INBOX")).toEqual({
       type: "search-term-error",
       severity: "warning",
       error: err,
@@ -349,10 +310,10 @@ describe("searchTermError", () => {
   });
 });
 
-describe("mailboxFetchError", () => {
+describe("receiptEvents.mailboxFetchError", () => {
   it("builds the mailbox-fetch-error event", () => {
     const err = new Error("timeout");
-    expect(mailboxFetchError(err)).toEqual({
+    expect(receiptEvents.mailboxFetchError(err)).toEqual({
       type: "mailbox-fetch-error",
       severity: "warning",
       error: err,
@@ -360,10 +321,10 @@ describe("mailboxFetchError", () => {
   });
 });
 
-describe("outputTreeError", () => {
+describe("receiptEvents.outputTreeError", () => {
   it("builds the output-tree-error event", () => {
     const err = new Error("read failed");
-    expect(outputTreeError(err, "/receipts/2024", "vendor")).toEqual({
+    expect(receiptEvents.outputTreeError(err, "/receipts/2024", "vendor")).toEqual({
       type: "output-tree-error",
       severity: "warning",
       error: err,
@@ -373,10 +334,10 @@ describe("outputTreeError", () => {
   });
 });
 
-describe("processError", () => {
+describe("receiptEvents.processError", () => {
   it("builds the process-error event", () => {
     const err = new Error("parse failed");
-    expect(processError(err, 77)).toEqual({
+    expect(receiptEvents.processError(err, 77)).toEqual({
       type: "process-error",
       severity: "error",
       error: err,
@@ -385,10 +346,10 @@ describe("processError", () => {
   });
 });
 
-describe("reprocessDoclingFailed", () => {
+describe("receiptEvents.reprocessDoclingFailed", () => {
   it("builds the reprocess-docling-failed event", () => {
     const err = new Error("docling conversion failed");
-    expect(reprocessDoclingFailed(err, "receipt.pdf")).toEqual({
+    expect(receiptEvents.reprocessDoclingFailed(err, "receipt.pdf")).toEqual({
       type: "reprocess-docling-failed",
       severity: "warning",
       error: err,
@@ -397,10 +358,10 @@ describe("reprocessDoclingFailed", () => {
   });
 });
 
-describe("reprocessError", () => {
+describe("receiptEvents.reprocessError", () => {
   it("builds the reprocess-error event", () => {
     const err = new Error("extraction failed");
-    expect(reprocessError(err, "receipt.json")).toEqual({
+    expect(receiptEvents.reprocessError(err, "receipt.json")).toEqual({
       type: "reprocess-error",
       severity: "error",
       error: err,
@@ -409,9 +370,9 @@ describe("reprocessError", () => {
   });
 });
 
-describe("emptyExtractionSkipped", () => {
+describe("receiptEvents.emptyExtractionSkipped", () => {
   it("builds the empty-extraction-skipped event", () => {
-    expect(emptyExtractionSkipped("Acme", "billing@acme.com", "2025-03-07")).toEqual({
+    expect(receiptEvents.emptyExtractionSkipped("Acme", "billing@acme.com", "2025-03-07")).toEqual({
       type: "empty-extraction-skipped",
       vendor: "Acme",
       sourceEmail: "billing@acme.com",

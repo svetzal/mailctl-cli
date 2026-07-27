@@ -6,7 +6,7 @@
 /** @typedef {import('./receipt-types.js').ReceiptRun} ReceiptRun */
 /** @typedef {import('./receipt-types.js').LlmContext} LlmContext */
 
-import { outputTreeError } from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 import { loadExistingHashes, loadExistingInvoiceNumbers } from "./receipt-output-tree.js";
 
 /**
@@ -44,7 +44,7 @@ export function createReceiptWriteContext({ outputDir, dryRun, includeEmpty, fs,
   let indexErrors = 0;
   const onIndexError = (err, ctx) => {
     indexErrors++;
-    onProgress(outputTreeError(err, ctx.path, ctx.level));
+    onProgress(receiptEvents.outputTreeError(err, ctx.path, ctx.level));
   };
   const existingInvoiceNumbers = loadExistingInvoiceNumbers(outputDir, fs, onIndexError);
   const existingHashes = loadExistingHashes(outputDir, fs, onIndexError);

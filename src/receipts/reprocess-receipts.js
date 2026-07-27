@@ -3,20 +3,7 @@
 /** @typedef {import('./receipt-types.js').LlmContext} LlmContext */
 
 import { resolve } from "node:path";
-import {
-  processError,
-  reprocessDoclingFailed,
-  reprocessDryRun,
-  reprocessDryRunBody,
-  reprocessError,
-  reprocessNoData,
-  reprocessReclassified,
-  reprocessSkipped,
-  reprocessStart,
-  reprocessSummary,
-  reprocessUpdated,
-  reprocessUsingBody,
-} from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 import { extractMetadataWithLLM } from "./llm-receipt-extraction.js";
 import { pdfToText } from "./pdf-converter.js";
 import {
@@ -40,12 +27,12 @@ function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun
   const choice = chooseReprocessSource({ hasPdf, hasBodySnippet: Boolean(sidecar.source_body_snippet), dryRun });
   switch (choice.kind) {
     case "dryRunPdf":
-      onProgress(reprocessDryRun(jsonFilename));
+      onProgress(receiptEvents.reprocessDryRun(jsonFilename));
       return { kind: "terminal", statKey: "reprocessed", entry: { file: jsonFilename, status: "dry-run" } };
     case "pdf": {
       const text = pdfToText(pdfPath, fs, subprocess);
       if (text) return { kind: "text", text };
-      onProgress(reprocessDoclingFailed(new Error("docling conversion failed"), jsonFilename));
+      onProgress(receiptEvents.reprocessDoclingFailed(new Error("docling conversion failed"), jsonFilename));
       return {
         kind: "terminal",
         statKey: "errors",
@@ -53,13 +40,13 @@ function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun
       };
     }
     case "dryRunBody":
-      onProgress(reprocessDryRunBody(jsonFilename));
+      onProgress(receiptEvents.reprocessDryRunBody(jsonFilename));
       return { kind: "terminal", statKey: "reprocessed", entry: { file: jsonFilename, status: "dry-run" } };
     case "body":
-      onProgress(reprocessUsingBody(jsonFilename));
+      onProgress(receiptEvents.reprocessUsingBody(jsonFilename));
       return { kind: "text", text: sidecar.source_body_snippet ?? "" };
     default:
-      onProgress(reprocessSkipped(jsonFilename, "no PDF and no body snippet"));
+      onProgress(receiptEvents.reprocessSkipped(jsonFilename, "no PDF and no body snippet"));
       return {
         kind: "terminal",
         statKey: "skipped",
@@ -79,11 +66,11 @@ function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun
 function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, reprocessedAt, fs }, onProgress) {
   const decision = classifyReprocessResult(metadata);
   if (decision.action === "noData") {
-    onProgress(reprocessNoData(jsonFilename));
+    onProgress(receiptEvents.reprocessNoData(jsonFilename));
     return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: "LLM extraction failed" } };
   }
   if (decision.action === "reclassified") {
-    onProgress(reprocessReclassified(jsonFilename));
+    onProgress(receiptEvents.reprocessReclassified(jsonFilename));
     fs.rm(jsonPath, { force: true });
     return { statKey: "reclassified", entry: { file: jsonFilename, status: "reclassified", reason: "non-invoice" } };
   }
@@ -91,10 +78,10 @@ function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, 
   try {
     fs.writeFile(jsonPath, JSON.stringify(updated, null, 2));
   } catch (err) {
-    onProgress(reprocessError(err, jsonFilename));
+    onProgress(receiptEvents.reprocessError(err, jsonFilename));
     return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: err.message, phase: "write" } };
   }
-  onProgress(reprocessUpdated(jsonFilename));
+  onProgress(receiptEvents.reprocessUpdated(jsonFilename));
   return { statKey: "reprocessed", entry: { file: jsonFilename, status: "reprocessed" } };
 }
 
@@ -128,7 +115,7 @@ async function reprocessOneSidecar({ jsonPath, sidecar, llm, fs, subprocess, dry
       sidecar.date ? new Date(sidecar.date) : new Date(),
     );
   } catch (err) {
-    onProgress(reprocessError(err, jsonFilename));
+    onProgress(receiptEvents.reprocessError(err, jsonFilename));
     return { statKey: "errors", entry: { file: jsonFilename, status: "error", reason: err.message, phase: "llm" } };
   }
 
@@ -162,9 +149,11 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     throw new Error("OPENAI_API_KEY not set — LLM extraction is required for reprocessing.");
   }
 
-  onProgress(reprocessStart(outputDir));
+  onProgress(receiptEvents.reprocessStart(outputDir));
 
-  const sidecars = collectSidecarFiles(outputDir, fs, (err, ctx) => onProgress(processError(err, ctx.path)));
+  const sidecars = collectSidecarFiles(outputDir, fs, (err, ctx) =>
+    onProgress(receiptEvents.processError(err, ctx.path)),
+  );
   const stats = { reprocessed: 0, skipped: 0, errors: 0, reclassified: 0 };
   const results = [];
 
@@ -178,7 +167,7 @@ export async function reprocessReceipts(opts, gateways = {}, onProgress = () => 
     results.push(entry);
   }
 
-  onProgress(reprocessSummary(stats.reprocessed, stats.skipped, stats.reclassified, stats.errors));
+  onProgress(receiptEvents.reprocessSummary(stats.reprocessed, stats.skipped, stats.reclassified, stats.errors));
 
   return { ...stats, results };
 }

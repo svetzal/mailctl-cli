@@ -6,13 +6,7 @@
 
 import { deduplicateByMessageId } from "../dedup.js";
 import { filterSearchMailboxes } from "../imap-client.js";
-import {
-  mailboxCandidates,
-  mailboxFetchError,
-  mailboxSearchStart,
-  searchAccount,
-  searchTermError,
-} from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 import { buildReceiptSearchCriteria, searchMailboxForReceiptRecords } from "./receipt-mailbox-search.js";
 
 /**
@@ -46,10 +40,10 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
     fetchQuery: { envelope: true, headers: ["message-id"], uid: true },
     buildRecord,
     events: {
-      start: mailboxSearchStart,
-      candidates: mailboxCandidates,
-      searchError: (err) => searchTermError(err, mailboxPath),
-      fetchError: mailboxFetchError,
+      start: receiptEvents.mailboxSearchStart,
+      candidates: receiptEvents.mailboxCandidates,
+      searchError: (err) => receiptEvents.searchTermError(err, mailboxPath),
+      fetchError: receiptEvents.mailboxFetchError,
     },
     onProgress,
   });
@@ -76,7 +70,7 @@ export async function forEachReceiptSearchAccount(
   perAccountFn,
 ) {
   await forEachAccount(targetAccounts, async (client, account) => {
-    onProgress(searchAccount(account.name, account.user));
+    onProgress(receiptEvents.searchAccount(account.name, account.user));
     const { results: uniqueResults, failures } = await searchAccountForReceipts(client, account, since, {
       listMailboxes,
       searchMailboxForReceipts: (c, accountName, mbPath, s) =>

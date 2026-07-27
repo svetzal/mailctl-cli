@@ -5,7 +5,7 @@
 import { join } from "node:path";
 import { debug } from "../debug.js";
 import { rethrowIfProgrammerError } from "../programmer-error.js";
-import { doclingFailed, usingPdfContent } from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 
 /**
  * Pure: finds the first markdown file in a list of filenames.
@@ -85,13 +85,13 @@ export function resolveExtractionText(
     fs.writeFile(tmpPdfPath, pdfAttachments[0].content);
     const pdfMarkdown = pdfToText(tmpPdfPath, fs, subprocess, onError);
     if (pdfMarkdown) {
-      onProgress(usingPdfContent(uid));
+      onProgress(receiptEvents.usingPdfContent(uid));
       return pdfMarkdown;
     }
   } catch (err) {
     rethrowIfProgrammerError(err);
     // Intentional fallback: if writing the temp PDF fails, fall back to email body text (per AGENTS.md).
-    onProgress(doclingFailed(err, uid));
+    onProgress(receiptEvents.doclingFailed(err, uid));
   } finally {
     try {
       fs.rm(tmpPdfPath, { force: true });

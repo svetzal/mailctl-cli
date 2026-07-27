@@ -1,5 +1,6 @@
 import { describe, expect, it, mock, spyOn } from "bun:test";
 import {
+  accountNotFoundMessage,
   collectValues,
   createProgressRenderer,
   createResolveAccount,
@@ -8,12 +9,29 @@ import {
   filterAccountsByName,
   formatOutput,
   headerValueToString,
+  NO_ACCOUNTS_CONFIGURED_MESSAGE,
   resolveAccounts,
   resolveCommandContext,
   resolvePlanApply,
   sanitizeString,
   withErrorHandling,
 } from "../src/cli-helpers.js";
+
+// ── accountNotFoundMessage / NO_ACCOUNTS_CONFIGURED_MESSAGE ─────────────────────
+
+describe("accountNotFoundMessage", () => {
+  it("formats the account name into the standard not-found message", () => {
+    expect(accountNotFoundMessage("Icloud")).toBe('Account "Icloud" not found.');
+  });
+});
+
+describe("NO_ACCOUNTS_CONFIGURED_MESSAGE", () => {
+  it("is the standard no-accounts-configured message", () => {
+    expect(NO_ACCOUNTS_CONFIGURED_MESSAGE).toBe(
+      "No accounts configured. Check ~/.config/mailctl/config.json and macOS Keychain.",
+    );
+  });
+});
 
 // ── resolvePlanApply ──────────────────────────────────────────────────────────
 

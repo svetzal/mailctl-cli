@@ -23,6 +23,24 @@ export function accountFailuresWarning(accountFailures = []) {
   return `⚠ ${accountFailures.length} account${accountFailures.length === 1 ? "" : "s"} failed to connect (${names}) — results may be incomplete`;
 }
 
+/**
+ * Single home for the --json account-failure envelope rule shared by every
+ * read-only command's JSON builder: when there are no account failures, the
+ * payload is returned unchanged; when there are failures, they're attached
+ * alongside it. Array payloads get wrapped under `arrayKey` (since a bare
+ * array can't carry an extra field); object payloads are merged directly.
+ *
+ * @param {object[] | object} payload - the array or object JSON payload
+ * @param {Array<{account: string, error: string}>} accountFailures
+ * @param {string} [arrayKey] - required when payload is an array; the key to nest it under
+ * @returns {object[] | object}
+ */
+export function attachAccountFailures(payload, accountFailures = [], arrayKey) {
+  if (accountFailures.length === 0) return payload;
+  if (arrayKey) return { [arrayKey]: payload, accountFailures };
+  return { .../** @type {object} */ (payload), accountFailures };
+}
+
 // ── format-read ───────────────────────────────────────────────────────────────
 
 const DEFAULT_MAX_BODY_CHARS = 3000;
@@ -199,7 +217,7 @@ export function formatSearchText(results, accountFailures = []) {
  */
 export function buildSearchJson(results, accountFailures = []) {
   const stripped = results.map(({ messageId, ...rest }) => rest);
-  return accountFailures.length === 0 ? stripped : { results: stripped, accountFailures };
+  return attachAccountFailures(stripped, accountFailures, "results");
 }
 
 /** @type {(json: boolean, results: SearchResult[], accountFailures?: Array<{account: string, error: string}>) => string} */
@@ -255,7 +273,7 @@ export function formatFoldersText(foldersByAccount, accountFailures = []) {
  */
 export function buildFoldersJson(foldersByAccount, accountFailures = []) {
   const folders = foldersByAccount.flatMap((af) => af.folders.map((f) => ({ account: af.account, ...f })));
-  return accountFailures.length === 0 ? folders : { folders, accountFailures };
+  return attachAccountFailures(folders, accountFailures, "folders");
 }
 
 /** @type {(json: boolean, foldersByAccount: AccountFolders[], accountFailures?: Array<{account: string, error: string}>) => string} */
@@ -386,7 +404,7 @@ export function buildInboxJson(allResults, accountFailures = []) {
     unread: msg.unread,
     mailbox: msg.mailbox,
   }));
-  return accountFailures.length === 0 ? results : { results, accountFailures };
+  return attachAccountFailures(results, accountFailures, "results");
 }
 
 /**
@@ -442,7 +460,7 @@ export function formatContactsText(contacts, opts) {
  * @returns {object}
  */
 export function buildContactsJson(contacts, opts) {
-  return {
+  const payload = {
     sinceLabel: opts.sinceLabel,
     contacts: contacts.map((c) => ({
       address: c.address,
@@ -451,8 +469,8 @@ export function buildContactsJson(contacts, opts) {
       lastSeen: c.lastSeen instanceof Date ? c.lastSeen.toISOString() : c.lastSeen,
       direction: c.direction,
     })),
-    ...(opts.accountFailures?.length ? { accountFailures: opts.accountFailures } : {}),
   };
+  return attachAccountFailures(payload, opts.accountFailures);
 }
 
 /** @type {(json: boolean, contacts: Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>, opts: {sinceLabel: string, accountFailures?: Array<{account: string, error: string}>}) => string} */

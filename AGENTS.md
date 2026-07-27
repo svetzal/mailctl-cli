@@ -94,7 +94,7 @@ src/receipts/list-receipt-vendors.js    — listReceiptVendors() — aggregates 
 src/receipts/reprocess-receipts.js      — reprocessReceipts() and helpers (reprocessOneSidecar, resolveReprocessSource, persistReprocessedSidecar) — re-extract metadata from existing sidecars via LLM
 src/receipts/receipt-run.js             — createReceiptWriteContext(), createReceiptRun(), createReceiptRunState() — value-object factories for ReceiptWriteContext, ReceiptRunLimits, ReceiptRun
 src/receipts/receipt-gateways.js        — resolveGateways(overrides), DEFAULT_PER_MESSAGE_TIMEOUT_MS — production gateway defaults; all workflow modules import from here instead of defining their own
-src/receipts/download-receipts-event-factories.js — descriptor table for download-receipts events (44 factories covering all phases) and `renderDownloadReceiptsEvent`
+src/receipts/download-receipts-event-factories.js — descriptor table for download-receipts events (44 factories covering all phases); exports `receiptEvents` (factory map) and `renderDownloadReceiptsEvent`
 src/receipts/receipt-decisions.js       — Pure classification/transformation decisions, receipt filtering, PDF hash/validation helpers
 src/receipts/receipt-fields.js          — extractInvoiceNumber(), extractAmount(), extractTax(), extractService(), field-length/currency constants — pure receipt field extraction primitives
 src/receipts/receipt-types.js           — shared JSDoc typedefs for receipt records (no runtime exports); includes ReceiptWriteContext, ReceiptRunLimits, ReceiptRun
@@ -147,7 +147,9 @@ src/auth-event-factories.js    — descriptor table for M365 auth events; export
 src/shared-event-factories.js  — descriptor table for shared IMAP events (uses defineEventTable pattern); exports factories (`mailboxStart`, `mailboxEmpty`, `mailboxMatches`, `mailboxLockFailed`, `searchFailed`) and `renderSharedEvent`
 src/scan-event-factories.js    — descriptor table for scan events; exports factories (`scanAccountStart`, `scanAccountComplete`) and `renderScanEvent`
 src/sort-event-factories.js    — descriptor table for sort events; exports factories (`accountStart`, `folderExists`, `folderCreated`, `scanComplete`, `moveDryRun`, `moved`) and `renderSortEvent`
-src/download-event-factories.js — descriptor table for download events; exports factories (`downloadAccountStart`, `downloadBizCount`, etc.) and `renderDownloadEvent`
+src/download-event-factories.js — descriptor table for download events; exports `downloadEvents` (factory map) and `renderDownloadEvent`
+src/event-types.js             — shared `BaseEvent` type used as the parameter type for render functions and progress callbacks
+src/truncate-name.js           — truncateAtTokenBoundary(value, maxLength) — single home for the "truncate without cutting a token" rule shared by vendor-name and receipt base-name derivation
 src/scan-data.js               — saveScanResults(), loadSenders(), loadClassificationsData(), saveClassifications() — scan file I/O via gateway
 src/vendor-map.js              — Single source of truth for vendor address → display name mappings
 src/scanner.js                 — Scan orchestration, sender aggregation

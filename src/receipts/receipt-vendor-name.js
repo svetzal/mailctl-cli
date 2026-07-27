@@ -11,6 +11,7 @@
 
 import { getConfigSelfAddresses } from "../config.js";
 import { getDomain, getLocalPart } from "../email-address.js";
+import { truncateAtTokenBoundary } from "../truncate-name.js";
 import { getVendorDomainMap, getVendorFilenameNames } from "../vendor-map.js";
 import { CORPORATE_SUFFIX_PATTERN, stripVendorSuffixes } from "./receipt-terms.js";
 
@@ -87,13 +88,16 @@ export function titleCase(s) {
   return s.replace(/(?:^|[-. ])(\w)/g, (_, c) => _.replace(c, c.toUpperCase()));
 }
 
+/** Characters that are illegal (or awkward) in filenames — the single home for this rule. */
+export const FILENAME_FORBIDDEN_PATTERN = /[/\\:*?"<>|,]/g;
+
 /**
  * @param {string} str
  * @returns {string}
  */
 export function sanitizeFilename(str) {
   return str
-    .replace(/[/\\:*?"<>|,]/g, "")
+    .replace(FILENAME_FORBIDDEN_PATTERN, "")
     .replace(/\.+$/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
@@ -216,7 +220,7 @@ function vendorFromForwarded(bodyText, vendorDomains, vendorDomainMap) {
   if (fwdDomain && vendorDomainMap[fwdDomain]) return vendorDomainMap[fwdDomain];
   if (fwdSender.name) {
     const cleaned = sanitizeFilename(fwdSender.name.replace(CORPORATE_SUFFIX_PATTERN, "").trim());
-    if (cleaned.length >= 2) return cleaned.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/[-._]+$/, "");
+    if (cleaned.length >= 2) return truncateAtTokenBoundary(cleaned, MAX_VENDOR_NAME_LENGTH);
   }
   if (fwdDomain) return vendorFromDomain(fwdDomain, vendorDomainMap);
   return null;
@@ -260,10 +264,7 @@ function vendorFromDomainMapOrName(domain, localPart, name, vendorDomainMap) {
   clean = stripVendorSuffixes(clean);
 
   let result = sanitizeFilename(clean) || sanitizeFilename(localPart);
-  if (result.length > MAX_VENDOR_NAME_LENGTH) {
-    result = result.slice(0, MAX_VENDOR_NAME_LENGTH).replace(/-[^-]*$/, "");
-  }
-  result = result.replace(/[-._]+$/, "");
+  result = truncateAtTokenBoundary(result, MAX_VENDOR_NAME_LENGTH);
 
   return result || vendorFromDomain(domain, vendorDomainMap);
 }

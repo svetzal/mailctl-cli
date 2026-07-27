@@ -273,6 +273,19 @@ describe("cleanVendorForFilename", () => {
     });
   });
 
+  describe("truncation parity across paths", () => {
+    it("produces the same token for the same long vendor name via the forwarded path and the display-name path", () => {
+      const longName = "A Very Long Company Name That Exceeds The Limit For Testing";
+
+      const viaDisplayName = cleanVendorForFilename("team@unknown.com", longName, undefined, undefined, overrides);
+
+      const body = `${FORWARDED_MARKERS[0]}\nFrom: ${longName} <team@unknown.com>\n`;
+      const viaForwarded = cleanVendorForFilename("forwarder@example.com", "Forwarder", body, undefined, overrides);
+
+      expect(viaForwarded).toBe(viaDisplayName);
+    });
+  });
+
   afterEach(() => {
     mock.restore();
   });

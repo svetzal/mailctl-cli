@@ -4,7 +4,7 @@
 
 import { simpleParser } from "mailparser";
 import { htmlToText } from "../html-to-text.js";
-import { doclingConversionFailed } from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 import { extractReceiptMetadata, sanitizeForAgentOutput } from "./llm-receipt-extraction.js";
 import { resolveExtractionText } from "./pdf-converter.js";
 import {
@@ -96,7 +96,7 @@ export async function processReceiptMessage(client, msg, context) {
     fs,
     subprocess,
     onProgress,
-    (err, ctx) => onProgress(doclingConversionFailed(err, msg.uid, ctx.pdfPath)),
+    (err, ctx) => onProgress(receiptEvents.doclingConversionFailed(err, msg.uid, ctx.pdfPath)),
   );
   const metadata = await extractReceiptMetadata(
     llm,

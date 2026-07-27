@@ -64,6 +64,24 @@ export function filterAccountsByName(accounts, name) {
 }
 
 /**
+ * Single source of truth for the "no accounts configured" error message,
+ * shared by every code path that requires at least one configured account.
+ * @type {string}
+ */
+export const NO_ACCOUNTS_CONFIGURED_MESSAGE =
+  "No accounts configured. Check ~/.config/mailctl/config.json and macOS Keychain.";
+
+/**
+ * Build the standard "account not found" error message.
+ * Single home for this message so every account-resolution path stays in sync.
+ * @param {string} name - the account name that failed to match
+ * @returns {string}
+ */
+export function accountNotFoundMessage(name) {
+  return `Account "${name}" not found.`;
+}
+
+/**
  * Load, validate, and optionally filter accounts.
  * Throws if no accounts are configured, or if an explicit filter matches nothing.
  *
@@ -77,11 +95,11 @@ export function filterAccountsByName(accounts, name) {
 export function resolveAccounts(accountFilter, loadAccountsFn) {
   const accounts = loadAccountsFn();
   if (accounts.length === 0) {
-    throw new Error("No accounts configured. Check ~/.config/mailctl/config.json and macOS Keychain.");
+    throw new Error(NO_ACCOUNTS_CONFIGURED_MESSAGE);
   }
   const targetAccounts = filterAccountsByName(accounts, accountFilter);
   if (accountFilter && targetAccounts.length === 0) {
-    throw new Error(`Account "${accountFilter}" not found.`);
+    throw new Error(accountNotFoundMessage(accountFilter));
   }
   return targetAccounts;
 }
@@ -247,7 +265,7 @@ export function resolveCommandContext(
   const targetAccounts = filterAccounts(accounts, account);
 
   if (account && targetAccounts.length === 0) {
-    throw new Error(`Account "${account}" not found.`);
+    throw new Error(accountNotFoundMessage(account));
   }
 
   return { json, account, accounts, targetAccounts };

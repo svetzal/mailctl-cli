@@ -3,7 +3,7 @@ import { loadAccounts as _loadAccounts } from "./accounts.js";
 import { resolveAccounts } from "./cli-helpers.js";
 import { getConfigDownloadDir } from "./config.js";
 import { DATA_DIR } from "./data-dir.js";
-import { downloadAccountStart, downloadBizCount, hashReadError } from "./download-event-factories.js";
+import { downloadEvents } from "./download-event-factories.js";
 import { FileSystemGateway } from "./gateways/fs-gateway.js";
 import {
   filterScanMailboxes as _filterScanMailboxes,
@@ -101,13 +101,13 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
         const buf = fs.readBuffer(join(outputDir, f));
         existingHashes.add(contentHash(buf));
       } catch (err) {
-        onProgress(hashReadError(err, f));
+        onProgress(downloadEvents.hashReadError(err, f));
       }
     }
   }
 
   await forEachAccount(accounts, async (client, account) => {
-    onProgress(downloadAccountStart(account.name, account.user));
+    onProgress(downloadEvents.downloadAccountStart(account.name, account.user));
 
     const list = await listMailboxes(client);
     const mailboxes = filterScanMailboxes(list, {
@@ -119,7 +119,7 @@ export async function downloadReceipts(opts = {}, gateways = {}, onProgress = ()
 
     // Filter to business only
     const bizResults = results.filter((r) => classifications[r.address] === "business");
-    onProgress(downloadBizCount(bizResults.length));
+    onProgress(downloadEvents.downloadBizCount(bizResults.length));
 
     await forEachMailboxGroup(client, groupByMailbox(bizResults), async (mailbox, messages) => {
       for (const msg of messages) {

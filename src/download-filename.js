@@ -1,6 +1,7 @@
 import { getLocalPart } from "./email-address.js";
 import { MAX_VENDOR_NAME_LENGTH } from "./receipts/receipt-extraction.js";
 import { stripVendorSuffixes } from "./receipts/receipt-terms.js";
+import { truncateAtTokenBoundary } from "./truncate-name.js";
 import { getVendorDisplayNames } from "./vendor-map.js";
 
 /**
@@ -26,12 +27,7 @@ export function vendorName(address, senderName) {
     .replace(/[^\w\s.-]/g, "")
     .trim();
 
-  if (name.length > MAX_VENDOR_NAME_LENGTH) {
-    name = name
-      .slice(0, MAX_VENDOR_NAME_LENGTH)
-      .replace(/\s+\S*$/, "")
-      .trim();
-  }
+  name = truncateAtTokenBoundary(name, MAX_VENDOR_NAME_LENGTH).trim();
 
   return name || getLocalPart(address);
 }

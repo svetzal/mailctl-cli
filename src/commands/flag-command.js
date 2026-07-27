@@ -6,7 +6,7 @@
  */
 
 import { createBatchAccumulator } from "../batch-results.js";
-import { filterAccountsByName } from "../cli-helpers.js";
+import { accountNotFoundMessage, filterAccountsByName } from "../cli-helpers.js";
 import { applyFlagChanges, computeFlagChanges } from "../flag-messages.js";
 import { withMailboxLock } from "../imap-orchestration.js";
 import { detectMailboxAcrossAll } from "../mailbox-detect.js";
@@ -134,7 +134,7 @@ export async function flagCommand(uids, opts, deps) {
     const targetAccounts = filterAccountsByName(accounts, acctKey);
 
     if (targetAccounts.length === 0) {
-      const msg = `Account "${acctKey}" not found.`;
+      const msg = accountNotFoundMessage(acctKey);
       acc.record("failed", [{ status: "failed", account: acctKey, uids: acctUids.map(Number), error: msg }]);
       continue;
     }

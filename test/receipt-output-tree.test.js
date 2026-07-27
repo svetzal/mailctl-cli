@@ -675,6 +675,12 @@ describe("deriveReceiptBaseName", () => {
     expect(rawBase).not.toMatch(/[/:]/);
   });
 
+  it("sanitizes a comma in invoice_number the same way sanitizeFilename sanitizes a comma in a vendor name", () => {
+    const metadata = { invoice_number: "INV,001", date: "2026-01-15" };
+    const { rawBase } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Invoice");
+    expect(rawBase).not.toContain(",");
+  });
+
   it("truncates rawBase longer than 60 characters", () => {
     const metadata = { invoice_number: "A".repeat(70), date: "2026-01-15" };
     const { rawBase } = deriveReceiptBaseName(metadata, BASE_MSG, "", "Invoice");

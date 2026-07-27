@@ -11,17 +11,7 @@
 /** @typedef {import('./receipt-types.js').ManifestRecord} ManifestRecord */
 
 import { createHash } from "node:crypto";
-import {
-  budgetExceeded,
-  emptyExtractionSkipped,
-  maxReached,
-  skipExistingInvoice,
-  skipLowConfidence,
-  skipNonInvoice,
-  subjectExclusions,
-  uniqueReceipts,
-  vendorFilterApplied,
-} from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 
 export const MIN_INVOICE_CONFIDENCE = 0.4;
 
@@ -148,13 +138,13 @@ export function classifyReprocessResult(metadata) {
 export function receiptDecisionEvent(decision, metadata, msg, emailDate) {
   switch (decision.event) {
     case "skipNonInvoice":
-      return skipNonInvoice(decision.vendor ?? "", decision.confidence ?? 0);
+      return receiptEvents.skipNonInvoice(decision.vendor ?? "", decision.confidence ?? 0);
     case "skipLowConfidence":
-      return skipLowConfidence(decision.vendor ?? "", decision.confidence ?? 0);
+      return receiptEvents.skipLowConfidence(decision.vendor ?? "", decision.confidence ?? 0);
     case "skipExistingInvoice":
-      return skipExistingInvoice(decision.vendor ?? "", decision.invoice_number ?? "");
+      return receiptEvents.skipExistingInvoice(decision.vendor ?? "", decision.invoice_number ?? "");
     case "emptyExtractionSkipped":
-      return emptyExtractionSkipped(
+      return receiptEvents.emptyExtractionSkipped(
         metadata.vendor || msg.fromName || msg.fromAddress,
         msg.fromAddress,
         (metadata.date || emailDate).toString(),
@@ -174,10 +164,10 @@ export function receiptDecisionEvent(decision, metadata, msg, emailDate) {
  */
 export function shouldStopProcessing({ processedCount, maxMessages, startedAt, budgetMs }, now) {
   if (maxMessages !== null && processedCount >= maxMessages) {
-    return { stop: true, event: maxReached(maxMessages) };
+    return { stop: true, event: receiptEvents.maxReached(maxMessages) };
   }
   if (budgetMs !== null && now - startedAt >= budgetMs) {
-    return { stop: true, event: budgetExceeded(budgetMs) };
+    return { stop: true, event: receiptEvents.budgetExceeded(budgetMs) };
   }
   return { stop: false, event: null };
 }
@@ -209,12 +199,12 @@ export function chooseReprocessSource({ hasPdf, hasBodySnippet, dryRun }) {
 export function receiptFilterEvents({ uniqueCount, vendorExcluded, subjectExcluded, vendor }) {
   const events = [];
   if (vendorExcluded > 0) {
-    events.push(vendorFilterApplied(uniqueCount, vendorExcluded, vendor));
+    events.push(receiptEvents.vendorFilterApplied(uniqueCount, vendorExcluded, vendor));
   }
   if (subjectExcluded > 0) {
-    events.push(subjectExclusions(subjectExcluded));
+    events.push(receiptEvents.subjectExclusions(subjectExcluded));
   }
-  events.push(uniqueReceipts(uniqueCount));
+  events.push(receiptEvents.uniqueReceipts(uniqueCount));
   return events;
 }
 

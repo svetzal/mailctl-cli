@@ -14,13 +14,7 @@ import { rethrowIfProgrammerError } from "../programmer-error.js";
 import { EXTRACT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { matchesVendor } from "../vendor-map.js";
 import { withTimeout } from "../with-timeout.js";
-import {
-  llmDisabled,
-  llmEnabled,
-  messageStart,
-  messageTimeout,
-  processError,
-} from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 import {
   applyReceiptFilters,
   receiptFilterEvents,
@@ -70,10 +64,10 @@ async function processOneReceiptMessage({ client, msg, context, perMessageTimeou
   } catch (err) {
     rethrowIfProgrammerError(err);
     if (/** @type {any} */ (err).code === "ETIMEDOUT") {
-      onProgress(messageTimeout(msg.uid, perMessageTimeoutMs));
+      onProgress(receiptEvents.messageTimeout(msg.uid, perMessageTimeoutMs));
       return { outcome: "timedOut" };
     }
-    onProgress(processError(err, msg.uid));
+    onProgress(receiptEvents.processError(err, msg.uid));
     return { outcome: "error" };
   }
 }
@@ -145,7 +139,12 @@ async function processReceiptMessageGroup(client, messages, context, run, total)
     if (run.runState.stopped) break;
     run.runState.processedCount++;
     run.onProgress(
-      messageStart(run.runState.processedCount, total, msg.fromName || msg.fromAddress, msg.subject || ""),
+      receiptEvents.messageStart(
+        run.runState.processedCount,
+        total,
+        msg.fromName || msg.fromAddress,
+        msg.subject || "",
+      ),
     );
     const result = await processOneReceiptMessage(
       { client, msg, context, perMessageTimeoutMs, processMessage: run.processMessage },
@@ -200,7 +199,7 @@ async function processAccountReceipts(client, account, searchResults, accountSea
  * @param {function(object): void} onProgress
  */
 function announceLlm(llm, onProgress) {
-  onProgress(llm ? llmEnabled() : llmDisabled());
+  onProgress(llm ? receiptEvents.llmEnabled() : receiptEvents.llmDisabled());
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 
 import { createBatchAccumulator, expandPerUid } from "../batch-results.js";
-import { filterAccountsByName } from "../cli-helpers.js";
+import { accountNotFoundMessage, filterAccountsByName } from "../cli-helpers.js";
 import { withMailboxLock } from "../imap-orchestration.js";
 import { parseAndGroupUids } from "../move-logic.js";
 
@@ -41,7 +41,7 @@ export async function moveCommand(uids, opts, deps) {
     const targetAccounts = filterAccountsByName(accounts, acctKey);
 
     if (targetAccounts.length === 0) {
-      const msg = `Account "${acctKey}" not found.`;
+      const msg = accountNotFoundMessage(acctKey);
       acc.record("failed", expandPerUid(acctUids, { account: acctKey, status: "failed", error: msg }));
       continue;
     }

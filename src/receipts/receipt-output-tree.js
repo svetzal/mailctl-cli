@@ -12,17 +12,12 @@
 
 import { join } from "node:path";
 import { rethrowIfProgrammerError } from "../programmer-error.js";
+import { truncateAtTokenBoundary } from "../truncate-name.js";
 import { validateSidecar } from "../validate-json.js";
-import {
-  downloadedPdf,
-  dryRunJson,
-  dryRunMetadata,
-  dryRunPdf,
-  skipDuplicate,
-  wroteMetadata,
-} from "./download-receipts-event-factories.js";
+import { receiptEvents } from "./download-receipts-event-factories.js";
 import { contentHash } from "./receipt-decisions.js";
 import { cleanVendorForFilename } from "./receipt-extraction.js";
+import { FILENAME_FORBIDDEN_PATTERN } from "./receipt-vendor-name.js";
 
 // Cap derived filename base length
 const MAX_RECEIPT_BASENAME_LENGTH = 60;
@@ -55,17 +50,14 @@ export function deriveReceiptBaseName(metadata, msg, bodyText, subject) {
   let rawBase;
   if (metadata.invoice_number) {
     const safeInvoice = metadata.invoice_number
-      .replace(/[/\\:*?"<>|]/g, "-")
+      .replace(FILENAME_FORBIDDEN_PATTERN, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
     rawBase = `${vendorClean}-${safeInvoice}`;
   } else {
     rawBase = `${vendorClean}-${metadata.date}`;
   }
-  if (rawBase.length > MAX_RECEIPT_BASENAME_LENGTH) {
-    rawBase = rawBase.slice(0, MAX_RECEIPT_BASENAME_LENGTH).replace(/[-_][^-_]*$/, "");
-    rawBase = rawBase.replace(/[-._]+$/, "");
-  }
+  rawBase = truncateAtTokenBoundary(rawBase, MAX_RECEIPT_BASENAME_LENGTH);
   return { rawBase, vendorClean };
 }
 
@@ -300,7 +292,7 @@ export function writeReceiptOutput({
   const plan = planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir, existingHashes, vendorClean });
 
   if (plan.action === "duplicate") {
-    onProgress(skipDuplicate(plan.dupLabel ?? ""));
+    onProgress(receiptEvents.skipDuplicate(plan.dupLabel ?? ""));
     return { action: "duplicate", metadata };
   }
 
@@ -316,16 +308,16 @@ export function writeReceiptOutput({
 
   if (plan.action === "downloaded") {
     if (dryRun) {
-      onProgress(dryRunPdf(pdfFilename));
-      onProgress(dryRunJson(jsonFilename));
+      onProgress(receiptEvents.dryRunPdf(pdfFilename));
+      onProgress(receiptEvents.dryRunJson(jsonFilename));
     } else {
-      onProgress(downloadedPdf(pdfFilename, pdfAttachments[0].content.length));
+      onProgress(receiptEvents.downloadedPdf(pdfFilename, pdfAttachments[0].content.length));
     }
   } else {
     if (dryRun) {
-      onProgress(dryRunMetadata(jsonFilename));
+      onProgress(receiptEvents.dryRunMetadata(jsonFilename));
     } else {
-      onProgress(wroteMetadata(jsonFilename));
+      onProgress(receiptEvents.wroteMetadata(jsonFilename));
     }
   }
 
