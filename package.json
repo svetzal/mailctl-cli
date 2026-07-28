@@ -38,7 +38,7 @@
   "dependencies": {
     "cmx-core": "^0.3.0",
     "commander": "^15.0.0",
-    "imapflow": "^1.5.0",
+    "imapflow": "^1.6.1",
     "mailparser": "^3.9.14",
     "mojentic": "^1.5.0",
     "nodemailer": "^9.0.3"
@@ -46,6 +46,6 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",
     "@types/bun": "^1.3.14",
-    "@types/node": "^26.1.1"
+    "@types/node": "^26.1.2"
   }
 }
