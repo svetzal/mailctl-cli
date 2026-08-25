@@ -38,15 +38,15 @@
   "dependencies": {
     "cmx-core": "^0.3.0",
     "commander": "^15.0.0",
-    "imapflow": "^1.7.2",
-    "mailparser": "^3.9.15",
+    "imapflow": "^1.7.6",
+    "mailparser": "^3.9.16",
     "mojentic": "^1.5.0",
     "nodemailer": "^9.0.5"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.10",
     "@types/bun": "^1.4.0",
-    "@types/node": "^26.2.0"
+    "@types/node": "^26.3.0"
   },
   "overrides": {
     "ip-address": "^10.5.0",
