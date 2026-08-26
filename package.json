@@ -50,6 +50,6 @@
   },
   "overrides": {
     "ip-address": "^10.5.0",
-    "deepmerge-ts": "^8.0.1"
+    "deepmerge-ts": "^8.0.2"
   }
 }
