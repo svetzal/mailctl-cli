@@ -49,7 +49,7 @@
     "@types/node": "^26.4.0"
   },
   "overrides": {
-    "ip-address": "^10.5.0",
+    "ip-address": "^10.7.0",
     "deepmerge-ts": "^8.0.2"
   }
 }
