@@ -144,3 +144,38 @@ describe("searchCommand", () => {
     });
   });
 });
+
+describe("searchCommand junk folder handling", () => {
+  const boxes = [{ path: "INBOX" }, { path: "_lma-shield/spam", specialUse: "\\Junk" }];
+
+  it("warns which junk folder was not searched by default", async () => {
+    const deps = makeDeps({ listMailboxes: makeListMailboxes(boxes) });
+    const result = await searchCommand("test", {}, deps);
+
+    expect(result.warnings).toContain(
+      "Not searched: Test Account junk folder _lma-shield/spam (add --include-junk to search it)",
+    );
+  });
+
+  it("does not warn when --include-junk is set", async () => {
+    const deps = makeDeps({ listMailboxes: makeListMailboxes(boxes) });
+    const result = await searchCommand("test", { includeJunk: true }, deps);
+
+    expect(result.warnings.some((w) => w.startsWith("Not searched:"))).toBe(false);
+  });
+
+  it("searches the junk folder when --include-junk is set", async () => {
+    const deps = makeDeps({ listMailboxes: makeListMailboxes(boxes) });
+    await searchCommand("test", { includeJunk: true }, deps);
+
+    const locked = deps._client.getMailboxLock.mock.calls.map((c) => c[0]);
+    expect(locked).toContain("_lma-shield/spam");
+  });
+
+  it("does not warn when specific mailboxes were requested", async () => {
+    const deps = makeDeps({ listMailboxes: makeListMailboxes(boxes) });
+    const result = await searchCommand("test", { mailbox: ["INBOX"] }, deps);
+
+    expect(result.warnings.some((w) => w.startsWith("Not searched:"))).toBe(false);
+  });
+});

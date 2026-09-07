@@ -42,6 +42,7 @@ describe("index public API", () => {
       "inferCurrency",
       "isCanadianMerchant",
       "isValidInvoiceNumber",
+      "junkMailboxes",
       "listMailboxes",
       "loadAccounts",
       "loadConfig",

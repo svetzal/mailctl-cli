@@ -93,6 +93,7 @@ function registerSearchCommand(program, ctx, deps) {
       [],
     )
     .option("--exclude-mailbox <path>", "mailbox(es) to exclude (repeatable or comma-separated)", collectValues, [])
+    .option("--include-junk", "also search the junk/spam folder (skipped by default; a note says when it was)")
     .option("-l, --limit <n>", "max results per mailbox per account", "20")
     .action(
       wrapAction(async (query, opts) => {

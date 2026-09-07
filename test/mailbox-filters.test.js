@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { filterScanMailboxes, filterSearchMailboxes } from "../src/mailbox-filters.js";
+import { filterScanMailboxes, filterSearchMailboxes, junkMailboxes } from "../src/mailbox-filters.js";
 
 /**
  * Build a minimal mailbox descriptor.
@@ -144,5 +144,37 @@ describe("filterSearchMailboxes", () => {
   it("returns only the path strings", () => {
     const result = filterSearchMailboxes([mb("INBOX"), mb("Archive")]);
     expect(result).toEqual(["INBOX", "Archive"]);
+  });
+});
+
+describe("filterSearchMailboxes with includeJunk", () => {
+  const junkUnderscore = { path: "_lma-shield/spam", specialUse: "\\Junk" };
+
+  it("includes the Junk folder when includeJunk is set", () => {
+    expect(filterSearchMailboxes([{ path: "INBOX" }, junkUnderscore], { includeJunk: true })).toContain(
+      "_lma-shield/spam",
+    );
+  });
+
+  it("still excludes the Junk folder by default", () => {
+    expect(filterSearchMailboxes([{ path: "INBOX" }, junkUnderscore])).not.toContain("_lma-shield/spam");
+  });
+
+  it("honours excludePaths even for an included Junk folder", () => {
+    expect(filterSearchMailboxes([junkUnderscore], { includeJunk: true, excludePaths: ["_lma-shield"] })).not.toContain(
+      "_lma-shield/spam",
+    );
+  });
+});
+
+describe("junkMailboxes", () => {
+  it("returns the paths of Junk-flagged mailboxes only", () => {
+    expect(
+      junkMailboxes([
+        { path: "INBOX" },
+        { path: "_lma-shield/spam", specialUse: "\\Junk" },
+        { path: "Trash", specialUse: "\\Trash" },
+      ]),
+    ).toEqual(["_lma-shield/spam"]);
   });
 });

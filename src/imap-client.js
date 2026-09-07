@@ -106,7 +106,7 @@ export async function listMailboxes(client) {
   }));
 }
 
-export { filterScanMailboxes, filterSearchMailboxes } from "./mailbox-filters.js";
+export { filterScanMailboxes, filterSearchMailboxes, junkMailboxes } from "./mailbox-filters.js";
 
 /**
  * Run an async callback for each configured account with a connected IMAP client.

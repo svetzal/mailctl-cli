@@ -31,6 +31,7 @@ mailctl search --from "sender@example.com" "query"
 mailctl search --subject "invoice" --since 2025-01-01
 mailctl search --mailbox INBOX "query"
 mailctl search --exclude-mailbox Trash "query"
+mailctl search --include-junk "query"          # junk/spam folder too; a "Not searched:" note names it when skipped
 mailctl search --months 3 "query"
 
 # Read a specific email by UID

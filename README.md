@@ -57,6 +57,7 @@ mailctl search --mailbox INBOX "keyword"       # search only INBOX
 mailctl search --mailbox INBOX --mailbox Sent "keyword"  # search specific folders
 mailctl search --mailbox "INBOX,Sent" "keyword"          # comma-separated also works
 mailctl search --exclude-mailbox Trash "keyword"         # skip Trash
+mailctl search --include-junk "keyword"                 # also search the junk/spam folder (skipped by default)
 mailctl search -l 5 "term"                     # limit to 5 results per mailbox per account
 ```
 

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`search --include-junk`**, and a stderr note whenever a default search skipped a junk folder: `Not searched: <account> junk folder <path> (add --include-junk to search it)`. The junk folder was always excluded from `search`, silently; on accounts where a screening service files it under an underscore-prefixed parent (`_lma-shield/spam`) this hid an AWS support-case notification for four days. The exclusion stays the default, but it is now visible, and one flag lifts it. `--mailbox` still targets any folder explicitly, including junk.
+
 ### Changed
 
 - **BREAKING: commands now exit non-zero when any operational failure occurred, even if the overall command otherwise "completed."** Previously, a total IMAP account outage during `search`/`inbox`/`contacts`/`folders` printed an empty result and exited 0 — indistinguishable from "no matches." Per-account connect failures now surface as `accountFailures` in the result (and, in `--json` mode, in the payload), a `⚠` warning prints in text mode, and the process exits 1. `move`/`flag` now fold connect failures into `stats.failed` the same way they already fold per-UID failures. `receipts extract`'s `download`, `reprocess`, and `--list-vendors` modes previously only checked `stats.errors`/`stats.timedOut` for the `download` mode and silently ignored search failures and dedup-index load failures elsewhere; all three modes now escalate consistently via a shared `src/exit-status.js` contract. Scripts that previously treated exit 0 as "ran clean" should now check the exit code instead of (or in addition to) parsing stdout/stderr for warnings.

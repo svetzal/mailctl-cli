@@ -7,7 +7,7 @@
 
 import { resolveDateFilters } from "../date-filters.js";
 import { deduplicateByMessageId } from "../dedup.js";
-import { filterSearchMailboxes } from "../imap-client.js";
+import { filterSearchMailboxes, junkMailboxes } from "../imap-client.js";
 import { parseIntOption } from "../parse-options.js";
 import { searchMailbox } from "../search.js";
 
@@ -20,7 +20,7 @@ import { searchMailbox } from "../search.js";
 
 /**
  * @param {string|undefined} query - general search query (optional with field opts)
- * @param {object} opts - CLI options (from, to, subject, body, since, before, months, mailbox, excludeMailbox, limit)
+ * @param {object} opts - CLI options (from, to, subject, body, since, before, months, mailbox, excludeMailbox, includeJunk, limit)
  * @param {SearchCommandDeps} deps - injected dependencies
  * @param {function(object): void} [onProgress] - receives structured progress events
  * @returns {Promise<{ allResults: Array, warnings: string[], accountFailures: Array<{account: string, error: string}> }>}
@@ -53,7 +53,16 @@ export async function searchCommand(query, opts, deps, onProgress = () => {}) {
         const allBoxes = await listMailboxes(client);
         mailboxPaths = filterSearchMailboxes(allBoxes, {
           excludePaths: opts.excludeMailbox ?? [],
+          includeJunk: opts.includeJunk === true,
         });
+        if (!opts.includeJunk) {
+          const skipped = junkMailboxes(allBoxes);
+          if (skipped.length > 0) {
+            warnings.push(
+              `Not searched: ${acct.name} junk folder ${skipped.join(", ")} (add --include-junk to search it)`,
+            );
+          }
+        }
       }
 
       // Search mailboxes sequentially (IMAP requires one mailbox lock at a time)

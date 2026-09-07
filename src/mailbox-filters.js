@@ -41,12 +41,19 @@ export function filterScanMailboxes(mailboxes, opts = {}) {
  * @param {Array<{ path: string, specialUse?: string }>} mailboxes - from listMailboxes()
  * @param {object} [opts]
  * @param {string[]} [opts.excludePaths] - additional path prefixes to exclude
+ * @param {boolean} [opts.includeJunk] - also include the Junk folder(s), wherever they live
  * @returns {string[]} filtered mailbox paths
  */
 export function filterSearchMailboxes(mailboxes, opts = {}) {
   const excludePaths = opts.excludePaths || [];
   return mailboxes
     .filter((mb) => {
+      const isJunk = mb.specialUse === "\\Junk";
+      if (isJunk && opts.includeJunk) {
+        // Opted in: the Junk folder is searchable even when it sits under an
+        // underscore-prefixed parent (e.g. `_lma-shield/spam`).
+        return !excludePaths.some((prefix) => mb.path === prefix || mb.path.startsWith(`${prefix}/`));
+      }
       if (mb.specialUse && SEARCH_EXCLUDED_SPECIAL_USE.has(mb.specialUse)) return false;
       // Underscore-prefixed folders are tool-internal (e.g. Apple Mail's, or the
       // Leave Me Alone unsubscribe service's `_lma-shield`) and excluded by default —
@@ -61,4 +68,14 @@ export function filterSearchMailboxes(mailboxes, opts = {}) {
       return true;
     })
     .map((mb) => mb.path);
+}
+
+/**
+ * Paths of the mailboxes flagged as Junk. Used to tell the user what a default
+ * search did not look at, so a message filed as spam is never silently invisible.
+ * @param {Array<{ path: string, specialUse?: string }>} mailboxes - from listMailboxes()
+ * @returns {string[]}
+ */
+export function junkMailboxes(mailboxes) {
+  return mailboxes.filter((mb) => mb.specialUse === "\\Junk").map((mb) => mb.path);
 }

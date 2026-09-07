@@ -16,6 +16,7 @@ export {
   filterScanMailboxes,
   filterSearchMailboxes,
   forEachAccount,
+  junkMailboxes,
   listMailboxes,
   scanForReceipts,
 } from "./imap-client.js";
