@@ -642,7 +642,7 @@ describe("receiptMonthDir", () => {
   });
 
   it("zero-pads single-digit months", () => {
-    const result = receiptMonthDir("/output", new Date("2026-01-01"));
+    const result = receiptMonthDir("/output", new Date(2026, 0, 1));
     expect(result.endsWith(join("2026", "01"))).toBe(true);
   });
 

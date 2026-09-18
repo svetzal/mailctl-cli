@@ -224,11 +224,11 @@ describe("formatDate", () => {
   });
 
   it("formats a date string as YYYY-MM-DD", () => {
-    expect(formatDate("2024-11-15")).toBe("2024-11-15");
+    expect(formatDate("2024-11-15T00:00:00")).toBe("2024-11-15");
   });
 
   it("pads single-digit month and day", () => {
-    expect(formatDate(new Date("2025-01-05T00:00:00Z"))).toBe("2025-01-05");
+    expect(formatDate(new Date(2025, 0, 5))).toBe("2025-01-05");
   });
 });
 
@@ -453,7 +453,7 @@ describe("extractMetadata", () => {
   });
 
   it("formats date as YYYY-MM-DD", () => {
-    const result = extractMetadata("", "", "billing@zoom.us", "", new Date("2025-03-07T00:00:00Z"));
+    const result = extractMetadata("", "", "billing@zoom.us", "", new Date(2025, 2, 7));
     expect(result.date).toBe("2025-03-07");
   });
 

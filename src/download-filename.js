@@ -1,5 +1,6 @@
 import { getLocalPart } from "./email-address.js";
 import { MAX_VENDOR_NAME_LENGTH } from "./receipts/receipt-extraction.js";
+import { formatDate } from "./receipts/receipt-fields.js";
 import { stripVendorSuffixes } from "./receipts/receipt-terms.js";
 import { truncateAtTokenBoundary } from "./truncate-name.js";
 import { getVendorDisplayNames } from "./vendor-map.js";
@@ -33,7 +34,8 @@ export function vendorName(address, senderName) {
 }
 
 /**
- * Build a predictable filename: "Vendor YYYY-MM-DD[_N].pdf"
+ * Build a predictable filename: "Vendor YYYY-MM-DD[_N].pdf", dated by the
+ * message's local calendar date.
  * @param {string} vendor
  * @param {Date|string} date
  * @param {string|null} _attachmentName
@@ -41,12 +43,7 @@ export function vendorName(address, senderName) {
  * @returns {string}
  */
 export function buildFilename(vendor, date, _attachmentName, existingFiles) {
-  const d = date instanceof Date ? date : new Date(date);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-
-  const base = `${vendor} ${yyyy}-${mm}-${dd}`;
+  const base = `${vendor} ${formatDate(date)}`;
   let filename = `${base}.pdf`;
 
   let n = 1;

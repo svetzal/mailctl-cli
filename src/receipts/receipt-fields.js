@@ -24,8 +24,13 @@ export const MAX_SERVICE_LENGTH = 60;
 export const MIN_SERVICE_LENGTH = 3;
 
 /**
+ * Receipt dates carry the calendar date the operator saw the message arrive —
+ * the local date — not the UTC date. A receipt received at 9pm in Toronto on
+ * Mar 14 is dated Mar 14 even though it is already Mar 15 in UTC. This
+ * matches the local-midnight lookback windows in parse-date.js.
+ *
  * @param {Date|string} d
- * @returns {string}
+ * @returns {string} "YYYY-MM-DD" in the process's local time zone
  */
 export function formatDate(d) {
   const date = d instanceof Date ? d : new Date(d);
