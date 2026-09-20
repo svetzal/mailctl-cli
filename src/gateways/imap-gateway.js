@@ -33,7 +33,9 @@ export class ImapGateway {
    * @param {import("imapflow").ImapFlow} client
    * @param {object} criteria
    * @param {object} [opts]
-   * @returns {Promise<number[]|false>}
+   * @returns {Promise<number[]|false|undefined>} undefined when no mailbox is
+   * selected — imapflow returns early in that case, so callers must treat the
+   * result as falsy rather than assuming an array.
    */
   async search(client, criteria, opts) {
     return client.search(criteria, opts);
