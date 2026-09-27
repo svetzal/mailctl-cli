@@ -11,14 +11,14 @@ import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 import { sortReceipts } from "../sorter.js";
 
 /**
- * @typedef {object} SortCommandDeps
+ * @typedef {Object} SortCommandDeps
  * @property {string|null|undefined} account - account filter (or null/undefined for all)
  */
 
 /**
- * @param {object} opts - CLI options (months, dryRun)
+ * @param {Object} opts - CLI options (months, dryRun)
  * @param {SortCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ moved: number, skipped: number, alreadySorted: number, unclassified: number }>}
  */
 export async function sortCommand(opts, deps, onProgress = () => {}) {

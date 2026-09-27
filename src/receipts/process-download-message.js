@@ -10,19 +10,19 @@ import { buildManifestRecord, contentHash, isValidPdf } from "./receipt-decision
  * manifest. In dry-run mode, only announces what would happen.
  * Mutates `manifest`, `existingFiles`, and `existingHashes` in-place.
  *
- * @param {object} client - connected IMAP client
- * @param {object} msg - receipt scan result (uid, address, name, date, mailbox)
- * @param {object} part - PDF part descriptor from `findPdfParts`
+ * @param {Object} client - connected IMAP client
+ * @param {Object} msg - receipt scan result (uid, address, name, date, mailbox)
+ * @param {Object} part - PDF part descriptor from `findPdfParts`
  * @param {string} vendor - display vendor name for the filename
- * @param {object} context
+ * @param {Object} context
  * @param {string} context.manifestKey
- * @param {Record<string, object>} context.manifest - mutable manifest map
+ * @param {Record<string, Object>} context.manifest - mutable manifest map
  * @param {boolean} context.dryRun
  * @param {string} context.outputDir
  * @param {Set<string>} context.existingFiles
  * @param {Set<string>} context.existingHashes
  * @param {{ writeFile: Function, mkdir?: Function }} context.fs
- * @param {function(object): void} context.onProgress
+ * @param {(event: Object) => void} context.onProgress
  * @returns {Promise<'downloaded'|'alreadyHave'|'error'|null>} the resulting action, or
  *   `null` for an invalid PDF, which leaves the caller's running action untouched
  */
@@ -71,18 +71,18 @@ async function downloadAndRecordPdfPart(client, msg, part, vendor, context) {
  * Process a single receipt message: check manifest, fetch BODYSTRUCTURE, find PDF parts,
  * download and write each part. Mutates `manifest`, `existingFiles`, and `existingHashes` in-place.
  *
- * @param {object} client - connected IMAP client
- * @param {object} msg - receipt scan result (uid, address, name, date, mailbox)
+ * @param {Object} client - connected IMAP client
+ * @param {Object} msg - receipt scan result (uid, address, name, date, mailbox)
  * @param {string} mailbox - current mailbox path
- * @param {object} context
+ * @param {Object} context
  * @param {{ user: string }} context.account
- * @param {Record<string, object>} context.manifest - mutable manifest map
+ * @param {Record<string, Object>} context.manifest - mutable manifest map
  * @param {boolean} context.dryRun
  * @param {string} context.outputDir
  * @param {Set<string>} context.existingFiles
  * @param {Set<string>} context.existingHashes
  * @param {{ writeFile: Function, mkdir?: Function }} context.fs
- * @param {function(object): void} [context.onProgress]
+ * @param {(event: Object) => void} [context.onProgress]
  * @returns {Promise<{ action: 'alreadyHave'|'noPdf'|'downloaded'|'skipped'|'error' }>}
  */
 export async function processDownloadMessage(client, msg, mailbox, context) {

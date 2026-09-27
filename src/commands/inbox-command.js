@@ -9,15 +9,15 @@ import { parseIntOption, parseSinceOption } from "../parse-options.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 
 /**
- * @typedef {object} InboxCommandDeps
- * @property {object[]} targetAccounts - accounts to check
+ * @typedef {Object} InboxCommandDeps
+ * @property {Object[]} targetAccounts - accounts to check
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  */
 
 /**
- * @param {object} opts - CLI options (limit, unread, since)
+ * @param {Object} opts - CLI options (limit, unread, since)
  * @param {InboxCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ resultsByAccount: Map<string, Array>, allResults: Array, accountFailures: Array<{account: string, error: string}> }>}
  */
 export async function inboxCommand(opts, deps, onProgress = () => {}) {

@@ -5,7 +5,7 @@ import { listMailboxes as _listMailboxes, connect } from "../imap-client.js";
 
 export class ImapGateway {
   /**
-   * @param {object} account
+   * @param {Object} account
    * @returns {Promise<import("imapflow").ImapFlow>}
    */
   async connect(account) {
@@ -31,8 +31,8 @@ export class ImapGateway {
 
   /**
    * @param {import("imapflow").ImapFlow} client
-   * @param {object} criteria
-   * @param {object} [opts]
+   * @param {Object} criteria
+   * @param {Object} [opts]
    * @returns {Promise<number[]|false|undefined>} undefined when no mailbox is
    * selected — imapflow returns early in that case, so callers must treat the
    * result as falsy rather than assuming an array.
@@ -44,9 +44,9 @@ export class ImapGateway {
   /**
    * @param {import("imapflow").ImapFlow} client
    * @param {string} range - UID range string
-   * @param {object} opts
-   * @param {object} [fetchOpts]
-   * @returns {AsyncIterable<object>}
+   * @param {Object} opts
+   * @param {Object} [fetchOpts]
+   * @returns {AsyncIterable<Object>}
    */
   fetch(client, range, opts, fetchOpts) {
     return client.fetch(range, opts, fetchOpts);
@@ -56,7 +56,7 @@ export class ImapGateway {
    * @param {import("imapflow").ImapFlow} client
    * @param {string} uids - comma-separated UID range
    * @param {string} destination
-   * @param {object} [opts]
+   * @param {Object} [opts]
    * @returns {Promise<unknown>}
    */
   async messageMove(client, uids, destination, opts) {
@@ -67,7 +67,7 @@ export class ImapGateway {
    * @param {import("imapflow").ImapFlow} client
    * @param {string} uid
    * @param {string|undefined} part
-   * @param {object} [opts]
+   * @param {Object} [opts]
    * @returns {Promise<{ content: AsyncIterable<Buffer> }>}
    */
   async download(client, uid, part, opts) {

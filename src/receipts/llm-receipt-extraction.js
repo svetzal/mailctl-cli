@@ -100,7 +100,7 @@ Be thorough — extract EVERY field you can. A receipt with a null amount is nea
  * Try to create an LLM broker for receipt extraction.
  * Checks the provided openAiKey first, then falls back to process.env.OPENAI_API_KEY.
  * @param {string|null} [openAiKey] - API key from keychain (preferred over env var)
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {{ broker: LlmBroker, gateway: OpenAIGateway }|null}
  */
 export function createLlmBroker(openAiKey = null, onProgress = () => {}) {
@@ -146,6 +146,7 @@ export async function extractMetadataWithLLM(broker, bodyText, subject, fromAddr
   const data = /** @type {Record<string, any>} */ (result.value);
 
   // Build tax object if LLM returned tax fields
+  /** @type {{ amount: number, type: string|null }|null} */
   let tax = null;
   if (data.tax_amount && data.tax_amount > 0) {
     tax = { amount: data.tax_amount, type: (data.tax_type || "").toUpperCase() || null };
@@ -187,7 +188,7 @@ export async function extractMetadataWithLLM(broker, bodyText, subject, fromAddr
  * @param {string} fromAddress
  * @param {string} fromName
  * @param {Date} emailDate
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<ReceiptMetadata>} metadata object
  */
 export async function extractReceiptMetadata(

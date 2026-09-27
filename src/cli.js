@@ -50,7 +50,7 @@ export const defaultDeps = {
  * registrars and does nothing else. New commands belong in the relevant
  * `src/cli/*-cli.js` module.
  *
- * @param {{ requireAccounts: () => object[], receipts: object, mail: object, mutation: object, init: object }} [deps]
+ * @param {{ requireAccounts: () => Object[], receipts: Object, mail: Object, mutation: Object, init: Object }} [deps]
  * @returns {import("commander").Command}
  */
 export function buildProgram(deps = defaultDeps) {

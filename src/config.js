@@ -6,7 +6,7 @@ import { validateConfig } from "./validate-json.js";
 
 const DEFAULT_CONFIG_PATH = join(homedir(), ".config", "mailctl", "config.json");
 
-/** @type {object|null|undefined} */
+/** @type {Object|null|undefined} */
 let cachedConfig;
 
 /**
@@ -30,7 +30,7 @@ const realFs = {
  *
  * @param {ConfigFs} [fs] - optional filesystem gateway (defaults to real fs)
  * @param {string} [configPath] - optional path override (defaults to ~/.config/mailctl/config.json)
- * @returns {object|null} validated config or null if not found
+ * @returns {Object|null} validated config or null if not found
  */
 export function loadConfig(fs = realFs, configPath = DEFAULT_CONFIG_PATH) {
   if (cachedConfig !== undefined) return cachedConfig;
@@ -58,7 +58,7 @@ export function resetConfigCache() {
 
 /**
  * Get the accounts array from config.json.
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {Array<{prefix: string, name: string, user?: string, keychainService?: string, host?: string, port?: number, smtp?: {host: string, port: number, secure: boolean}}>}
  */
 export function getConfigAccounts(config = loadConfig()) {
@@ -67,7 +67,7 @@ export function getConfigAccounts(config = loadConfig()) {
 
 /**
  * Get self-addressed email addresses (for forwarded email detection).
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {string[]}
  */
 export function getConfigSelfAddresses(config = loadConfig()) {
@@ -76,7 +76,7 @@ export function getConfigSelfAddresses(config = loadConfig()) {
 
 /**
  * Get invoice number blocklist.
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {string[]}
  */
 export function getConfigInvoiceBlocklist(config = loadConfig()) {
@@ -85,7 +85,7 @@ export function getConfigInvoiceBlocklist(config = loadConfig()) {
 
 /**
  * Get vendor address → display name map.
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {Record<string, string>}
  */
 export function getConfigVendorAddressMap(config = loadConfig()) {
@@ -94,7 +94,7 @@ export function getConfigVendorAddressMap(config = loadConfig()) {
 
 /**
  * Get vendor domain → display name map.
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {Record<string, string>}
  */
 export function getConfigVendorDomainMap(config = loadConfig()) {
@@ -104,7 +104,7 @@ export function getConfigVendorDomainMap(config = loadConfig()) {
 /**
  * Get SMTP config for an account by name (case-insensitive match).
  * @param {string} accountName
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {{ host: string, port: number, secure: boolean } | null}
  */
 export function getConfigSmtp(accountName, config = loadConfig()) {
@@ -116,7 +116,7 @@ export function getConfigSmtp(accountName, config = loadConfig()) {
 
 /**
  * Get Canadian merchant domains.
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @returns {string[]}
  */
 export function getConfigCanadianDomains(config = loadConfig()) {
@@ -125,7 +125,7 @@ export function getConfigCanadianDomains(config = loadConfig()) {
 
 /**
  * Get the download directory for receipt PDFs.
- * @param {object|null} [config] - optional pre-loaded config (loads from disk when omitted)
+ * @param {Object|null} [config] - optional pre-loaded config (loads from disk when omitted)
  * @param {string} [homeDir] - optional home directory override (defaults to os.homedir())
  * @returns {string}
  */

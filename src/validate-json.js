@@ -11,7 +11,7 @@
 
 /**
  * A single entry from a senders.json file.
- * @typedef {object} SenderEntry
+ * @typedef {Object} SenderEntry
  * @property {string} address
  * @property {string} [name]
  * @property {number} [count]
@@ -21,7 +21,7 @@
 
 /**
  * A single entry from an import-classifications input file.
- * @typedef {object} ImportEntry
+ * @typedef {Object} ImportEntry
  * @property {string} [address]
  * @property {string} [classification]
  */

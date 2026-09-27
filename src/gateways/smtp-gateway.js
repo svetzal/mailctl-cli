@@ -5,8 +5,8 @@ import { createTransport } from "nodemailer";
 
 export class SmtpGateway {
   /**
-   * @param {object} account - { user, pass, smtp: { host, port, secure } }
-   * @param {object} message - { from, to, cc, subject, text, inReplyTo, references }
+   * @param {Object} account - { user, pass, smtp: { host, port, secure } }
+   * @param {Object} message - { from, to, cc, subject, text, inReplyTo, references }
    * @returns {Promise<{ messageId: string, accepted: string[] }>}
    */
   async send(account, message) {

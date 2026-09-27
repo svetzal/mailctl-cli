@@ -2,7 +2,7 @@ import { formatInitOutput } from "../format-init.js";
 import { initCommand } from "../init.js";
 
 /**
- * @typedef {object} InitCliDeps
+ * @typedef {Object} InitCliDeps
  * @property {Function} initCommand
  * @property {Function} formatInitOutput
  */

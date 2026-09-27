@@ -12,7 +12,7 @@ import { SmtpGateway } from "../gateways/smtp-gateway.js";
 import { forEachAccount, listMailboxes } from "../imap-client.js";
 
 /**
- * @typedef {object} MutationCliDeps
+ * @typedef {Object} MutationCliDeps
  * @property {Function} moveCommand
  * @property {Function} flagCommand
  * @property {Function} replyCommand
@@ -22,10 +22,10 @@ import { forEachAccount, listMailboxes } from "../imap-client.js";
  * @property {Function} forEachAccount
  * @property {Function} listMailboxes
  * @property {Function} simpleParser
- * @property {object} _fs
- * @property {object} smtpGateway
- * @property {object} editorGateway
- * @property {object} confirmGateway
+ * @property {Object} _fs
+ * @property {Object} smtpGateway
+ * @property {Object} editorGateway
+ * @property {Object} confirmGateway
  */
 
 /** @type {MutationCliDeps} */

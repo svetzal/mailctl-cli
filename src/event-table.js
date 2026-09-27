@@ -24,10 +24,10 @@ function camelToKebab(key) {
  *
  * @param {Record<string, { params?: string[], severity?: string, render?: (e: BaseEvent) => string, type?: string }>} descriptors
  * @param {{ fallbackRenderer?: ((event: BaseEvent) => string | null) | null }} [opts]
- * @returns {{ factories: Record<string, object>, renderEvent: (event: BaseEvent) => string | null }}
+ * @returns {{ factories: Record<string, Object>, renderEvent: (event: BaseEvent) => string | null }}
  */
 export function defineEventTable(descriptors, opts) {
-  /** @type {Record<string, object>} */
+  /** @type {Record<string, Object>} */
   const factories = {};
   /** @type {Record<string, (event: BaseEvent) => string>} */
   const renderMap = {};

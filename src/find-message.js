@@ -12,9 +12,9 @@ import { withMailboxLock } from "./imap-orchestration.js";
 import { detectMailbox } from "./mailbox-detect.js";
 
 /**
- * @typedef {object} FoundMessage
- * @property {object} client - connected IMAP client (lock already released)
- * @property {object} account - the account that owns the message
+ * @typedef {Object} FoundMessage
+ * @property {Object} client - connected IMAP client (lock already released)
+ * @property {Object} account - the account that owns the message
  * @property {string} mailbox - the mailbox path where the UID was found
  */
 
@@ -37,20 +37,20 @@ export function uidNotFoundError(uid, accountFailures = []) {
  *
  * @template T
  * @param {string} uid
- * @param {object} opts - CLI options (may contain opts.mailbox to skip auto-detection)
- * @param {object} deps
- * @param {object[]} deps.targetAccounts
+ * @param {Object} opts - CLI options (may contain opts.mailbox to skip auto-detection)
+ * @param {Object} deps
+ * @param {Object[]} deps.targetAccounts
  * @param {Function} deps.forEachAccount
  * @param {Function} deps.listMailboxes
- * @param {(client: any, account: object, mailbox: string) => Promise<T>} fn
- * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<{ result: T, account: object, mailbox: string }>}
+ * @param {(client: any, account: Object, mailbox: string) => Promise<T>} fn
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
+ * @returns {Promise<{ result: T, account: Object, mailbox: string }>}
  * @throws {Error} when the UID is not found in any account
  */
 export async function withMessage(uid, opts, deps, fn, onProgress = () => {}) {
   const { targetAccounts, forEachAccount, listMailboxes } = deps;
 
-  /** @type {{ result: T, account: object, mailbox: string } | null} */
+  /** @type {{ result: T, account: Object, mailbox: string } | null} */
   let outcome = null;
 
   const { accountFailures = [] } =

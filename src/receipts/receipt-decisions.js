@@ -133,7 +133,7 @@ export function classifyReprocessResult(metadata) {
  * @param {ReceiptMetadata} metadata - extracted receipt metadata
  * @param {ReceiptMessageEnvelope} msg - message envelope
  * @param {Date} emailDate - email date
- * @returns {object|null}
+ * @returns {Object|null}
  */
 export function receiptDecisionEvent(decision, metadata, msg, emailDate) {
   switch (decision.event) {
@@ -160,7 +160,7 @@ export function receiptDecisionEvent(decision, metadata, msg, emailDate) {
  *
  * @param {{ processedCount: number, maxMessages: number|null, startedAt: number, budgetMs: number|null }} opts
  * @param {number} now - current timestamp from performance.now()
- * @returns {{ stop: boolean, event: object|null }}
+ * @returns {{ stop: boolean, event: Object|null }}
  */
 export function shouldStopProcessing({ processedCount, maxMessages, startedAt, budgetMs }, now) {
   if (maxMessages !== null && processedCount >= maxMessages) {
@@ -194,7 +194,7 @@ export function chooseReprocessSource({ hasPdf, hasBodySnippet, dryRun }) {
  * The caller iterates and emits each one — no direct onProgress call here.
  *
  * @param {{ uniqueCount: number, vendorExcluded: number, subjectExcluded: number, vendor: string|null }} opts
- * @returns {Array<object>}
+ * @returns {Array<Object>}
  */
 export function receiptFilterEvents({ uniqueCount, vendorExcluded, subjectExcluded, vendor }) {
   const events = [];

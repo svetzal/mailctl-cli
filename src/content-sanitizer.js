@@ -8,19 +8,19 @@
  */
 
 /**
- * @typedef {object} InjectionMatch
+ * @typedef {Object} InjectionMatch
  * @property {string} name - pattern category name
  * @property {string} matched - the text that triggered the match
  */
 
 /**
- * @typedef {object} RiskScore
+ * @typedef {Object} RiskScore
  * @property {number} score - 0.0–1.0 injection risk score
  * @property {string[]} flags - matched pattern category names
  */
 
 /**
- * @typedef {object} ContentAssessment
+ * @typedef {Object} ContentAssessment
  * @property {number} riskScore - 0.0–1.0 injection risk score
  * @property {string[]} flags - matched pattern category names
  * @property {boolean} suspicious - true when riskScore >= threshold
@@ -256,7 +256,7 @@ export function assessContent(text) {
  * Uses CDATA sections to structurally separate untrusted email data from
  * LLM instructions.
  *
- * @param {object} fields
+ * @param {Object} fields
  * @param {string} fields.from - sender display name
  * @param {string} fields.fromAddress - sender email address
  * @param {string} fields.subject - email subject

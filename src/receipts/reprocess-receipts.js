@@ -20,7 +20,7 @@ import { collectSidecarFiles } from "./receipt-output-tree.js";
  * Returns `{ kind: 'text', text }` on success or `{ kind: 'terminal', statKey, entry }` on early exit.
  *
  * @param {{ pdfPath: string, jsonFilename: string, sidecar: ReceiptSidecar, hasPdf: boolean, dryRun: boolean, fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway }} params
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {{ kind: 'text', text: string } | { kind: 'terminal', statKey: string, entry: Record<string, unknown> }}
  */
 function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun, fs, subprocess }, onProgress) {
@@ -60,7 +60,7 @@ function resolveReprocessSource({ pdfPath, jsonFilename, sidecar, hasPdf, dryRun
  * The caller must inject reprocessedAt so this function has no wall-clock dependency.
  *
  * @param {{ metadata: ReceiptMetadata|null|undefined, sidecar: ReceiptSidecar, jsonPath: string, jsonFilename: string, reprocessedAt: string, fs: import('../gateways/fs-gateway.js').FileSystemGateway }} params
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {{ statKey: string, entry: Record<string, unknown> }}
  */
 function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, reprocessedAt, fs }, onProgress) {
@@ -90,7 +90,7 @@ function persistReprocessedSidecar({ metadata, sidecar, jsonPath, jsonFilename, 
  * Returns a stat key and result entry so the orchestrator can fold without branching.
  *
  * @param {{ jsonPath: string, sidecar: ReceiptSidecar, llm: LlmContext, fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway, dryRun: boolean }} params
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<{ statKey: string, entry: Record<string, unknown> }>}
  */
 async function reprocessOneSidecar({ jsonPath, sidecar, llm, fs, subprocess, dryRun }, onProgress) {
@@ -126,13 +126,13 @@ async function reprocessOneSidecar({ jsonPath, sidecar, llm, fs, subprocess, dry
 }
 
 /**
- * @param {object} opts
+ * @param {Object} opts
  * @param {string} opts.outputDir - directory containing receipts
  * @param {string} [opts.vendor] - filter to specific vendor
  * @param {Date} [opts.since] - only reprocess files newer than this date
  * @param {boolean} [opts.dryRun]
- * @param {object} [gateways] - injectable dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {Object} [gateways] - injectable dependencies
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @throws {Error} when OPENAI_API_KEY is not available
  * @returns {Promise<{reprocessed: number, skipped: number, errors: number, reclassified: number, results: Array}>}
  */

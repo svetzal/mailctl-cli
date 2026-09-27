@@ -30,15 +30,15 @@ export function accountFailuresWarning(accountFailures = []) {
  * alongside it. Array payloads get wrapped under `arrayKey` (since a bare
  * array can't carry an extra field); object payloads are merged directly.
  *
- * @param {object[] | object} payload - the array or object JSON payload
+ * @param {Object[] | Object} payload - the array or object JSON payload
  * @param {Array<{account: string, error: string}>} accountFailures
  * @param {string} [arrayKey] - required when payload is an array; the key to nest it under
- * @returns {object[] | object}
+ * @returns {Object[] | Object}
  */
 export function attachAccountFailures(payload, accountFailures = [], arrayKey) {
   if (accountFailures.length === 0) return payload;
   if (arrayKey) return { [arrayKey]: payload, accountFailures };
-  return { .../** @type {object} */ (payload), accountFailures };
+  return { .../** @type {Object} */ (payload), accountFailures };
 }
 
 // ── format-read ───────────────────────────────────────────────────────────────
@@ -46,17 +46,17 @@ export function attachAccountFailures(payload, accountFailures = [], arrayKey) {
 const DEFAULT_MAX_BODY_CHARS = 3000;
 
 /**
- * @typedef {object} ReadResultOptions
+ * @typedef {Object} ReadResultOptions
  * @property {number} maxBody - max characters to include in body/bodyHtml
  * @property {boolean} includeHeaders - whether to include raw headers map
  */
 
 /**
- * @param {object} parsed - mailparser ParsedMail result
+ * @param {Object} parsed - mailparser ParsedMail result
  * @param {string} acctName - account name (e.g. "icloud")
  * @param {string|number} uid - message UID
  * @param {ReadResultOptions} opts
- * @returns {object}
+ * @returns {Object}
  */
 export function buildReadResult(parsed, acctName, uid, opts) {
   const bodyText = parsed.text || (parsed.html ? htmlToText(parsed.html) : "");
@@ -90,14 +90,14 @@ export function buildReadResult(parsed, acctName, uid, opts) {
 }
 
 /**
- * @typedef {object} FormatTextOptions
+ * @typedef {Object} FormatTextOptions
  * @property {number} maxBody - max characters for body output
  * @property {boolean} showHeaders - whether to print raw headers
  * @property {boolean} showRaw - output raw HTML instead of plain text
  */
 
 /**
- * @param {object} parsed - mailparser ParsedMail result
+ * @param {Object} parsed - mailparser ParsedMail result
  * @param {FormatTextOptions} opts
  * @returns {string}
  */
@@ -135,11 +135,11 @@ export function formatReadText(parsed, opts) {
 /**
  * In JSON mode, includes the full body unless --max-body was explicitly set.
  *
- * @param {object} parsed - mailparser ParsedMail result
+ * @param {Object} parsed - mailparser ParsedMail result
  * @param {string} acctName - account name
  * @param {string|number} uid - message UID
  * @param {{ maxBody: number, maxBodyExplicit: boolean, includeHeaders: boolean }} opts
- * @returns {object}
+ * @returns {Object}
  */
 export function buildReadJson(parsed, acctName, uid, opts) {
   const effectiveMaxBody = opts.maxBodyExplicit ? opts.maxBody : Infinity;
@@ -151,7 +151,7 @@ export function buildReadJson(parsed, acctName, uid, opts) {
 
 /**
  * @param {boolean} json
- * @param {object} parsed - mailparser ParsedMail result
+ * @param {Object} parsed - mailparser ParsedMail result
  * @param {string} acctName - account name
  * @param {string} uid - message UID
  * @param {{ maxBody?: string|number, headers?: boolean, raw?: boolean }} opts
@@ -170,7 +170,7 @@ export function formatReadOutput(json, parsed, acctName, uid, opts) {
 // ── format-search ─────────────────────────────────────────────────────────────
 
 /**
- * @typedef {object} SearchResult
+ * @typedef {Object} SearchResult
  * @property {string} mailbox - mailbox path where the result was found
  * @property {string|number} uid - message UID
  * @property {string} [messageId] - internal message ID (stripped from JSON output)
@@ -213,7 +213,7 @@ export function formatSearchText(results, accountFailures = []) {
  *
  * @param {SearchResult[]} results
  * @param {Array<{account: string, error: string}>} [accountFailures]
- * @returns {object[] | { results: object[], accountFailures: Array<{account: string, error: string}> }}
+ * @returns {Object[] | { results: Object[], accountFailures: Array<{account: string, error: string}> }}
  */
 export function buildSearchJson(results, accountFailures = []) {
   const stripped = results.map(({ messageId, ...rest }) => rest);
@@ -226,13 +226,13 @@ export const formatSearchOutput = createFormatOutput(buildSearchJson, formatSear
 // ── format-folders ────────────────────────────────────────────────────────────
 
 /**
- * @typedef {object} FolderInfo
+ * @typedef {Object} FolderInfo
  * @property {string} path - IMAP folder path
  * @property {string|null} specialUse - special-use attribute (e.g. "\\Trash") or null
  */
 
 /**
- * @typedef {object} AccountFolders
+ * @typedef {Object} AccountFolders
  * @property {string} account - account display name
  * @property {FolderInfo[]} folders - folders belonging to this account
  */
@@ -283,7 +283,7 @@ export const formatFoldersOutput = createFormatOutput(buildFoldersJson, formatFo
 
 /**
  * @param {Array} messages
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {boolean} [opts.full=false] - show full bodies
  * @param {boolean} [opts.fallback=false] - indicate subject-match fallback
  * @returns {string}
@@ -328,8 +328,8 @@ export function formatThreadText(messages, opts = {}) {
  * @param {string} acctName - account name
  * @param {number} threadSize - number of messages in the thread
  * @param {boolean} fallback - true if thread was reconstructed by subject match
- * @param {object[]} messages - thread messages
- * @returns {{ account: string, threadSize: number, fallback: boolean, messages: object[] }}
+ * @param {Object[]} messages - thread messages
+ * @returns {{ account: string, threadSize: number, fallback: boolean, messages: Object[] }}
  */
 export function buildThreadJson(acctName, threadSize, fallback, messages) {
   return { account: acctName, threadSize, fallback, messages };
@@ -337,7 +337,7 @@ export function buildThreadJson(acctName, threadSize, fallback, messages) {
 
 /**
  * @param {boolean} json
- * @param {Array<{ account: string, threadSize: number, fallback: boolean, messages: object[] }>} results
+ * @param {Array<{ account: string, threadSize: number, fallback: boolean, messages: Object[] }>} results
  * @param {{ full?: boolean }} opts
  * @returns {Array<{ account: string, output: string }>}
  */
@@ -391,7 +391,7 @@ export function formatInboxText(resultsByAccount, accountFailures = []) {
 /**
  * @param {Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>} allResults
  * @param {Array<{account: string, error: string}>} [accountFailures]
- * @returns {object[] | { results: object[], accountFailures: Array<{account: string, error: string}> }}
+ * @returns {Object[] | { results: Object[], accountFailures: Array<{account: string, error: string}> }}
  */
 export function buildInboxJson(allResults, accountFailures = []) {
   const results = allResults.map((msg) => ({
@@ -426,7 +426,7 @@ export function formatInboxOutput(json, allResults, resultsByAccount, accountFai
 
 /**
  * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
- * @param {object} opts
+ * @param {Object} opts
  * @param {string} opts.sinceLabel
  * @param {Array<{account: string, error: string}>} [opts.accountFailures]
  * @returns {string}
@@ -454,10 +454,10 @@ export function formatContactsText(contacts, opts) {
 
 /**
  * @param {Array<{address: string, name: string, count: number, lastSeen: Date, direction: string}>} contacts
- * @param {object} opts
+ * @param {Object} opts
  * @param {string} opts.sinceLabel
  * @param {Array<{account: string, error: string}>} [opts.accountFailures]
- * @returns {object}
+ * @returns {Object}
  */
 export function buildContactsJson(contacts, opts) {
   const payload = {
@@ -479,7 +479,7 @@ export const formatContactsOutput = createFormatOutput(buildContactsJson, format
 // ── format-attachment ─────────────────────────────────────────────────────────
 
 /**
- * @typedef {object} AttachmentEntry
+ * @typedef {Object} AttachmentEntry
  * @property {number} index - 0-based attachment index
  * @property {string} filename - attachment filename (or "(unnamed)")
  * @property {string} contentType - MIME content type

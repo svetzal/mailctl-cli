@@ -28,7 +28,7 @@ const defaultGateways = {
 
 /**
  * Returns the merged gateway bundle, applying caller overrides over the defaults.
- * @param {object} [overrides]
+ * @param {Object} [overrides]
  * @returns {typeof defaultGateways}
  */
 export function resolveGateways(overrides = {}) {

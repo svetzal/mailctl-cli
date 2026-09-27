@@ -105,19 +105,19 @@ export function resolveAccounts(accountFilter, loadAccountsFn) {
 }
 
 /**
- * @typedef {object} CommandContextDeps
- * @property {(opts: object) => boolean} resolveJson
- * @property {(opts: object) => string|undefined} resolveAccount
- * @property {() => object[]} requireAccounts
- * @property {(accounts: object[], name: string|undefined) => object[]} filterAccountsByName
+ * @typedef {Object} CommandContextDeps
+ * @property {(opts: Object) => boolean} resolveJson
+ * @property {(opts: Object) => string|undefined} resolveAccount
+ * @property {() => Object[]} requireAccounts
+ * @property {(accounts: Object[], name: string|undefined) => Object[]} filterAccountsByName
  */
 
 /**
- * @typedef {object} CommandContext
+ * @typedef {Object} CommandContext
  * @property {boolean} json - whether --json flag is active
  * @property {string|undefined} account - resolved account name filter
- * @property {object[]} accounts - all configured accounts
- * @property {object[]} targetAccounts - accounts after applying the account filter
+ * @property {Object[]} accounts - all configured accounts
+ * @property {Object[]} targetAccounts - accounts after applying the account filter
  */
 
 /**
@@ -150,7 +150,7 @@ export function createFormatOutput(buildJsonFn, formatTextFn) {
  * command should actually apply. An explicit `--dry-run` always forces preview,
  * even alongside `--apply`.
  *
- * @param {object} opts - Commander option object (may carry apply, dryRun)
+ * @param {Object} opts - Commander option object (may carry apply, dryRun)
  * @returns {boolean} true when the command should execute (i.e. --apply given)
  */
 export function resolvePlanApply(opts) {
@@ -177,8 +177,8 @@ export function emitPlanHint(applied, json, write = (msg) => console.error(msg))
  * Create a resolver for the --json flag that checks command-level opts first,
  * then falls back to global program opts.
  *
- * @param {() => object} getGlobalOpts - returns the global Commander options object
- * @returns {(opts: object) => boolean}
+ * @param {() => Object} getGlobalOpts - returns the global Commander options object
+ * @returns {(opts: Object) => boolean}
  */
 export function createResolveJson(getGlobalOpts) {
   return (opts) => !!(opts.json || getGlobalOpts().json);
@@ -188,8 +188,8 @@ export function createResolveJson(getGlobalOpts) {
  * Create a resolver for the --account flag that checks command-level opts first,
  * then falls back to global program opts.
  *
- * @param {() => object} getGlobalOpts - returns the global Commander options object
- * @returns {(opts: object) => string|undefined}
+ * @param {() => Object} getGlobalOpts - returns the global Commander options object
+ * @returns {(opts: Object) => string|undefined}
  */
 export function createResolveAccount(getGlobalOpts) {
   return (opts) => opts.account || getGlobalOpts().account;
@@ -201,7 +201,7 @@ export function createResolveAccount(getGlobalOpts) {
  *
  * @param {(...args: any[]) => Promise<any>} fn - the command action to wrap; its resolved value (if any) is
  *   passed to applyExitCode so orchestrator results with failure counts can escalate the exit code
- * @param {(opts: object) => boolean} resolveJsonFn - resolves the json flag from command opts
+ * @param {(opts: Object) => boolean} resolveJsonFn - resolves the json flag from command opts
  * @param {(code: number) => void} [setExitCode] - injected exit-code setter (defaults to process.exitCode)
  * @returns {(...args: any[]) => Promise<void>}
  */
@@ -235,8 +235,8 @@ export function withErrorHandling(
 
 /**
  * Create a progress-rendering function that writes non-null render results to stderr.
- * @param {(event: object) => string|null} renderFn - pure event-to-string renderer
- * @returns {(event: object) => void}
+ * @param {(event: Object) => string|null} renderFn - pure event-to-string renderer
+ * @returns {(event: Object) => void}
  */
 export function createProgressRenderer(renderFn) {
   return (event) => {
@@ -250,7 +250,7 @@ export function createProgressRenderer(renderFn) {
  * json flag, account filter, full account list, and filtered account list.
  * Throws when an explicit account name matches no configured accounts.
  *
- * @param {object} opts - Commander option object
+ * @param {Object} opts - Commander option object
  * @param {CommandContextDeps} deps - injected resolver functions (for testability)
  * @throws {Error} when the named account filter matches nothing
  * @returns {CommandContext}

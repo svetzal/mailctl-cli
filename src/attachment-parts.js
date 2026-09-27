@@ -5,7 +5,7 @@
 
 /**
  * Checks both Content-Disposition parameters and Content-Type parameters.
- * @param {object} part - BODYSTRUCTURE part node
+ * @param {Object} part - BODYSTRUCTURE part node
  * @returns {string|null}
  */
 export function getPartFilename(part) {
@@ -15,7 +15,7 @@ export function getPartFilename(part) {
 /**
  * Determine whether a BODYSTRUCTURE part is an inline image (CID-referenced).
  * These are embedded in HTML body and should not be treated as user-facing attachments.
- * @param {object} part
+ * @param {Object} part
  * @returns {boolean}
  */
 function isInlineImage(part) {
@@ -30,7 +30,7 @@ function isInlineImage(part) {
  * Determine whether a BODYSTRUCTURE part is an S/MIME cryptographic signature.
  * These should never be treated as user-facing attachments — users want the
  * actual document (PDF/etc.), not the detached signature.
- * @param {object} part
+ * @param {Object} part
  * @returns {boolean}
  */
 export function isSignaturePart(part) {
@@ -51,7 +51,7 @@ export function isSignaturePart(part) {
  * Recursively find all user-facing attachment parts from a BODYSTRUCTURE tree.
  * Excludes inline CID images (embedded in HTML body).
  *
- * @param {object} structure - BODYSTRUCTURE root node from ImapFlow
+ * @param {Object} structure - BODYSTRUCTURE root node from ImapFlow
  * @returns {Array<{part: string, type: string, size: number, filename: string|null, disposition: string|null}>}
  */
 export function findAttachmentParts(structure) {
@@ -98,7 +98,7 @@ function collectAttachmentParts(node, parts) {
  * Recursively find PDF attachment parts in a BODYSTRUCTURE.
  * Checks both Content-Type and Content-Disposition filename for PDF detection.
  *
- * @param {object} structure - BODYSTRUCTURE root node
+ * @param {Object} structure - BODYSTRUCTURE root node
  * @returns {Array<{part: string, type: string, size: number, filename: string|null, disposition: string|null}>}
  */
 export function findPdfParts(structure) {

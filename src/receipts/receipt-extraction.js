@@ -49,7 +49,7 @@ export {
  * @param {string} fromAddress
  * @param {string} fromName
  * @param {Date} emailDate
- * @returns {object}
+ * @returns {Object}
  */
 export function extractMetadata(bodyText, subject, fromAddress, fromName, emailDate) {
   const invoiceNumber = extractInvoiceNumber(subject, bodyText);

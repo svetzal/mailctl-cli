@@ -29,7 +29,7 @@ import { renderScanEvent } from "../scan-event-factories.js";
 import { renderSortEvent } from "../sort-event-factories.js";
 
 /**
- * @typedef {object} ReceiptsCliDeps
+ * @typedef {Object} ReceiptsCliDeps
  * @property {Function} scanCommand
  * @property {Function} classifyCommand
  * @property {Function} importClassificationsCommand

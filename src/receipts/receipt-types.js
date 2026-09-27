@@ -11,8 +11,8 @@ export {};
  * The LLM broker context used for receipt metadata extraction.
  * `broker` is an LlmBroker instance from the mojentic library.
  *
- * @typedef {object} LlmContext
- * @property {object} broker
+ * @typedef {Object} LlmContext
+ * @property {Object} broker
  */
 
 /**
@@ -23,7 +23,7 @@ export {};
  * Fields source_account, email_uid, receipt_file, and source_body_snippet
  * start as null and are stamped downstream by processReceiptMessage.
  *
- * @typedef {object} ReceiptMetadata
+ * @typedef {Object} ReceiptMetadata
  * @property {string} [schema] - schema identifier, e.g. "mailctl.receipt.v1"
  * @property {string} [vendor] - vendor display name (cleaned of legal suffixes)
  * @property {string|null} [service] - specific product, plan, or item description
@@ -46,7 +46,7 @@ export {};
  * A superset of ReceiptMetadata with provenance fields added at download/reprocess time.
  * All fields are optional because sidecars may be written by older tool versions.
  *
- * @typedef {object} ReceiptSidecar
+ * @typedef {Object} ReceiptSidecar
  * @property {string} [schema]
  * @property {string} [vendor]
  * @property {string|null} [service]
@@ -71,7 +71,7 @@ export {};
  * Per-run counters for downloadReceiptEmails.
  * timedOut and searchFailures are optional for backwards-compat with test fixtures.
  *
- * @typedef {object} ReceiptStats
+ * @typedef {Object} ReceiptStats
  * @property {number} found - messages discovered by IMAP search
  * @property {number} downloaded - PDFs or sidecars successfully written
  * @property {number} noPdf - messages processed with no PDF attachment
@@ -87,7 +87,7 @@ export {};
 /**
  * A PDF attachment from a parsed email (subset of mailparser Attachment).
  *
- * @typedef {object} ReceiptPdfAttachment
+ * @typedef {Object} ReceiptPdfAttachment
  * @property {Buffer} content - raw PDF bytes
  * @property {string} [filename] - attachment filename, if present
  * @property {string} [contentType] - MIME content type
@@ -97,7 +97,7 @@ export {};
  * Receipt search result envelope — one message returned from the IMAP search pipeline.
  * uid, subject, mailbox, and date are optional because some functions only use fromAddress/fromName.
  *
- * @typedef {object} ReceiptMessageEnvelope
+ * @typedef {Object} ReceiptMessageEnvelope
  * @property {number} [uid] - IMAP message UID
  * @property {string} fromAddress - sender email address
  * @property {string} fromName - sender display name
@@ -109,7 +109,7 @@ export {};
 /**
  * Manifest record written to the download manifest JSON.
  *
- * @typedef {object} ManifestRecord
+ * @typedef {Object} ManifestRecord
  * @property {'no-pdf'|'duplicate'|'downloaded'} status
  * @property {string} [filename] - output filename (status: 'downloaded' only)
  * @property {string} [hash] - SHA-256 hex prefix (status: 'duplicate'|'downloaded')
@@ -120,7 +120,7 @@ export {};
 /**
  * Mutable state threaded through a download run.
  *
- * @typedef {object} ReceiptRunState
+ * @typedef {Object} ReceiptRunState
  * @property {ReceiptStats} stats - running counters
  * @property {ReceiptMetadata[]} records - successfully processed metadata records
  * @property {number} processedCount - total messages attempted so far
@@ -130,7 +130,7 @@ export {};
 /**
  * Context object passed to processReceiptMessage.
  *
- * @typedef {object} ReceiptProcessContext
+ * @typedef {Object} ReceiptProcessContext
  * @property {string} accountName
  * @property {string} outputDir
  * @property {boolean} dryRun
@@ -141,13 +141,13 @@ export {};
  * @property {Set<string>} usedPaths
  * @property {import('../gateways/fs-gateway.js').FileSystemGateway} fs
  * @property {import('../gateways/subprocess-gateway.js').SubprocessGateway} subprocess
- * @property {function(object): void} [onProgress]
+ * @property {(event: Object) => void} [onProgress]
  */
 
 /**
  * Cohesive write-side collaborator: all I/O and dedup state for a download run.
  *
- * @typedef {object} ReceiptWriteContext
+ * @typedef {Object} ReceiptWriteContext
  * @property {string} outputDir
  * @property {boolean} dryRun
  * @property {boolean} includeEmpty
@@ -162,7 +162,7 @@ export {};
 /**
  * Time and count limits for a download run.
  *
- * @typedef {object} ReceiptRunLimits
+ * @typedef {Object} ReceiptRunLimits
  * @property {number} startedAt - performance.now() timestamp at run start
  * @property {number|null} maxMessages - stop after this many messages (null = unlimited)
  * @property {number|null} budgetMs - overall wall-clock budget in ms (null = unlimited)
@@ -172,12 +172,12 @@ export {};
 /**
  * Everything needed to execute one download run.
  *
- * @typedef {object} ReceiptRun
+ * @typedef {Object} ReceiptRun
  * @property {ReceiptWriteContext} writeContext
  * @property {ReceiptRunLimits} limits
  * @property {LlmContext|null} llm
  * @property {ReceiptRunState} runState
  * @property {string|null} vendorFilter
  * @property {function} processMessage
- * @property {function(object): void} onProgress
+ * @property {(event: Object) => void} onProgress
  */

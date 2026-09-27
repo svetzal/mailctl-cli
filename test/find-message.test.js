@@ -96,6 +96,7 @@ describe("withMessage", () => {
     const client1 = makeClient({ searchResult: [] }); // UID not found — detectMailbox returns null
     const client2 = makeClient({ searchResult: [42] });
 
+    /** @type {string|null} */
     let foundAccount = null;
     const deps = makeDeps({
       forEachAccount: mock(async (_accounts, fn) => {

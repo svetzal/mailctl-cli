@@ -3,8 +3,8 @@ import { extractUnsubscribeLinks, isValidUrl } from "../src/unsubscribe.js";
 
 /**
  * Helper to create a mock parsed email object similar to mailparser output.
- * @param {object} opts
- * @returns {object}
+ * @param {Object} opts
+ * @returns {Object}
  */
 function mockParsed({ html, text, listUnsubscribe } = {}) {
   const headers = new Map();

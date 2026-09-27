@@ -12,17 +12,17 @@ import { parseIntOption } from "../parse-options.js";
 import { searchMailbox } from "../search.js";
 
 /**
- * @typedef {object} SearchCommandDeps
- * @property {object[]} targetAccounts - accounts to search
+ * @typedef {Object} SearchCommandDeps
+ * @property {Object[]} targetAccounts - accounts to search
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  * @property {Function} listMailboxes - (client) → Promise<Array>
  */
 
 /**
  * @param {string|undefined} query - general search query (optional with field opts)
- * @param {object} opts - CLI options (from, to, subject, body, since, before, months, mailbox, excludeMailbox, includeJunk, limit)
+ * @param {Object} opts - CLI options (from, to, subject, body, since, before, months, mailbox, excludeMailbox, includeJunk, limit)
  * @param {SearchCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ allResults: Array, warnings: string[], accountFailures: Array<{account: string, error: string}> }>}
  * @throws {Error} when neither a query nor field criteria are provided
  */

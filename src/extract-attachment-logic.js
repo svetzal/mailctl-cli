@@ -4,7 +4,7 @@
  */
 
 /**
- * @typedef {object} AttachmentListing
+ * @typedef {Object} AttachmentListing
  * @property {number} index - 0-based position in the listing
  * @property {string} filename - display name, "(unnamed)" when unknown
  * @property {string} contentType - MIME content-type, "unknown" when absent

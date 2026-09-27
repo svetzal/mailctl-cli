@@ -8,8 +8,8 @@
 import { validateClassifications, validateImportEntries } from "../validate-json.js";
 
 /**
- * @typedef {object} ImportClassificationsCommandDeps
- * @property {object} fsGateway - { exists(path): boolean, readJson(path): unknown, writeJson(path, data): void }
+ * @typedef {Object} ImportClassificationsCommandDeps
+ * @property {Object} fsGateway - { exists(path): boolean, readJson(path): unknown, writeJson(path, data): void }
  */
 
 /**

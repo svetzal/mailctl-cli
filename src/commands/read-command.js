@@ -9,8 +9,8 @@ import { withMessage } from "../find-message.js";
 import { streamToBuffer } from "../imap-orchestration.js";
 
 /**
- * @typedef {object} ReadCommandDeps
- * @property {object[]} targetAccounts - accounts to search
+ * @typedef {Object} ReadCommandDeps
+ * @property {Object[]} targetAccounts - accounts to search
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  * @property {Function} listMailboxes - (client) → Promise<Array>
  * @property {Function} simpleParser - mailparser simpleParser function
@@ -21,9 +21,9 @@ import { streamToBuffer } from "../imap-orchestration.js";
  * and parses it. Returns the parsed email with account/mailbox context.
  *
  * @param {string} uid
- * @param {object} opts - CLI options (mailbox, maxBody, raw, headers)
+ * @param {Object} opts - CLI options (mailbox, maxBody, raw, headers)
  * @param {ReadCommandDeps} deps - injected dependencies
- * @returns {Promise<{ account: object, uid: string, mailbox: string, parsed: object }>}
+ * @returns {Promise<{ account: Object, uid: string, mailbox: string, parsed: Object }>}
  * @throws {Error} when the UID is not found in any account
  */
 export async function readCommand(uid, opts, deps) {

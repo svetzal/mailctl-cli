@@ -11,8 +11,8 @@ import { withMailboxLock } from "../imap-orchestration.js";
 import { parseAndGroupUids } from "../move-logic.js";
 
 /**
- * @typedef {object} MoveCommandDeps
- * @property {object[]} accounts - all configured accounts
+ * @typedef {Object} MoveCommandDeps
+ * @property {Object[]} accounts - all configured accounts
  * @property {string|null} account - value of --account flag (or null)
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  * @property {Function} listMailboxes - (client) → Promise<Array>
@@ -23,7 +23,7 @@ import { parseAndGroupUids } from "../move-logic.js";
  * exists on each account, then moves or dry-runs the operation.
  *
  * @param {string[]} uids - raw UID arguments from the CLI
- * @param {object} opts - CLI options (to, mailbox, dryRun)
+ * @param {Object} opts - CLI options (to, mailbox, dryRun)
  * @param {MoveCommandDeps} deps - injected dependencies
  * @returns {Promise<{ stats: { moved: number, failed: number, skipped: number }, results: Array }>}
  */

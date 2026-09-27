@@ -9,7 +9,7 @@ import { fetchError, mailboxEmpty, mailboxMatches, mailboxStart, searchError } f
  * Supports both password-based and OAuth2 (XOAUTH2) authentication.
  *
  * @param {{ host: string, port: number, user: string, pass?: string, oauth2?: { clientId: string, tenantId: string, clientSecret: string }, name?: string }} account
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @param {typeof ImapFlow} [clientConstructor] - injectable for testing; defaults to ImapFlow
  * @param {typeof getM365AccessToken} [getAccessToken] - injectable for testing; defaults to getM365AccessToken
  * @returns {Promise<ImapFlow>}
@@ -52,9 +52,9 @@ export async function connect(
  * @param {import("./imap-types.js").ImapClient} client
  * @param {string} accountName
  * @param {string[]} mailboxes - mailbox paths to search (e.g. ["INBOX", "Archive"])
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {Date}   [opts.since] - only messages after this date
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ results: Array, failures: Array<{ mailbox: string, phase: string, term?: string, error: Error }> }>}
  */
 export async function scanForReceipts(client, accountName, mailboxes, opts = {}, onProgress = () => {}) {
@@ -112,8 +112,8 @@ export { filterScanMailboxes, filterSearchMailboxes, junkMailboxes } from "./mai
  * Run an async callback for each configured account with a connected IMAP client.
  * Handles connect/logout lifecycle and error reporting.
  * @param {Array} accounts - from loadAccounts()
- * @param {function(import("imapflow").ImapFlow, object): Promise<void>} fn - callback receiving (client, account)
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(client: import("imapflow").ImapFlow, account: Object) => Promise<void>} fn - callback receiving (client, account)
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @param {typeof connect} [connectFn] - injectable for testing; defaults to connect
  * @returns {Promise<{accountFailures: Array<{account: string, error: string}>}>} per-account connect failures; empty when every account connected
  */

@@ -23,7 +23,7 @@ const defaultGateways = {
 };
 
 /**
- * @typedef {object} ScannerGateways
+ * @typedef {Object} ScannerGateways
  * @property {typeof _loadAccounts}        [loadAccounts]
  * @property {typeof _forEachAccount}      [forEachAccount]
  * @property {typeof _listMailboxes}       [listMailboxes]
@@ -32,13 +32,13 @@ const defaultGateways = {
  */
 
 /**
- * @param {object}          [opts]
+ * @param {Object}          [opts]
  * @param {number}          [opts.months=12]      - how many months back to search
  * @param {string[]}        [opts.mailboxes]      - override which mailboxes to scan
  * @param {boolean}         [opts.allMailboxes=false] - scan all mailboxes (slow)
  * @param {string}          [opts.account]        - only scan this account (case-insensitive)
- * @param {object}          [gateways]            - injectable implementations for testing
- * @param {function(object): void} [onProgress]  - receives structured progress events
+ * @param {Object}          [gateways]            - injectable implementations for testing
+ * @param {(event: Object) => void} [onProgress]  - receives structured progress events
  * @returns {Promise<Array>} receipt messages
  */
 export async function scanAllAccounts(opts = {}, gateways = {}, onProgress = () => {}) {

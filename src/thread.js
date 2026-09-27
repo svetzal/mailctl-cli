@@ -44,7 +44,7 @@ export function parseReferences(references) {
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {string[]} messageIds - Message-IDs to search for
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<number[]>} UIDs found
  */
 async function searchMailboxForThread(client, mailboxPath, messageIds, onProgress) {
@@ -88,7 +88,7 @@ async function searchMailboxForThread(client, mailboxPath, messageIds, onProgres
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {string} baseSubject - subject with Re:/Fwd: stripped
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<number[]>} UIDs found
  */
 async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgress) {
@@ -119,7 +119,7 @@ async function searchMailboxBySubject(client, mailboxPath, baseSubject, onProgre
  * @param {string} mailboxPath
  * @param {number[]} uids
  * @param {boolean} [fullBody=false] - fetch full body text
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<Array<{uid: number, account: string, mailbox: string, date: Date, from: string, fromName: string, subject: string, messageId: string, snippet: string, body: string}>>}
  */
 async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullBody = false, onProgress = () => {}) {
@@ -179,7 +179,7 @@ async function fetchThreadMessages(client, accountName, mailboxPath, uids, fullB
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
  * @param {number|string} uid
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<{ messageId: string, subject: string, references: string, inReplyTo: string } | null>}
  */
 async function fetchAnchorHeaders(client, mailboxPath, uid, onProgress) {
@@ -238,7 +238,7 @@ export function collectRelatedMessageIds({ messageId, references, inReplyTo }) {
  * @param {import("./imap-types.js").ImapClient} client
  * @param {Set<string>} relatedIds
  * @param {string[]} searchMailboxPaths
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<{ uidsByMailbox: Map<string, Set<number>>, headerSearchFoundResults: boolean }>}
  */
 async function searchThreadAcrossMailboxes(client, relatedIds, searchMailboxPaths, onProgress) {
@@ -265,7 +265,7 @@ async function searchThreadAcrossMailboxes(client, relatedIds, searchMailboxPath
  * @param {string} subject
  * @param {string[]} searchMailboxPaths
  * @param {Map<string, Set<number>>} uidsByMailbox
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<void>}
  */
 async function fallbackBySubject(client, subject, searchMailboxPaths, uidsByMailbox, onProgress) {
@@ -306,10 +306,10 @@ function dedupeAndSortMessages(allMessages) {
  * @param {string} mailboxPath - mailbox of the anchor message
  * @param {number|string} uid - anchor message UID
  * @param {string[]} searchMailboxPaths - mailboxes to search for thread members
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {number} [opts.limit=50]
  * @param {boolean} [opts.full=false] - fetch full message bodies
- * @param {function(object): void} [opts.onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [opts.onProgress] - receives structured progress events
  * @returns {Promise<{messages: Array, fallback: boolean}>}
  */
 export async function findThread(client, accountName, mailboxPath, uid, searchMailboxPaths, opts = {}) {

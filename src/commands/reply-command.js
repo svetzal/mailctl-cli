@@ -10,24 +10,24 @@ import { streamToBuffer } from "../imap-orchestration.js";
 import { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "../reply.js";
 
 /**
- * @typedef {object} ReplyCommandDeps
- * @property {object[]} targetAccounts - accounts to search (from resolveCommandContext)
+ * @typedef {Object} ReplyCommandDeps
+ * @property {Object[]} targetAccounts - accounts to search (from resolveCommandContext)
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  * @property {Function} listMailboxes - (client) → Promise<Array>
  * @property {Function} simpleParser - mailparser simpleParser function
- * @property {object} fsGateway - { readText(path: string): string }
- * @property {object} smtpGateway - { send(account, message): Promise<{messageId, accepted}> }
- * @property {object} editorGateway - { editTempFile(content: string): string }
- * @property {object} confirmGateway - { confirm(prompt: string): Promise<string> }
+ * @property {Object} fsGateway - { readText(path: string): string }
+ * @property {Object} smtpGateway - { send(account, message): Promise<{messageId, accepted}> }
+ * @property {Object} editorGateway - { editTempFile(content: string): string }
+ * @property {Object} confirmGateway - { confirm(prompt: string): Promise<string> }
  */
 
 /**
  * Returns { parsed, account } or throws if the UID is not found anywhere.
  *
  * @param {string} uid
- * @param {object} opts - CLI options (may include opts.mailbox)
+ * @param {Object} opts - CLI options (may include opts.mailbox)
  * @param {ReplyCommandDeps} deps
- * @returns {Promise<{ parsed: object, account: object }>}
+ * @returns {Promise<{ parsed: Object, account: Object }>}
  */
 async function fetchOriginalMessage(uid, opts, deps) {
   const { simpleParser } = deps;
@@ -47,9 +47,9 @@ async function fetchOriginalMessage(uid, opts, deps) {
  *
  * Returns null when the user declines the send confirmation (aborted).
  *
- * @param {object} opts - CLI options
- * @param {object} originalParsed - parsed original email
- * @param {object} headers - reply headers from buildReplyHeaders
+ * @param {Object} opts - CLI options
+ * @param {Object} originalParsed - parsed original email
+ * @param {Object} headers - reply headers from buildReplyHeaders
  * @param {ReplyCommandDeps} deps
  * @throws {Error} when --edit produces an empty reply
  * @throws {Error} when none of --message, --message-file, or --edit are provided
@@ -89,14 +89,14 @@ async function resolveUserMessage(opts, originalParsed, headers, deps) {
 
 /**
  * @param {string} uid
- * @param {object} opts - CLI options (message, messageFile, edit, cc, dryRun, yes, mailbox)
+ * @param {Object} opts - CLI options (message, messageFile, edit, cc, dryRun, yes, mailbox)
  * @param {ReplyCommandDeps} deps - injected dependencies
  * @throws {Error} when none of --message, --message-file, or --edit are provided
  * @throws {Error} when the matched account has no SMTP configuration
  * @returns {Promise<
  *   | { aborted: true }
- *   | { dryRun: true, message: object }
- *   | { sent: true, messageId: string, accepted: string[], message: object }
+ *   | { dryRun: true, message: Object }
+ *   | { sent: true, messageId: string, accepted: string[], message: Object }
  * >}
  */
 export async function replyCommand(uid, opts, deps) {

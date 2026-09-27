@@ -7,7 +7,7 @@ import { createFormatOutput } from "../cli-helpers.js";
 /**
  * @typedef {{ mode: "listVendors", configVendors: string[], recentVendors: VendorEntry[] }
  *   | { mode: "reprocess", reprocessed: number, skipped: number, errors: number }
- *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, skipped?: number, skippedEmpty?: number, alreadyHave: number, errors: number, timedOut?: number, searchFailures?: number }, records?: object[] }
+ *   | { mode: "download", stats: { found: number, downloaded: number, noPdf: number, skipped?: number, skippedEmpty?: number, alreadyHave: number, errors: number, timedOut?: number, searchFailures?: number }, records?: Object[] }
  * } DownloadReceiptsResult
  */
 
@@ -69,7 +69,7 @@ export function formatDownloadReceiptsText(result, opts) {
  *
  * @param {DownloadReceiptsResult} result
  * @param {{ since?: string, months?: string }} [_opts]
- * @returns {object}
+ * @returns {Object}
  */
 export function buildDownloadReceiptsJson(result, _opts) {
   if (result.mode === "listVendors") {

@@ -15,7 +15,7 @@ import { buildReceiptSearchCriteria, searchMailboxForReceiptRecords } from "./re
  * @param {string} accountName
  * @param {string} mailboxPath
  * @param {Date} since
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ results: Array, failures: Array<{ mailbox: string, phase: string, term?: string, error: Error }> }>}
  */
 export async function searchMailboxForReceipts(client, accountName, mailboxPath, since, onProgress = () => {}) {
@@ -56,11 +56,11 @@ export async function searchMailboxForReceipts(client, accountName, mailboxPath,
  *
  * @param {Array} targetAccounts
  * @param {Date} since - search cutoff date
- * @param {object} fns
+ * @param {Object} fns
  * @param {Function} fns.forEachAccount
  * @param {Function} fns.listMailboxes
- * @param {function(object): void} fns.onProgress
- * @param {function(object, object, Array, Array): Promise<void>} perAccountFn - (client, account, uniqueResults, failures) => Promise<void>
+ * @param {(event: Object) => void} fns.onProgress
+ * @param {(client: Object, account: Object, uniqueResults: Array, failures: Array) => Promise<void>} perAccountFn - (client, account, uniqueResults, failures) => Promise<void>
  * @returns {Promise<void>}
  */
 export async function forEachReceiptSearchAccount(
@@ -88,10 +88,10 @@ export async function forEachReceiptSearchAccount(
  * listReceiptVendors. The caller holds the IMAP connection and can perform
  * further operations (e.g. downloading) after the search.
  *
- * @param {object} client - connected IMAP client
- * @param {object} account - account config object (must have .name)
+ * @param {Object} client - connected IMAP client
+ * @param {Object} account - account config object (must have .name)
  * @param {Date} since - search cutoff date
- * @param {object} fns
+ * @param {Object} fns
  * @param {Function} fns.listMailboxes - (client) => Promise<Array>
  * @param {Function} fns.searchMailboxForReceipts - (client, accountName, mbPath, since) => Promise<{ results: Array, failures: Array }>
  * @returns {Promise<{ results: Array, failures: Array }>} deduplicated receipt results and per-mailbox failures for this account

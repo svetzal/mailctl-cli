@@ -20,10 +20,10 @@ import { BILLING_SENDER_PATTERNS, RECEIPT_SUBJECT_TERMS } from "./receipt-terms.
  * (when `includeSenders` is true) one `{from}` criterion per known billing
  * sender pattern. `since`, when present, is applied to every criterion.
  *
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {Date} [opts.since] - only messages after this date
  * @param {boolean} [opts.includeSenders] - also search BILLING_SENDER_PATTERNS as `{from}` criteria
- * @returns {Array<{ term: string, criteria: object }>}
+ * @returns {Array<{ term: string, criteria: Object }>}
  */
 export function buildReceiptSearchCriteria({ since, includeSenders = false } = {}) {
   /** @type {Array<{ term: string, criteria: { subject?: string, from?: string, since?: Date } }>} */
@@ -52,18 +52,18 @@ export function buildReceiptSearchCriteria({ since, includeSenders = false } = {
  *
  * @param {import("../imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath
- * @param {object} opts
- * @param {Array<{ term: string, criteria: object }>} opts.criteria - from buildReceiptSearchCriteria()
- * @param {object} opts.fetchQuery - imapflow fetch query (e.g. { envelope: true, uid: true })
- * @param {function(object): object} opts.buildRecord - maps a fetched message to a result record
- * @param {object} [opts.events] - optional progress-event factories; each slot is skipped when absent
- * @param {function(string, number | undefined): object} [opts.events.start] - (mailbox, messageCount) => event
- * @param {function(string): object} [opts.events.empty] - (mailbox) => event
- * @param {function(string, number): object} [opts.events.candidates] - (mailbox, count) => event
- * @param {function(Error, string): object} [opts.events.searchError] - (error, term) => event; callers that
+ * @param {Object} opts
+ * @param {Array<{ term: string, criteria: Object }>} opts.criteria - from buildReceiptSearchCriteria()
+ * @param {Object} opts.fetchQuery - imapflow fetch query (e.g. { envelope: true, uid: true })
+ * @param {(message: Object) => Object} opts.buildRecord - maps a fetched message to a result record
+ * @param {Object} [opts.events] - optional progress-event factories; each slot is skipped when absent
+ * @param {(mailbox: string, messageCount: number | undefined) => Object} [opts.events.start] - (mailbox, messageCount) => event
+ * @param {(mailbox: string) => Object} [opts.events.empty] - (mailbox) => event
+ * @param {(mailbox: string, count: number) => Object} [opts.events.candidates] - (mailbox, count) => event
+ * @param {(error: Error, term: string) => Object} [opts.events.searchError] - (error, term) => event; callers that
  *        report the mailbox instead of the term should close over mailboxPath rather than rely on this arg
- * @param {function(Error): object} [opts.events.fetchError] - (error) => event
- * @param {function(object): void} [opts.onProgress] - receives emitted progress events
+ * @param {(error: Error) => Object} [opts.events.fetchError] - (error) => event
+ * @param {(event: Object) => void} [opts.onProgress] - receives emitted progress events
  * @returns {Promise<{ results: Array, failures: Array<{ mailbox: string, phase: string, term?: string, error: Error }> }>}
  */
 export async function searchMailboxForReceiptRecords(

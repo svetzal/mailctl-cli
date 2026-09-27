@@ -20,7 +20,7 @@ const BODY_SNIPPET_MAX_CHARS = 2000;
 /**
  * Download and parse a raw email message into its constituent parts.
  *
- * @param {object} client - connected IMAP client
+ * @param {Object} client - connected IMAP client
  * @param {ReceiptMessageEnvelope} msg - envelope result
  * @returns {Promise<{ parsed: import("mailparser").ParsedMail, bodyText: string, emailDate: Date, pdfAttachments: Array }>}
  */
@@ -56,9 +56,9 @@ function stampMetadata(metadata, { accountName, msg, bodyText }) {
 }
 
 /**
- * @param {object} client - connected IMAP client
+ * @param {Object} client - connected IMAP client
  * @param {ReceiptMessageEnvelope} msg - envelope result
- * @param {object} context
+ * @param {Object} context
  * @param {string} context.accountName
  * @param {string} context.outputDir
  * @param {boolean} context.dryRun
@@ -69,7 +69,7 @@ function stampMetadata(metadata, { accountName, msg, bodyText }) {
  * @param {Set<string>} context.usedPaths
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} context.fs
  * @param {import("../gateways/subprocess-gateway.js").SubprocessGateway} context.subprocess
- * @param {function(object): void} [context.onProgress]
+ * @param {(event: Object) => void} [context.onProgress]
  * @returns {Promise<{ action: 'downloaded'|'noPdf'|'skipped'|'duplicate'|'skippedEmpty', metadata?: ReceiptMetadata }>}
  */
 export async function processReceiptMessage(client, msg, context) {

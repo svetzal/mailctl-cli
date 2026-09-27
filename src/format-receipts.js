@@ -7,7 +7,7 @@ import { createFormatOutput, formatOutput } from "./cli-helpers.js";
 // ── format-scan ───────────────────────────────────────────────────────────────
 
 /**
- * @typedef {object} SenderSummary
+ * @typedef {Object} SenderSummary
  * @property {string} address - sender email address
  * @property {string} [name] - display name (optional)
  * @property {number} count - number of emails from this sender
@@ -38,7 +38,7 @@ export function formatScanText(totalCount, senders) {
 }
 
 /**
- * @typedef {object} UnclassifiedSender
+ * @typedef {Object} UnclassifiedSender
  * @property {string} address - sender email address
  * @property {string} [name] - display name (optional)
  * @property {number} count - number of emails from this sender

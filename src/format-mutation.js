@@ -6,7 +6,7 @@ import { createFormatOutput, formatOutput } from "./cli-helpers.js";
 // ── format-move ───────────────────────────────────────────────────────────────
 
 /**
- * @typedef {object} MoveStats
+ * @typedef {Object} MoveStats
  * @property {number} moved - number of messages successfully moved
  * @property {number} failed - number of messages that failed to move
  * @property {number} skipped - number of messages skipped (e.g. dry-run)
@@ -14,14 +14,14 @@ import { createFormatOutput, formatOutput } from "./cli-helpers.js";
 
 /**
  * @param {MoveStats} stats
- * @param {object[]} [_results]
+ * @param {Object[]} [_results]
  * @returns {string}
  */
 export function formatMoveText(stats, _results) {
   return `\nSummary: ${stats.moved} moved, ${stats.failed} failed, ${stats.skipped} skipped`;
 }
 
-/** @type {(json: boolean, stats: MoveStats, results: object[]) => string} */
+/** @type {(json: boolean, stats: MoveStats, results: Object[]) => string} */
 export const formatMoveOutput = createFormatOutput((stats, results) => ({ ...stats, results }), formatMoveText);
 
 // ── format-flag ───────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export function formatFlagText(stats, results) {
 /**
  * @param {FlagStats} stats
  * @param {FlagResult[]} results
- * @returns {object}
+ * @returns {Object}
  */
 export function buildFlagJson(stats, results) {
   return { ...stats, results };
@@ -74,7 +74,7 @@ export const formatFlagOutput = createFormatOutput(buildFlagJson, formatFlagText
 // ── format-reply ──────────────────────────────────────────────────────────────
 
 /**
- * @typedef {object} ReplyMessage
+ * @typedef {Object} ReplyMessage
  * @property {string} from - sender address
  * @property {string} to - recipient address
  * @property {string} [cc] - CC addresses (optional)
@@ -85,7 +85,7 @@ export const formatFlagOutput = createFormatOutput(buildFlagJson, formatFlagText
  */
 
 /**
- * @typedef {object} ReplySentResult
+ * @typedef {Object} ReplySentResult
  * @property {boolean} sent - always true for sent results
  * @property {string} messageId - the sent message's Message-ID
  * @property {string[]} accepted - accepted recipient addresses

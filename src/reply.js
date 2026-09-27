@@ -6,7 +6,7 @@
 import { htmlToText } from "./html-to-text.js";
 
 /**
- * @param {object} original - parsed email (from mailparser)
+ * @param {Object} original - parsed email (from mailparser)
  * @param {string} _fromAddress - sender's address (the replying user)
  * @returns {{ to: string, subject: string, inReplyTo: string, references: string }}
  */
@@ -34,8 +34,8 @@ export function buildReplyHeaders(original, _fromAddress) {
 
 /**
  * @param {string} userMessage - the reply text
- * @param {object} original - parsed email (from mailparser)
- * @param {object} [opts]
+ * @param {Object} original - parsed email (from mailparser)
+ * @param {Object} [opts]
  * @param {number} [opts.maxQuoteLines=50] - max lines to quote from original
  * @returns {string}
  */
@@ -68,7 +68,7 @@ export function buildReplyBody(userMessage, original, opts = {}) {
 /**
  * Build the editor template for --edit mode.
  * Lines starting with # are comments and will be stripped before sending.
- * @param {object} headers - from buildReplyHeaders
+ * @param {Object} headers - from buildReplyHeaders
  * @param {string} quotedBody - from buildReplyBody with empty user message
  * @returns {string}
  */

@@ -65,7 +65,7 @@ export function deriveReceiptBaseName(metadata, msg, bodyText, subject) {
  * Pure: computes a write plan for a receipt — no filesystem calls.
  * Hashes the PDF for dedup, returns action, file paths, content buffers, and updated metadata.
  *
- * @param {object} params
+ * @param {Object} params
  * @param {ReceiptMetadata} params.metadata
  * @param {ReceiptPdfAttachment[]} params.pdfAttachments
  * @param {string} params.baseName - unique base name (post collision-check)
@@ -117,7 +117,7 @@ export function planReceiptWrite({ metadata, pdfAttachments, baseName, monthDir,
  * @param {string} outputDir
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {(filePath: string, fileName: string) => void} visitor
- * @param {(err: Error, context: object) => void} [onError] - called when any directory read or visitor invocation fails
+ * @param {(err: Error, context: Object) => void} [onError] - called when any directory read or visitor invocation fails
  * @returns {void}
  */
 export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
@@ -158,7 +158,7 @@ export function walkOutputTree(outputDir, fs, visitor, onError = () => {}) {
 /**
  * @param {string} outputDir
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
- * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
+ * @param {(err: Error, context: Object) => void} [onError] - called when any directory read or file read fails
  * @returns {Set<string>}
  */
 export function loadExistingInvoiceNumbers(outputDir, fs, onError = () => {}) {
@@ -185,7 +185,7 @@ export function loadExistingInvoiceNumbers(outputDir, fs, onError = () => {}) {
 /**
  * @param {string} outputDir
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
- * @param {(err: Error, context: object) => void} [onError] - called when any directory read or file read fails
+ * @param {(err: Error, context: Object) => void} [onError] - called when any directory read or file read fails
  * @returns {Set<string>}
  */
 export function loadExistingHashes(outputDir, fs, onError = () => {}) {
@@ -229,7 +229,7 @@ export function uniqueBaseName(dir, base, usedPaths, fs) {
 /**
  * @param {string} outputDir
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
- * @param {(err: Error, context: object) => void} [onError] - called when a file or directory cannot be read
+ * @param {(err: Error, context: Object) => void} [onError] - called when a file or directory cannot be read
  * @returns {Array<{ jsonPath: string, sidecar: ReceiptSidecar }>}
  */
 export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
@@ -257,7 +257,7 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
  * Thin shell: orchestrates path derivation, collision checks, plan execution, and progress events
  * for writing one receipt to disk.
  *
- * @param {object} params
+ * @param {Object} params
  * @param {ReceiptMetadata} params.metadata
  * @param {ReceiptPdfAttachment[]} params.pdfAttachments
  * @param {ReceiptMessageEnvelope} params.msg - envelope result
@@ -269,7 +269,7 @@ export function collectSidecarFiles(outputDir, fs, onError = () => {}) {
  * @param {Set<string>} params.existingHashes
  * @param {Set<string>} params.usedPaths
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} params.fs
- * @param {function(object): void} [params.onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [params.onProgress] - receives structured progress events
  * @returns {{ action: 'downloaded'|'noPdf'|'duplicate', metadata: ReceiptMetadata }}
  */
 export function writeReceiptOutput({

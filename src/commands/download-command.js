@@ -11,15 +11,15 @@ import { DOWNLOAD_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 
 /**
- * @typedef {object} DownloadCommandDeps
+ * @typedef {Object} DownloadCommandDeps
  * @property {string|null|undefined} account - account filter (or null/undefined for all)
  * @property {Function} [downloadReceipts] - injectable override for testing
  */
 
 /**
- * @param {object} opts - CLI options (months, dryRun, output)
+ * @param {Object} opts - CLI options (months, dryRun, output)
  * @param {DownloadCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ downloaded: number, skipped: number, noPdf: number, alreadyHave: number }>}
  */
 export async function downloadCommand(opts, deps, onProgress = () => {}) {

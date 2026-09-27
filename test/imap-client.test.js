@@ -7,7 +7,7 @@ import { makeLock } from "./helpers.js";
 describe("connect", () => {
   /** Build a fake ImapFlow constructor that returns a mock client. */
   function makeFakeConstructor() {
-    /** @type {object} */
+    /** @type {Object} */
     let capturedConfig;
     const fakeClient = { connect: mock(() => Promise.resolve()) };
     const fakeConstructor = /** @type {any} */ (

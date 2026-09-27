@@ -9,11 +9,11 @@ import { searchFailed } from "./shared-event-factories.js";
 /**
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} accountName
- * @param {object} opts
+ * @param {Object} opts
  * @param {number} opts.limit
  * @param {Date} [opts.since]
  * @param {boolean} [opts.unreadOnly]
- * @param {function(object): void} [opts.onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [opts.onProgress] - receives structured progress events
  * @returns {Promise<Array<{account: string, uid: number, date: Date, from: string, fromName: string, subject: string, unread: boolean, mailbox: string}>>}
  */
 export async function fetchInbox(client, accountName, opts) {

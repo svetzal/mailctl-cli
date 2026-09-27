@@ -37,7 +37,7 @@ export function createReceiptRunState() {
  * Loads dedup indexes and seeds an empty usedPaths set for a new write context.
  *
  * @param {{ outputDir: string, dryRun: boolean, includeEmpty: boolean, fs: import('../gateways/fs-gateway.js').FileSystemGateway, subprocess: import('../gateways/subprocess-gateway.js').SubprocessGateway }} params
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {ReceiptWriteContext}
  */
 export function createReceiptWriteContext({ outputDir, dryRun, includeEmpty, fs, subprocess }, onProgress) {
@@ -65,7 +65,7 @@ export function createReceiptWriteContext({ outputDir, dryRun, includeEmpty, fs,
 /**
  * Assembles a ReceiptRun from its resolved parts.
  *
- * @param {{ resolvedOpts: { maxMessages: number|null, perMessageTimeoutMs: number, budgetMs: number|null }, writeContext: ReceiptWriteContext, llm: LlmContext|null, processMessage: function, startedAt: number, vendorFilter: string|null, onProgress: function(object): void }} params
+ * @param {{ resolvedOpts: { maxMessages: number|null, perMessageTimeoutMs: number, budgetMs: number|null }, writeContext: ReceiptWriteContext, llm: LlmContext|null, processMessage: function, startedAt: number, vendorFilter: string|null, onProgress: (event: Object) => void}} params
  * @returns {ReceiptRun}
  */
 export function createReceiptRun({

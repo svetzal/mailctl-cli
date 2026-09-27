@@ -10,8 +10,8 @@ function makeDate(str = "2025-03-01T12:00:00Z") {
 /**
  * Build a mock IMAP client for thread tests.
  *
- * @param {object} opts
- * @param {object} [opts.anchorEnvelope] - envelope for the anchor message fetch
+ * @param {Object} opts
+ * @param {Object} [opts.anchorEnvelope] - envelope for the anchor message fetch
  * @param {string} [opts.anchorHeaders] - raw headers text for the anchor
  * @param {Map<string, number[]>} [opts.searchResults] - criteria key → UIDs
  * @param {Array} [opts.threadEnvelopes] - envelopes returned for thread fetches

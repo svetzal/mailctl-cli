@@ -22,8 +22,8 @@ export {};
  * Satisfied by any object that has getMailboxLock — including real ImapFlow
  * instances and test mocks that only stub that method.
  *
- * @typedef {object} ImapLockable
- * @property {(path: string | string[], options?: object) => Promise<{ release(): void }>} getMailboxLock
+ * @typedef {Object} ImapLockable
+ * @property {(path: string | string[], options?: Object) => Promise<{ release(): void }>} getMailboxLock
  */
 
 /**
@@ -36,10 +36,10 @@ export {};
  * mailbox is optional (imapflow sets it to false | MailboxObject after a lock
  * is acquired; tests typically supply { exists: number } or omit it).
  *
- * @typedef {object} ImapClient
- * @property {(path: string | string[], options?: object) => Promise<{ release(): void }>} getMailboxLock
- * @property {(criteria: object, options?: object) => Promise<number[]>} search
- * @property {(range: string | number[], query: object, options?: object) => AsyncIterable<object>} fetch
+ * @typedef {Object} ImapClient
+ * @property {(path: string | string[], options?: Object) => Promise<{ release(): void }>} getMailboxLock
+ * @property {(criteria: Object, options?: Object) => Promise<number[]>} search
+ * @property {(range: string | number[], query: Object, options?: Object) => AsyncIterable<Object>} fetch
  * @property {false | { exists?: number } | null | undefined} [mailbox]
  */
 
@@ -49,7 +49,7 @@ export {};
  * Return type is Promise<any> to stay compatible with test stubs that return
  * void or any other value (applyFlagChanges does not use the return value).
  *
- * @typedef {object} ImapFlaggable
- * @property {(range: string | number[], flags: string[], options?: object) => Promise<any>} messageFlagsAdd
- * @property {(range: string | number[], flags: string[], options?: object) => Promise<any>} messageFlagsRemove
+ * @typedef {Object} ImapFlaggable
+ * @property {(range: string | number[], flags: string[], options?: Object) => Promise<any>} messageFlagsAdd
+ * @property {(range: string | number[], flags: string[], options?: Object) => Promise<any>} messageFlagsRemove
  */

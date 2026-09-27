@@ -12,15 +12,15 @@ import { parseIntOption, parseSinceOption } from "../parse-options.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
 
 /**
- * @typedef {object} ContactsCommandDeps
- * @property {object[]} targetAccounts - accounts to scan
+ * @typedef {Object} ContactsCommandDeps
+ * @property {Object[]} targetAccounts - accounts to scan
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  */
 
 /**
- * @param {object} opts - CLI options (limit, since, sent, received, search)
+ * @param {Object} opts - CLI options (limit, since, sent, received, search)
  * @param {ContactsCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ contacts: Array, sinceLabel: string, accountFailures: Array<{account: string, error: string}> }>}
  */
 export async function contactsCommand(opts, deps, onProgress = () => {}) {

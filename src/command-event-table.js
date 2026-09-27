@@ -9,7 +9,7 @@ import { renderSharedEvent } from "./shared-event-factories.js";
  * search-failed, etc.). For command tables with no shared fallback, use defineEventTable directly.
  *
  * @param {Record<string, { params?: string[], severity?: string, render?: (e: BaseEvent) => string, type?: string }>} descriptors
- * @returns {{ factories: Record<string, object>, renderEvent: (event: BaseEvent) => string | null }}
+ * @returns {{ factories: Record<string, Object>, renderEvent: (event: BaseEvent) => string | null }}
  */
 export function defineCommandEventTable(descriptors) {
   return defineEventTable(descriptors, { fallbackRenderer: renderSharedEvent });

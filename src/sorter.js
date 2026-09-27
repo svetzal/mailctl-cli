@@ -27,7 +27,7 @@ import { BIZ_FOLDER, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
 
 /**
  * @param {import("imapflow").ImapFlow} client
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  */
 async function ensureFolders(client, onProgress) {
   for (const folder of [BIZ_FOLDER, PERSONAL_FOLDER]) {
@@ -67,7 +67,7 @@ const defaultGateways = {
  * @param {string} icon
  * @param {string} mailbox
  * @param {boolean} dryRun
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @param {{moved: number, skipped: number}} stats
  */
 async function moveGroup(client, uids, folder, icon, mailbox, dryRun, onProgress, stats) {
@@ -88,12 +88,12 @@ async function moveGroup(client, uids, folder, icon, mailbox, dryRun, onProgress
 }
 
 /**
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {boolean} [opts.dryRun=false]  - just report what would be moved
  * @param {number}  [opts.months=24]     - how far back to scan
  * @param {string}  [opts.account]       - only sort this account (case-insensitive)
- * @param {object} [gateways] - injectable implementations for testing
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {Object} [gateways] - injectable implementations for testing
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{moved: number, skipped: number, alreadySorted: number, unclassified: number}>}
  */
 export async function sortReceipts(opts = {}, gateways = {}, onProgress = () => {}) {

@@ -13,15 +13,15 @@ import { detectMailboxAcrossAll } from "../mailbox-detect.js";
 import { parseAndGroupUids } from "../move-logic.js";
 
 /**
- * @typedef {object} FlagCommandDeps
- * @property {object[]} accounts - all configured accounts
+ * @typedef {Object} FlagCommandDeps
+ * @property {Object[]} accounts - all configured accounts
  * @property {string|null} account - value of --account flag (or null)
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  * @property {Function} listMailboxes - (client) → Promise<Array>
  */
 
 /**
- * @typedef {object} FlagResult
+ * @typedef {Object} FlagResult
  * @property {string} status - "flagged", "skipped", or "failed"
  * @property {boolean} [dryRun]
  * @property {number[]} [uids]
@@ -33,18 +33,18 @@ import { parseAndGroupUids } from "../move-logic.js";
  */
 
 /**
- * @typedef {object} FlagStats
+ * @typedef {Object} FlagStats
  * @property {number} flagged
  * @property {number} failed
  * @property {number} skipped
  */
 
 /**
- * @param {object} params
+ * @param {Object} params
  * @param {import("../imap-types.js").ImapClient & import("../imap-types.js").ImapFlaggable} params.client
- * @param {object} params.acct
+ * @param {Object} params.acct
  * @param {string[]} params.acctUids
- * @param {object} params.opts
+ * @param {Object} params.opts
  * @param {{ add: string[], remove: string[] }} params.changes
  * @param {ReturnType<typeof createBatchAccumulator>} params.acc
  * @param {Function} params.listMailboxes
@@ -113,7 +113,7 @@ async function flagAccountUids({ client, acct, acctUids, opts, changes, acc, lis
 
 /**
  * @param {string[]} uids - raw UID arguments from the CLI
- * @param {object} opts - CLI options (read, unread, star, unstar, mailbox, dryRun)
+ * @param {Object} opts - CLI options (read, unread, star, unstar, mailbox, dryRun)
  * @param {FlagCommandDeps} deps - injected dependencies
  * @returns {Promise<{ stats: FlagStats, results: FlagResult[] }>}
  */

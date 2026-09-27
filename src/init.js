@@ -13,14 +13,14 @@ const TOOL_NAME = "mailctl";
  */
 
 /**
- * @typedef {object} TargetResult
+ * @typedef {Object} TargetResult
  * @property {string} platform - platform slug (claude, codex, hermes, …)
  * @property {TargetActionKind} action - what happened for this platform
  * @property {string} [warning] - human-readable note (e.g. newer version installed)
  */
 
 /**
- * @typedef {object} InitResult
+ * @typedef {Object} InitResult
  * @property {string} version - mailctl version installed
  * @property {"global" | "local"} scope - install scope
  * @property {TargetResult[]} targets - per-platform results, in resolution order
@@ -68,7 +68,7 @@ export function buildInitResult(version, scope, targets) {
 }
 
 /**
- * @typedef {object} InitCommandOptions
+ * @typedef {Object} InitCommandOptions
  * @property {boolean} [local] - install into the current project instead of the user home
  * @property {boolean} [force] - overwrite drifted/newer installs
  * @property {{ plan: function, apply: function }} [_installer] - override for testing

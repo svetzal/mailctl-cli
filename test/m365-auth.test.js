@@ -5,7 +5,7 @@ const CREDS = { clientId: "cid", tenantId: "tid", clientSecret: "csec" };
 
 /**
  * Create a mock Response object for fetch.
- * @param {object} body
+ * @param {Object} body
  * @param {{ ok?: boolean, status?: number, statusText?: string }} [opts]
  * @returns {Response}
  */
@@ -17,7 +17,7 @@ function makeResponse(body, { ok = true, status = 200, statusText = "OK" } = {})
 /**
  * Build a standard set of mock deps.
  * The returned object has mock functions so callers can inspect .mock.calls.
- * @param {object} [overrides]
+ * @param {Object} [overrides]
  */
 function makeDeps(overrides = {}) {
   return {
@@ -34,7 +34,7 @@ function makeDeps(overrides = {}) {
 
 /**
  * Build a TokenSet that is still valid (expires far in the future).
- * @param {object} [overrides]
+ * @param {Object} [overrides]
  */
 function makeValidToken(overrides = {}) {
   return {

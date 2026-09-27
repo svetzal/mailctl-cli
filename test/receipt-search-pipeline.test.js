@@ -25,7 +25,7 @@ function makeMsg(uid, messageId, fromAddress = "billing@acme.com", fromName = "A
   };
 }
 
-/** @param {{ mailboxes?: object[], messages?: Record<string, object[]>, failures?: Record<string, object[]> }} [opts] */
+/** @param {{ mailboxes?: Object[], messages?: Record<string, Object[]>, failures?: Record<string, Object[]> }} [opts] */
 function makeFns({ mailboxes = [], messages = {}, failures = {} } = {}) {
   return {
     listMailboxes: mock(() => Promise.resolve(mailboxes)),

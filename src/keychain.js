@@ -16,7 +16,7 @@ const OPENAI_SERVICE = "newt-openai-api";
  */
 
 /**
- * @typedef {object} ConfigAccount
+ * @typedef {Object} ConfigAccount
  * @property {string} prefix
  * @property {string} name
  * @property {string} [user]

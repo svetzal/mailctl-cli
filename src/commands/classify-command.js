@@ -8,12 +8,12 @@
 import { validateClassifications, validateSenders } from "../validate-json.js";
 
 /**
- * @typedef {object} ClassifyCommandDeps
- * @property {object} fsGateway - { exists(path): boolean, readJson(path): unknown }
+ * @typedef {Object} ClassifyCommandDeps
+ * @property {Object} fsGateway - { exists(path): boolean, readJson(path): unknown }
  */
 
 /**
- * @typedef {object} UnclassifiedEntry
+ * @typedef {Object} UnclassifiedEntry
  * @property {string} address
  * @property {string} name
  * @property {number} count

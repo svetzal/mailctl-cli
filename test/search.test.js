@@ -8,7 +8,7 @@ function makeDate(str = "2025-03-01") {
 
 /**
  * Build a minimal mock IMAP client with configurable search results.
- * @param {{ searchUids?: number[], envelopes?: object[] }} [opts]
+ * @param {{ searchUids?: number[], envelopes?: Object[] }} [opts]
  */
 function makeClient({ searchUids = [1], envelopes = [] } = {}) {
   return {
@@ -203,7 +203,7 @@ describe("searchMailbox", () => {
   describe("limits results to the most recent N UIDs", () => {
     const searchUids = Array.from({ length: 20 }, (_, i) => i + 1);
     const client = makeClient({ searchUids, envelopes: [] });
-    client.fetch = mock((_uidRange) => {
+    client.fetch = mock(() => {
       // Capture what range was passed
       async function* gen() {}
       return gen();

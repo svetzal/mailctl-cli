@@ -8,7 +8,7 @@ import { parseIntOption, parseSinceOption } from "../parse-options.js";
 import { EXTRACT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 
 /**
- * @typedef {object} DownloadReceiptsCommandDeps
+ * @typedef {Object} DownloadReceiptsCommandDeps
  * @property {string|null} account - account filter (or null for all)
  * @property {string|null} [openAiKey] - OpenAI API key from keychain
  * @property {() => Promise<{ listReceiptVendors: Function, reprocessReceipts: Function, downloadReceiptEmails: Function }>} importDownloadReceipts
@@ -18,10 +18,10 @@ import { EXTRACT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 /**
  * Routes to one of three operation modes: list vendors, reprocess existing, or download new receipts.
  *
- * @param {object} opts - CLI options (listVendors, reprocess, output, months, since, dryRun, vendor)
+ * @param {Object} opts - CLI options (listVendors, reprocess, output, months, since, dryRun, vendor)
  * @param {DownloadReceiptsCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
- * @returns {Promise<object>} result object (shape varies by mode)
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
+ * @returns {Promise<Object>} result object (shape varies by mode)
  */
 export async function downloadReceiptsCommand(opts, deps, onProgress = () => {}) {
   const { account, openAiKey, importDownloadReceipts, importVendorMap } = deps;

@@ -13,7 +13,7 @@ const SEARCH_EXCLUDED_SPECIAL_USE = new Set(["\\Junk", "\\Drafts"]);
  * Filter mailboxes to those suitable for scanning.
  * Excludes Junk, Trash, Drafts, Apple Mail internal folders, and Notes.
  * @param {Array<{ path: string, specialUse?: string }>} mailboxes - from listMailboxes()
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {string[]} [opts.excludePaths] - additional path prefixes to exclude
  * @param {boolean} [opts.excludeSent] - also exclude Sent folders
  * @returns {string[]} filtered mailbox paths
@@ -39,7 +39,7 @@ export function filterScanMailboxes(mailboxes, opts = {}) {
  * Less restrictive than scan — includes Trash, Sent, Archive, and custom folders.
  * Excludes only Junk, Drafts, Apple Mail internal folders, and Notes by default.
  * @param {Array<{ path: string, specialUse?: string }>} mailboxes - from listMailboxes()
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {string[]} [opts.excludePaths] - additional path prefixes to exclude
  * @param {boolean} [opts.includeJunk] - also include the Junk folder(s), wherever they live
  * @returns {string[]} filtered mailbox paths

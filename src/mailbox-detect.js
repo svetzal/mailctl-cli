@@ -9,7 +9,7 @@ import { searchFailed } from "./shared-event-factories.js";
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {number|string} uid - message UID to find
  * @param {string[]} mailboxPaths - mailbox paths to search (already filtered)
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<string|null>} mailbox path or null if not found
  */
 export async function detectMailbox(client, uid, mailboxPaths, onProgress = () => {}) {
@@ -36,7 +36,7 @@ export async function detectMailbox(client, uid, mailboxPaths, onProgress = () =
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string|number} uid - message UID to find
  * @param {Function} listMailboxes - (client) → Promise<Array>
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<string|null>} mailbox path or null if not found
  */
 export async function detectMailboxAcrossAll(client, uid, listMailboxes, onProgress = () => {}) {
@@ -53,7 +53,7 @@ export async function detectMailboxAcrossAll(client, uid, listMailboxes, onProgr
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} mailboxPath - mailbox to check
  * @param {string} uid - UID to search for
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<boolean>}
  */
 async function searchMailboxForUid(client, mailboxPath, uid, onProgress) {

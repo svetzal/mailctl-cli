@@ -4,7 +4,7 @@
  */
 
 /**
- * @param {object} opts
+ * @param {Object} opts
  * @param {boolean} [opts.read]
  * @param {boolean} [opts.unread]
  * @param {boolean} [opts.star]

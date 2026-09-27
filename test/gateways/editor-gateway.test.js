@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+/** @param {(command: string) => unknown} [execSyncFn] */
 function makeEditor(execSyncFn = () => {}) {
   mock.module("node:child_process", () => ({
     execSync: execSyncFn,

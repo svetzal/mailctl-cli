@@ -12,10 +12,10 @@ import { ensureDataDir as _ensureDataDir, saveScanResults as _saveScanResults } 
 import { aggregateBySender as _aggregateBySender, scanAllAccounts as _scanAllAccounts } from "../scanner.js";
 
 /**
- * @typedef {object} ScanCommandDeps
+ * @typedef {Object} ScanCommandDeps
  * @property {string|null|undefined} account - account filter (or null/undefined for all)
  * @property {string} dataDir - path to the data directory
- * @property {object} fsGateway - FileSystemGateway instance
+ * @property {Object} fsGateway - FileSystemGateway instance
  * @property {typeof _scanAllAccounts}   [scanAllAccounts]   - override for testing
  * @property {typeof _aggregateBySender} [aggregateBySender] - override for testing
  * @property {typeof _ensureDataDir}     [ensureDataDir]     - override for testing
@@ -23,9 +23,9 @@ import { aggregateBySender as _aggregateBySender, scanAllAccounts as _scanAllAcc
  */
 
 /**
- * @param {object} opts - CLI options (months, allMailboxes, output)
+ * @param {Object} opts - CLI options (months, allMailboxes, output)
  * @param {ScanCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ total: number, senders: Array, rawPath: string, summaryPath: string }>}
  */
 export async function scanCommand(opts, deps, onProgress = () => {}) {

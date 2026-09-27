@@ -11,12 +11,12 @@ import { searchFailed } from "./shared-event-factories.js";
  * Scans INBOX for received messages (From) and Sent folder for sent messages (To/CC).
  * @param {import("./imap-types.js").ImapClient} client - connected IMAP client
  * @param {string} _accountName
- * @param {object} opts
+ * @param {Object} opts
  * @param {Date} opts.since
  * @param {number} opts.limit
  * @param {boolean} [opts.sentOnly] - only count recipients of sent mail
  * @param {boolean} [opts.receivedOnly] - only count senders of received mail
- * @param {function(object): void} [opts.onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [opts.onProgress] - receives structured progress events
  * @returns {Promise<Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>>}
  */
 export async function extractContacts(client, _accountName, opts) {
@@ -50,7 +50,7 @@ export async function extractContacts(client, _accountName, opts) {
  * @param {string} mailboxPath
  * @param {Date} since
  * @param {'sent'|'received'} direction
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>>}
  */
 async function scanMailboxContacts(client, mailboxPath, since, direction, onProgress) {
@@ -117,7 +117,7 @@ async function scanMailboxContacts(client, mailboxPath, since, direction, onProg
 
 /**
  * @param {Array<{address: string, name: string, date: Date, direction: 'sent'|'received'}>} entries
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {string} [opts.search] - filter by name or address substring
  * @param {number} [opts.limit=25]
  * @param {string[]} [opts.selfAddresses] - addresses to exclude (user's own)

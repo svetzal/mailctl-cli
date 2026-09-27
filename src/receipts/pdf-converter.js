@@ -20,7 +20,7 @@ export function selectMarkdownFile(files) {
  * @param {string} pdfPath
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {import("../gateways/subprocess-gateway.js").SubprocessGateway} subprocess
- * @param {(err: Error, context: object) => void} [onError] - called when docling conversion fails
+ * @param {(err: Error, context: Object) => void} [onError] - called when docling conversion fails
  * @returns {string|null}
  */
 export function pdfToText(pdfPath, fs, subprocess, onError = () => {}) {
@@ -65,8 +65,8 @@ export function pdfToText(pdfPath, fs, subprocess, onError = () => {}) {
  * @param {number} uid
  * @param {import("../gateways/fs-gateway.js").FileSystemGateway} fs
  * @param {import("../gateways/subprocess-gateway.js").SubprocessGateway} subprocess
- * @param {function(object): void} [onProgress] - receives structured progress events
- * @param {(err: Error, context: object) => void} [onError] - called when docling conversion fails
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
+ * @param {(err: Error, context: Object) => void} [onError] - called when docling conversion fails
  * @returns {string}
  */
 export function resolveExtractionText(

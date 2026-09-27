@@ -56,7 +56,7 @@ export function inferCurrency(text) {
 /**
  * @param {string} fromAddress
  * @param {string} bodyText
- * @param {object} [overrides] - optional overrides for testing
+ * @param {Object} [overrides] - optional overrides for testing
  * @param {string[]} [overrides.canadianDomains]
  * @returns {boolean}
  */
@@ -85,7 +85,7 @@ export function isCanadianMerchant(fromAddress, bodyText, overrides = {}) {
  * Rejects pure-word matches, known blocklisted values, tax registration numbers, and
  * strings without enough digits.
  * @param {string} s
- * @param {object} [overrides] - optional overrides for testing
+ * @param {Object} [overrides] - optional overrides for testing
  * @param {string[]} [overrides.invoiceBlocklist]
  * @returns {boolean}
  */
@@ -114,7 +114,7 @@ export function isValidInvoiceNumber(s, overrides = {}) {
  * numbers (e.g. 135664738RT0001), and codes with too few digits.
  * @param {string} subject
  * @param {string} bodyText
- * @param {object} [overrides] - optional overrides for testing
+ * @param {Object} [overrides] - optional overrides for testing
  * @param {string[]} [overrides.invoiceBlocklist]
  * @returns {string|null}
  */

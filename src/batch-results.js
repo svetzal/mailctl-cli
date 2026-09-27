@@ -40,8 +40,8 @@ export function createBatchAccumulator(statKeys) {
  * Expands a base record into one record per UID, each with its own `uid` field.
  *
  * @param {string[]} uids
- * @param {object} baseRecord
- * @returns {Array<object>}
+ * @param {Object} baseRecord
+ * @returns {Array<Object>}
  */
 export function expandPerUid(uids, baseRecord) {
   return uids.map((uid) => ({ ...baseRecord, uid }));

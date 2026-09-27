@@ -276,7 +276,7 @@ function vendorFromDomainMapOrName(domain, localPart, name, vendorDomainMap) {
  * @param {string} name - sender display name
  * @param {string} [bodyText] - email body for forwarded detection
  * @param {string} [subject] - email subject for self-sent detection
- * @param {object} [overrides] - optional overrides for testing
+ * @param {Object} [overrides] - optional overrides for testing
  * @param {string[]} [overrides.selfAddresses]
  * @param {Record<string, string>} [overrides.vendorFilenameNames]
  * @param {Record<string, string>} [overrides.vendorDomainMap]

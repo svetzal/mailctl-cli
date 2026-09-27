@@ -4,7 +4,7 @@ import { fetchInbox } from "../src/inbox.js";
 import { makeLock } from "./helpers.js";
 
 /**
- * @param {object} opts
+ * @param {Object} opts
  * @param {number} opts.uid
  * @param {Date} [opts.date]
  * @param {string} [opts.from]
@@ -24,7 +24,7 @@ function makeEnvelope({ uid, date, from, fromName, subject, flags }) {
   };
 }
 
-/** @param {{ searchUids?: number[], envelopes?: object[] }} [opts] */
+/** @param {{ searchUids?: number[], envelopes?: Object[] }} [opts] */
 function makeClient({ searchUids = [1], envelopes = [] } = {}) {
   return {
     getMailboxLock: mock(() => Promise.resolve(makeLock())),
@@ -77,7 +77,7 @@ describe("fetchInbox", () => {
   it("respects limit by taking the last N UIDs", async () => {
     const searchUids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const client = makeClient({ searchUids, envelopes: [] });
-    client.fetch = mock((_uidRange) => {
+    client.fetch = mock(() => {
       async function* gen() {}
       return gen();
     });

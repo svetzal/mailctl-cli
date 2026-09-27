@@ -83,7 +83,7 @@ function listUnsubscribeToString(headerValue) {
 /**
  * Extract unsubscribe URLs from the RFC 2369 List-Unsubscribe header
  * (both angle-bracketed and bare URL forms).
- * @param {object} parsed - mailparser result
+ * @param {Object} parsed - mailparser result
  * @returns {string[]}
  */
 function linksFromListUnsubscribeHeader(parsed) {
@@ -115,7 +115,7 @@ function linksFromListUnsubscribeHeader(parsed) {
 /**
  * Extract unsubscribe URLs from HTML-body <a> tags, matched by href keywords,
  * CSS class, or inner text.
- * @param {object} parsed - mailparser result
+ * @param {Object} parsed - mailparser result
  * @returns {string[]}
  */
 function linksFromHtmlAnchors(parsed) {
@@ -154,7 +154,7 @@ function linksFromHtmlAnchors(parsed) {
 /**
  * Extract unsubscribe URLs from the plain-text body by matching URLs that
  * contain an unsubscribe-related keyword.
- * @param {object} parsed - mailparser result
+ * @param {Object} parsed - mailparser result
  * @returns {string[]}
  */
 function linksFromPlainText(parsed) {
@@ -175,7 +175,7 @@ function linksFromPlainText(parsed) {
 }
 
 /**
- * @param {object} parsed - mailparser result
+ * @param {Object} parsed - mailparser result
  * @returns {string[]} deduplicated unsubscribe URLs
  */
 function extractUnsubscribeLinks(parsed) {

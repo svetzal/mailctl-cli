@@ -30,7 +30,7 @@ const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
  * @param {string} tenantId
  * @param {string} _clientSecret
  * @param {string} refreshToken
- * @param {function(object): void} onProgress - receives structured progress events
+ * @param {(event: Object) => void} onProgress - receives structured progress events
  * @param {M365AuthDeps} deps
  * @returns {Promise<TokenSet | null>}
  */
@@ -102,7 +102,7 @@ async function requestDeviceCode(clientId, tenantId, deps) {
  * @param {string} clientId
  * @param {string} tenantId
  * @param {DeviceCodeData} deviceData
- * @param {function(object): void} onProgress - receives structured progress events
+ * @param {(event: Object) => void} onProgress - receives structured progress events
  * @param {M365AuthDeps} deps
  * @throws {Error} when the token exchange returns an error
  * @throws {Error} when the device code flow times out
@@ -165,7 +165,7 @@ async function pollForDeviceToken(clientId, tenantId, deviceData, onProgress, de
  * @param {string} clientId
  * @param {string} tenantId
  * @param {string} _clientSecret
- * @param {function(object): void} onProgress - receives structured progress events
+ * @param {(event: Object) => void} onProgress - receives structured progress events
  * @param {M365AuthDeps} deps
  * @throws {Error} when the device code request fails
  * @throws {Error} when the token exchange returns an error
@@ -186,7 +186,7 @@ async function deviceCodeFlow(clientId, tenantId, _clientSecret, onProgress, dep
  * Tries cached token first, then refresh, then falls back to device code flow.
  *
  * @param {{ clientId: string, tenantId: string, clientSecret: string }} creds
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @param {M365AuthDeps} [deps] - injectable dependencies (defaults to real implementations)
  * @returns {Promise<string>} access token
  */

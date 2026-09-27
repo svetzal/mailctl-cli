@@ -9,7 +9,7 @@ const FAKE_ACCOUNTS = [{ name: "Test Account", host: "imap.example.com" }];
  * Builds a minimal nested deps object that satisfies `buildProgram`.
  * Per-command wiring assertions live in the per-noun test files under test/cli/.
  *
- * @param {{ receipts?: object, mail?: object, mutation?: object, init?: object }} [overrides]
+ * @param {{ receipts?: Object, mail?: Object, mutation?: Object, init?: Object }} [overrides]
  */
 function makeIntegrationDeps(overrides = {}) {
   return {

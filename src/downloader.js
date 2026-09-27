@@ -22,10 +22,10 @@ export { buildFilename, getVendorNames, vendorName } from "./download-filename.j
 
 const _defaultFs = new FileSystemGateway();
 
-/** @returns {Record<string, object>} */
+/** @returns {Record<string, Object>} */
 function loadManifest() {
   const path = join(DATA_DIR, "download-manifest.json");
-  return _defaultFs.exists(path) ? /** @type {Record<string, object>} */ (_defaultFs.readJson(path)) : {};
+  return _defaultFs.exists(path) ? /** @type {Record<string, Object>} */ (_defaultFs.readJson(path)) : {};
 }
 
 function saveManifest(manifest) {
@@ -49,13 +49,13 @@ const defaultGateways = {
 };
 
 /**
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {boolean} [opts.dryRun=false]
  * @param {number}  [opts.months=24]
  * @param {string}  [opts.outputDir] - override output directory
  * @param {string}  [opts.account]   - only download from this account (case-insensitive)
- * @param {object} [gateways] - injectable implementations for testing
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {Object} [gateways] - injectable implementations for testing
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{downloaded: number, skipped: number, noPdf: number, alreadyHave: number, errors: number}>}
  */
 export async function downloadReceipts(opts = {}, gateways = {}, onProgress = () => {}) {

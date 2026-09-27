@@ -4,14 +4,14 @@ import { detectMailbox } from "../src/mailbox-detect.js";
 /**
  * Build a mock IMAP client with configurable UID contents per mailbox.
  * @param {Record<string, number[]>} mailboxUids - map of mailbox path to UIDs it contains
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {string[]} [opts.failLock] - mailbox paths that should fail getMailboxLock
  * @param {string[]} [opts.failSearch] - mailbox paths that should fail search
  */
 function buildClient(mailboxUids, opts = {}) {
   const failLock = new Set(opts.failLock || []);
   const failSearch = new Set(opts.failSearch || []);
-  let currentMailbox = null;
+  let currentMailbox = "";
 
   return {
     getMailboxLock(path) {

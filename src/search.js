@@ -7,7 +7,7 @@ import { sanitizeForAgentOutput } from "./content-sanitizer.js";
 import { withMailboxLock } from "./imap-orchestration.js";
 
 /**
- * @param {object} opts
+ * @param {Object} opts
  * @param {string} [opts.from]
  * @param {string} [opts.to]
  * @param {string} [opts.subject]
@@ -70,7 +70,7 @@ async function fetchAndMap(client, uidRange, acctName, mailboxPath) {
  * @param {string} acctName
  * @param {string} mailboxPath
  * @param {string|null|undefined} query
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {string} [opts.from]    - search by sender
  * @param {string} [opts.to]      - search by recipient
  * @param {string} [opts.subject] - search by subject
@@ -78,7 +78,7 @@ async function fetchAndMap(client, uidRange, acctName, mailboxPath) {
  * @param {Date}   [opts.since]   - IMAP SINCE (on or after this date)
  * @param {Date}   [opts.before]  - IMAP BEFORE (before this date, exclusive)
  * @param {number} [opts.limit=20] - max results
- * @param {function(object): void} [opts.onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [opts.onProgress] - receives structured progress events
  * @returns {Promise<Array>}
  */
 export async function searchMailbox(client, acctName, mailboxPath, query, opts = {}) {

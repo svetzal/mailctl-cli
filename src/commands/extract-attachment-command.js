@@ -15,11 +15,11 @@ import { uidNotFoundError, withMessage } from "../find-message.js";
 import { streamToBuffer } from "../imap-orchestration.js";
 
 /**
- * @typedef {object} ExtractAttachmentCommandDeps
- * @property {object[]} targetAccounts - accounts to search
+ * @typedef {Object} ExtractAttachmentCommandDeps
+ * @property {Object[]} targetAccounts - accounts to search
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  * @property {Function} listMailboxes - (client) → Promise<Array>
- * @property {object} fsGateway - { mkdir(path), writeFile(path, data) }
+ * @property {Object} fsGateway - { mkdir(path), writeFile(path, data) }
  */
 
 /**
@@ -29,9 +29,9 @@ import { streamToBuffer } from "../imap-orchestration.js";
  * @param {string} uid
  * @param {number|undefined} attachmentIndex - 0-based attachment index to save (ignored in list mode).
  *   When undefined, the best document attachment is chosen automatically (PDF preferred, smime.p7s excluded).
- * @param {object} opts - CLI options (list, mailbox, output)
+ * @param {Object} opts - CLI options (list, mailbox, output)
  * @param {ExtractAttachmentCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<
  *   | { found: true, list: true, account: string, uid: number, attachments: Array }
  *   | { found: true, list: false, path: string, filename: string, size: number, contentType: string }

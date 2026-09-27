@@ -22,7 +22,7 @@ import { FileSystemGateway } from "../gateways/fs-gateway.js";
 import { forEachAccount, listMailboxes } from "../imap-client.js";
 
 /**
- * @typedef {object} MailCliDeps
+ * @typedef {Object} MailCliDeps
  * @property {Function} searchCommand
  * @property {Function} readCommand
  * @property {Function} listFoldersCommand
@@ -41,7 +41,7 @@ import { forEachAccount, listMailboxes } from "../imap-client.js";
  * @property {Function} forEachAccount
  * @property {Function} listMailboxes
  * @property {Function} simpleParser
- * @property {object} _fs
+ * @property {Object} _fs
  */
 
 /** @type {MailCliDeps} */

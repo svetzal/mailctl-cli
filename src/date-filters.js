@@ -7,14 +7,14 @@
 import { monthsAgo, parseDate } from "./parse-date.js";
 
 /**
- * @typedef {object} DateFilterOptions
+ * @typedef {Object} DateFilterOptions
  * @property {string} [months] - number of months to look back (e.g. "3")
  * @property {string} [since] - date string for lower bound (e.g. "2026-01-15")
  * @property {string} [before] - date string for upper bound (e.g. "2026-03-01")
  */
 
 /**
- * @typedef {object} DateFilterResult
+ * @typedef {Object} DateFilterResult
  * @property {Date|undefined} since - resolved lower bound date
  * @property {Date|undefined} before - resolved upper bound date
  * @property {string[]} warnings - informational messages to surface to the user (no side effects)

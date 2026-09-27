@@ -21,12 +21,12 @@ function tallyVendor(vendorCounts, msg) {
 
 /**
  * Returns an array of { vendor, count } sorted by count descending.
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {number}  [opts.months=12] - how far back to search
  * @param {Date}    [opts.since] - search from this date instead of months
  * @param {string}  [opts.account] - only search this account
- * @param {object} [gateways] - injectable implementations for testing
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {Object} [gateways] - injectable implementations for testing
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ vendors: Array<{ vendor: string, address: string, count: number }>, stats: { searchFailures: number } }>}
  */
 export async function listReceiptVendors(opts = {}, gateways = {}, onProgress = () => {}) {

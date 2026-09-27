@@ -29,7 +29,7 @@ import { RECEIPT_SUBJECT_EXCLUSIONS } from "./receipt-terms.js";
 /**
  * Normalizes raw CLI opts into a resolved config object.
  * Does not touch `startedAt` (wall-clock) or `targetAccounts` (needs loadAccounts gateway).
- * @param {object} opts
+ * @param {Object} opts
  * @returns {{ dryRun: boolean, includeEmpty: boolean, months: number, outputDir: string, accountFilter: string|null, maxMessages: number|null, perMessageTimeoutMs: number, budgetMs: number|null, since: Date }}
  */
 export function resolveDownloadReceiptsOptions(opts) {
@@ -49,8 +49,8 @@ export function resolveDownloadReceiptsOptions(opts) {
  * Process a single receipt message with timeout handling.
  * Returns a discriminated outcome so the caller folds results without nested branching.
  *
- * @param {{ client: object, msg: ReceiptMessageEnvelope, context: ReceiptProcessContext, perMessageTimeoutMs: number, processMessage: function }} params
- * @param {function(object): void} onProgress
+ * @param {{ client: Object, msg: ReceiptMessageEnvelope, context: ReceiptProcessContext, perMessageTimeoutMs: number, processMessage: function }} params
+ * @param {(event: Object) => void} onProgress
  * @returns {Promise<{ outcome: 'success'|'timedOut'|'error', action?: string, metadata?: ReceiptMetadata }>}
  */
 async function processOneReceiptMessage({ client, msg, context, perMessageTimeoutMs, processMessage }, onProgress) {
@@ -126,7 +126,7 @@ function selectAccountReceipts(searchResults, accountSearchFailures, run) {
 /**
  * Processes a mailbox batch, folding results into shared runState.
  *
- * @param {object} client - IMAP client
+ * @param {Object} client - IMAP client
  * @param {ReceiptMessageEnvelope[]} messages - messages to process in this batch
  * @param {ReceiptProcessContext} context - per-account process context
  * @param {ReceiptRun} run
@@ -177,7 +177,7 @@ async function processReceiptMessageGroup(client, messages, context, run, total)
  * Per-account handler for forEachReceiptSearchAccount.
  * Filters, groups by mailbox, and processes each message batch.
  *
- * @param {object} client - IMAP client
+ * @param {Object} client - IMAP client
  * @param {{ name: string }} account - account descriptor
  * @param {ReceiptMessageEnvelope[]} searchResults - raw search results from the pipeline
  * @param {unknown[]} accountSearchFailures - search errors from the pipeline
@@ -196,14 +196,14 @@ async function processAccountReceipts(client, account, searchResults, accountSea
 /**
  * Announces whether LLM extraction is enabled for this run.
  * @param {LlmContext|null} llm
- * @param {function(object): void} onProgress
+ * @param {(event: Object) => void} onProgress
  */
 function announceLlm(llm, onProgress) {
   onProgress(llm ? receiptEvents.llmEnabled() : receiptEvents.llmDisabled());
 }
 
 /**
- * @param {object} [opts]
+ * @param {Object} [opts]
  * @param {string}  [opts.outputDir="."] - root output directory
  * @param {number}  [opts.months=12] - how far back to search
  * @param {string}  [opts.since] - search from this date instead of months
@@ -214,8 +214,8 @@ function announceLlm(llm, onProgress) {
  * @param {number|null} [opts.max] - stop after processing this many messages (null = unlimited)
  * @param {number}  [opts.timeoutMs] - per-message timeout in milliseconds (default: 120000)
  * @param {number|null} [opts.budgetMs] - overall wall-clock budget in milliseconds (null = unlimited)
- * @param {object} [gateways] - injectable implementations for testing
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {Object} [gateways] - injectable implementations for testing
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<{ stats: ReceiptStats, records: ReceiptMetadata[] }>}
  */
 export async function downloadReceiptEmails(opts = {}, gateways = {}, onProgress = () => {}) {

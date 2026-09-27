@@ -11,14 +11,14 @@ import { parseIntOption } from "../parse-options.js";
 import { findThread } from "../thread.js";
 
 /**
- * @typedef {object} ThreadCommandDeps
- * @property {object[]} targetAccounts - accounts to search
+ * @typedef {Object} ThreadCommandDeps
+ * @property {Object[]} targetAccounts - accounts to search
  * @property {Function} forEachAccount - (accounts, fn) → Promise<void>
  * @property {Function} listMailboxes - (client) → Promise<Array>
  */
 
 /**
- * @typedef {object} ThreadResult
+ * @typedef {Object} ThreadResult
  * @property {string} account - account name
  * @property {number} threadSize - number of messages in the thread
  * @property {boolean} fallback - whether subject-based fallback was used
@@ -27,9 +27,9 @@ import { findThread } from "../thread.js";
 
 /**
  * @param {string} uid
- * @param {object} opts - CLI options (mailbox, limit, full)
+ * @param {Object} opts - CLI options (mailbox, limit, full)
  * @param {ThreadCommandDeps} deps - injected dependencies
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<ThreadResult[]>} one result per matched account
  * @throws {Error} when the UID is not found in any mailbox on an account
  */

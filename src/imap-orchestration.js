@@ -36,7 +36,7 @@ export async function streamToBuffer(stream) {
  * @param {import("./imap-types.js").ImapLockable} client - imapflow client
  * @param {string} mailboxPath - mailbox path to lock
  * @param {() => Promise<any>} fn - async function to run inside the lock
- * @param {{ onProgress?: (event: object) => void }} [options]
+ * @param {{ onProgress?: (event: Object) => void }} [options]
  * @returns {Promise<any>}
  */
 export async function withMailboxLock(client, mailboxPath, fn, { onProgress = () => {} } = {}) {
@@ -77,8 +77,8 @@ export function groupByMailbox(results) {
  *
  * @param {import("./imap-types.js").ImapLockable} client - connected IMAP client
  * @param {Map<string, Array>} byMailbox - produced by groupByMailbox()
- * @param {function(string, Array): Promise<void>} fn - called with (mailboxPath, messages)
- * @param {function(object): void} [onProgress] - receives structured progress events
+ * @param {(mailboxPath: string, messages: Array) => Promise<void>} fn - called with (mailboxPath, messages)
+ * @param {(event: Object) => void} [onProgress] - receives structured progress events
  * @returns {Promise<void>}
  */
 export async function forEachMailboxGroup(client, byMailbox, fn, onProgress = () => {}) {

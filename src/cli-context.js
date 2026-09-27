@@ -10,12 +10,12 @@ import {
 /** @typedef {import('./event-types.js').BaseEvent} BaseEvent */
 
 /**
- * @typedef {object} CliContext
- * @property {(opts: object) => boolean} resolveJson
- * @property {(opts: object) => string|undefined} resolveAccount
+ * @typedef {Object} CliContext
+ * @property {(opts: Object) => boolean} resolveJson
+ * @property {(opts: Object) => string|undefined} resolveAccount
  * @property {(fn: (...args: any[]) => Promise<any>) => (...args: any[]) => Promise<void>} wrapAction
  * @property {(cmd: import("commander").Command) => import("commander").Command} mutating
- * @property {{ resolveJson: (opts: object) => boolean, resolveAccount: (opts: object) => string|undefined, requireAccounts: () => object[], filterAccountsByName: (accounts: object[], name: string|null|undefined) => object[] }} contextDeps
+ * @property {{ resolveJson: (opts: Object) => boolean, resolveAccount: (opts: Object) => string|undefined, requireAccounts: () => Object[], filterAccountsByName: (accounts: Object[], name: string|null|undefined) => Object[] }} contextDeps
  * @property {(renderEvent: (event: BaseEvent) => string|null) => (event: BaseEvent) => void} progress
  */
 
@@ -24,7 +24,7 @@ import {
  * Centralises the resolveJson/resolveAccount closures, wrapAction, mutating helper,
  * and progress renderer factory so every noun-registrar gets the same contract.
  *
- * @param {{ getGlobalOpts: () => object, requireAccounts: () => object[] }} options
+ * @param {{ getGlobalOpts: () => Object, requireAccounts: () => Object[] }} options
  * @returns {CliContext}
  */
 export function createCliContext({ getGlobalOpts, requireAccounts }) {
