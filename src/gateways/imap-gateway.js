@@ -68,7 +68,7 @@ export class ImapGateway {
    * @param {string} uid
    * @param {string|undefined} part
    * @param {Object} [opts]
-   * @returns {Promise<{ content: AsyncIterable<Buffer> }>}
+   * @returns {Promise<{ content?: AsyncIterable<Buffer> }>} `content` is absent when the UID or part is not found
    */
   async download(client, uid, part, opts) {
     return client.download(uid, part, opts);
