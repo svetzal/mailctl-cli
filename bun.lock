@@ -7,10 +7,10 @@
       "dependencies": {
         "cmx-core": "^0.4.0",
         "commander": "^15.0.0",
-        "imapflow": "^2.1.2",
-        "mailparser": "^3.9.31",
+        "imapflow": "^2.0.6",
+        "mailparser": "^3.9.28",
         "mojentic": "^1.5.0",
-        "nodemailer": "^10.0.12",
+        "nodemailer": "^10.0.10",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.14",
@@ -139,11 +139,11 @@
 
     "linkify-it": ["linkify-it@5.0.2", "", { "dependencies": { "uc.micro": "^2.0.0" } }, "sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q=="],
 
-    "mailparser": ["mailparser@3.9.31", "", { "dependencies": { "@zone-eu/mailsplit": "5.4.19", "encoding-japanese": "2.4.0", "he": "1.2.0", "html-to-text": "10.0.1", "iconv-lite": "0.7.3", "libmime": "5.4.6", "linkify-it": "5.0.2", "nodemailer": "10.0.12", "punycode.js": "2.3.1", "tlds": "1.261.0" } }, "sha512-m4G7Dpozc7Qr3Eap80sxZZ6sM79FlpXLCVGJGlRw0swR+iC5QURYytI21TCYc4DK1EXa1kwKIRezDUVEI4XufA=="],
+    "mailparser": ["mailparser@3.9.32", "", { "dependencies": { "@zone-eu/mailsplit": "5.4.19", "encoding-japanese": "2.4.0", "he": "1.2.0", "html-to-text": "10.0.1", "iconv-lite": "0.7.3", "libmime": "5.4.6", "linkify-it": "5.0.2", "nodemailer": "10.0.13", "punycode.js": "2.3.1", "tlds": "1.261.0" } }, "sha512-Ui9+Ln9ao8Smghk6SB3nAujV1AgWbjJVK0sWtaMFKBz7UpRIZi7XuCKls6EdY95hLkjBaaPziyYCyKHh/zoK8A=="],
 
     "mojentic": ["mojentic@1.5.0", "", { "dependencies": { "gpt-tokenizer": "^3.4.0", "zod": "^4.4.3" } }, "sha512-vrj+FYBRhvHlXdGwf6qcptZ+y9XFdjVXuCmHA9lNjAPNzrGE6wa1k0AOLka5ptgdSXmfeOKGUlSIOPL59fRFNw=="],
 
-    "nodemailer": ["nodemailer@10.0.12", "", {}, "sha512-PQ46oNbNMuH/Sno7B5IWIU9etytwrO0xdTFvWXpIQFRXhBAXtzD48243AS+BCbQQTPD8y3fqUrgLn0tSo77gvg=="],
+    "nodemailer": ["nodemailer@10.0.13", "", {}, "sha512-SzG86OlvcW/NNhUFC6uROMwRTL4n7MswfQqC/T8mhkmnY1YVa23zUEMYi4ijSeXSl9GLz9ZeTJDUatEDuY5FeQ=="],
 
     "on-exit-leak-free": ["on-exit-leak-free@2.1.2", "", {}, "sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA=="],
 
