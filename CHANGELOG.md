@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`secrets list`, `push` and `import` no longer reject a configuration that has an account without a `user`.** The runtime has always skipped such an account (it cannot log in), but the 2.0.0 secrets validator required `user` on every account and failed the whole command with the generic "Secret operation rejected" message. `user` is now optional and still validated when present, and an account without one contributes no expected secret names, so `secrets list` does not report its secrets as missing.
+
 ## [2.0.0] - 2026-10-02
 
 ### Added

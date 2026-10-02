@@ -18,7 +18,9 @@ export function validateAccounts(raw) {
   for (const entry of raw) {
     const account = requireObject(entry, "account");
     if (Object.keys(account).some((key) => !ACCOUNT_FIELDS.has(key))) throw new Error("Unexpected account field.");
+    // user is optional: the runtime skips an account without one (see loadAccountCredentials).
     for (const key of ["prefix", "name", "user", "host", "keychainService"]) {
+      if (key === "user" && account.user === undefined) continue;
       if (typeof account[key] !== "string" || !account[key] || hasControlCharacters(account[key]))
         throw new Error("Invalid account metadata.");
     }
@@ -68,8 +70,8 @@ export function expectedSecretNames(accounts) {
   return [
     ...new Set([
       OPENAI_SERVICE,
-      ...accounts.flatMap(({ keychainService }) =>
-        keychainService ? Object.values(accountSecretServices(keychainService)) : [],
+      ...accounts.flatMap(({ user, keychainService }) =>
+        user && keychainService ? Object.values(accountSecretServices(keychainService)) : [],
       ),
     ]),
   ].sort();

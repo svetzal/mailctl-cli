@@ -239,6 +239,26 @@ it("lists exact expected password, OAuth2 and OpenAI names with availability and
   });
 });
 
+it("lists names for a configuration with a dormant account that has no user, without expecting its secrets", async () => {
+  const f = fixture({ secrets: { [SERVICE]: SECRET } });
+  const dormant = {
+    prefix: "dormant",
+    name: "Dormant",
+    host: "imap.example.com",
+    port: 993,
+    keychainService: "newt-dormant-imap",
+  };
+  const { deps } = dependencies(f, { config: { accounts: [...CONFIG, dormant] } });
+  const result = await run(deps, ["list", "--json"]);
+  expect({ response: JSON.parse(result.output), code: result.code }).toEqual({
+    response: {
+      results: NAMES.map((name) => ({ name, status: name === SERVICE ? "present" : "missing" })),
+      stats: { failed: 0 },
+    },
+    code: 0,
+  });
+});
+
 for (const configOption of ["--with-config", "--config"]) {
   it(`previews push ${configOption} without transport or secret reads`, async () => {
     const f = fixture({ secrets: { [SERVICE]: SECRET } });
