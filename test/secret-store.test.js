@@ -251,9 +251,10 @@ for (const json of [false, true]) {
         output: json
           ? JSON.stringify({
               error:
-                "TPM2 credential operation failed; storage was not downgraded. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+                "TPM2 decryption failed. Check TPM2 availability and credential binding. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+              code: "DECRYPT_FAILED",
             })
-          : "Error: TPM2 credential operation failed; storage was not downgraded. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+          : "Error: TPM2 decryption failed. Check TPM2 availability and credential binding. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
         exitCode: 1,
         disclosed: false,
       });

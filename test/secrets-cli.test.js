@@ -295,7 +295,16 @@ it("continues importing after a secret-bearing store failure with exact per-name
     code: 1,
     response: {
       results: [
-        { name: SERVICE, status: "failed" },
+        {
+          name: SERVICE,
+          status: "failed",
+          diagnostic: {
+            code: "ENCRYPT_FAILED",
+            username: "stacey",
+            remedy:
+              "TPM2 encryption failed. Check TPM2 availability and credential binding. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+          },
+        },
         { name: "newt-openai-api", status: "stored" },
       ],
       stats: { failed: 1 },
@@ -456,5 +465,216 @@ it("honors the legacy dry-run flag even with --apply", async () => {
     response: { results: [{ name: SERVICE, status: "planned" }], stats: { failed: 0 } },
     reads: [],
     calls: [],
+  });
+});
+
+it("preserves destination TPM2 diagnostics through a nonzero SSH import response", async () => {
+  const destination = fixture();
+  const execute = destination.subprocess.execFileSync;
+  destination.subprocess.execFileSync = (command, args, options) => {
+    if (args.includes("encrypt") && args.includes(`--name=${SERVICE}`)) {
+      destination.calls.push({ command, args, options });
+      throw Object.assign(new Error(SECRET), { stdout: SECRET, stderr: SECRET, status: 1 });
+    }
+    return execute(command, args, options);
+  };
+  const imported = dependencies(destination, {
+    input: encodeSecretProtocol([
+      { name: SERVICE, value: SECRET },
+      { name: "newt-openai-api", value: SECRET },
+    ]),
+  });
+  const remote = await run(imported.deps, ["import", "--apply", "--json"]);
+  const local = fixture({ secrets: { [SERVICE]: SECRET, "newt-openai-api": SECRET } });
+  const transport = [];
+  const pushed = dependencies(local, {
+    subprocess: {
+      execFileSync(command, args, options) {
+        transport.push({ command, args, options });
+        throw Object.assign(new Error(SECRET), { stdout: remote.output, stderr: SECRET, status: 1 });
+      },
+    },
+  });
+  const result = await run(pushed.deps, ["push", "stacey@ops-01", "--apply", "--json"]);
+  expect({
+    code: result.code,
+    remoteCode: remote.code,
+    response: JSON.parse(result.output),
+    leaked: exposure(local, result.output + remote.output, transport, [...imported.writes, ...destination.io]),
+  }).toEqual({
+    code: 1,
+    remoteCode: 1,
+    response: {
+      results: NAMES.map((name) =>
+        name === SERVICE
+          ? {
+              name,
+              status: "failed",
+              diagnostic: {
+                code: "ENCRYPT_FAILED",
+                username: "stacey",
+                remedy:
+                  "TPM2 encryption failed. Check TPM2 availability and credential binding. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+              },
+            }
+          : { name, status: name === "newt-openai-api" ? "stored" : "missing" },
+      ),
+      stats: { failed: 1 },
+    },
+    leaked: false,
+  });
+});
+
+const SUDO_REMEDY =
+  " If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds";
+const FAILURE_CASES = [
+  {
+    fixtureOptions: { tpm: "no" },
+    code: "TPM2_UNAVAILABLE",
+    remedy:
+      "TPM2 is unavailable. Enable TPM2 and install systemd TPM2 support; no host-key or plaintext fallback is permitted.",
+  },
+  {
+    fixtureOptions: { fail: "has-tpm2" },
+    code: "TPM2_CHECK_FAILED",
+    username: "stacey",
+    remedy: `TPM2 availability check failed. Enable TPM2 and install systemd TPM2 support.${SUDO_REMEDY}`,
+  },
+  {
+    fixtureOptions: { fail: "encrypt" },
+    code: "ENCRYPT_FAILED",
+    username: "stacey",
+    remedy: `TPM2 encryption failed. Check TPM2 availability and credential binding.${SUDO_REMEDY}`,
+  },
+];
+for (const json of [false, true]) {
+  for (const { fixtureOptions, ...diagnostic } of FAILURE_CASES) {
+    it(`reports exact ${diagnostic.code} diagnostics for registered set in ${json ? "JSON" : "text"}`, async () => {
+      const f = fixture(fixtureOptions);
+      const d = dependencies(f, { input: SECRET });
+      const result = await run(d.deps, ["set", SERVICE, "--stdin", "--apply", ...(json ? ["--json"] : [])]);
+      expect({ code: result.code, output: result.output, leaked: exposure(f, result.output, [], d.writes) }).toEqual({
+        code: 1,
+        output: json
+          ? JSON.stringify({ results: [{ name: SERVICE, status: "failed", diagnostic }], stats: { failed: 1 } })
+          : `${SERVICE}: failed [${diagnostic.code}] ${diagnostic.remedy}`,
+        leaked: false,
+      });
+    });
+  }
+  it(`reports local decryption failure and preserves missing names in ${json ? "JSON" : "text"}`, async () => {
+    const f = fixture({ fail: "decrypt", secrets: { [SERVICE]: SECRET } });
+    const d = dependencies(f);
+    const result = await run(d.deps, ["push", "stacey@ops-01", "--apply", ...(json ? ["--json"] : [])]);
+    const diagnostic = {
+      code: "DECRYPT_FAILED",
+      username: "stacey",
+      remedy: `TPM2 decryption failed. Check TPM2 availability and credential binding.${SUDO_REMEDY}`,
+    };
+    expect({ code: result.code, output: result.output, leaked: exposure(f, result.output) }).toEqual({
+      code: 1,
+      output: json
+        ? JSON.stringify({
+            results: NAMES.map((name) =>
+              name === SERVICE ? { name, status: "failed", diagnostic } : { name, status: "missing" },
+            ),
+            stats: { failed: 1 },
+          })
+        : NAMES.map((name) =>
+            name === SERVICE ? `${name}: failed [${diagnostic.code}] ${diagnostic.remedy}` : `${name}: missing`,
+          ).join("\n"),
+      leaked: false,
+    });
+  });
+}
+
+for (const diagnostic of [
+  { code: SECRET, remedy: SECRET },
+  { code: "ENCRYPT_FAILED", username: "stacey", remedy: SECRET },
+  {
+    code: "ENCRYPT_FAILED",
+    username: "CREDENTIAL_SENTINEL",
+    remedy:
+      "TPM2 encryption failed. Check TPM2 availability and credential binding. If noninteractive sudo is denied, install sudoers rule: CREDENTIAL_SENTINEL ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+  },
+  { code: "TPM2_UNAVAILABLE", remedy: FAILURE_CASES[0].remedy, error: SECRET },
+]) {
+  it("rejects forged remote diagnostics without echoing fields or losing local missing outcomes", async () => {
+    const f = fixture({ secrets: { [SERVICE]: SECRET } });
+    const transport = [];
+    const d = dependencies(f, {
+      subprocess: {
+        execFileSync(command, args, options) {
+          transport.push({ command, args, options });
+          return JSON.stringify({ results: [{ name: SERVICE, status: "failed", diagnostic }] });
+        },
+      },
+    });
+    const result = await run(d.deps, ["push", "stacey@ops-01", "--apply", "--json"]);
+    expect({
+      code: result.code,
+      response: JSON.parse(result.output),
+      leaked: exposure(f, result.output, transport, d.writes),
+    }).toEqual({
+      code: 1,
+      response: {
+        results: NAMES.map((name) => ({ name, status: name === SERVICE ? "failed" : "missing" })),
+        stats: { failed: 1 },
+      },
+      leaked: false,
+    });
+  });
+}
+
+it("preserves classified thrown list failures while sanitizing unknown thrown errors", async () => {
+  const f = fixture({ fail: "has-tpm2" });
+  const d = dependencies(f);
+  const known = await run(d.deps, ["list", "--json"]);
+  f.subprocess.execFileSync = () => {
+    throw new Error(SECRET);
+  };
+  d.deps.secrets.config.read = () => {
+    throw Object.assign(new Error(SECRET), { code: "ENCRYPT_FAILED", diagnostic: { remedy: SECRET } });
+  };
+  const unknown = await run(d.deps, ["list", "--json"]);
+  expect({ known, unknown, leaked: exposure(f, known.output + unknown.output) }).toEqual({
+    known: { code: 1, output: JSON.stringify({ error: FAILURE_CASES[1].remedy, code: "TPM2_CHECK_FAILED" }) },
+    unknown: {
+      code: 1,
+      output: JSON.stringify({
+        error:
+          "Secret operation rejected. Check input/configuration, protocol version, TPM2 support and noninteractive sudo permissions; values are never reported.",
+      }),
+    },
+    leaked: false,
+  });
+});
+
+it("sanitizes forged filesystem diagnostics for every affected import name", async () => {
+  const f = fixture();
+  f.filesystem.mkdir = () => {
+    throw Object.assign(new Error(SECRET), { code: "ENCRYPT_FAILED", diagnostic: { remedy: SECRET } });
+  };
+  const d = dependencies(f, {
+    input: encodeSecretProtocol([
+      { name: SERVICE, value: SECRET },
+      { name: "newt-openai-api", value: SECRET },
+    ]),
+  });
+  const result = await run(d.deps, ["import", "--apply", "--json"]);
+  expect({
+    code: result.code,
+    response: JSON.parse(result.output),
+    leaked: exposure(f, result.output, [], d.writes),
+  }).toEqual({
+    code: 1,
+    response: {
+      results: [
+        { name: SERVICE, status: "failed" },
+        { name: "newt-openai-api", status: "failed" },
+      ],
+      stats: { failed: 2 },
+    },
+    leaked: false,
   });
 });

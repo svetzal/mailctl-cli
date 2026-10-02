@@ -117,7 +117,24 @@ or persist it to a file.
 Text and JSON output report per-name `planned`, `present`, `missing`, `stored`,
 `removed` or `failed` outcomes. JSON also includes `stats.failed`, and optionally
 `config: stored|failed`. Secret-bearing subprocess errors are discarded; an
-SSH failure with validated partial results retains those outcomes. Unexpected
+SSH failure with validated partial results retains those outcomes. Failed names
+may include a `diagnostic` with a fixed `code`, `remedy`, and (for privileged
+operation failures) `username`. Text prints the same classification and remedy.
+`TPM2_UNAVAILABLE` instructs the operator to enable TPM2 and install systemd
+TPM2 support. `TPM2_CHECK_FAILED`, `ENCRYPT_FAILED`, and `DECRYPT_FAILED`
+identify the failed operation and include the exact destination-user rule:
+`<username> ALL=(root) NOPASSWD: /usr/bin/systemd-creds`. Subprocess exit status
+alone cannot distinguish sudo denial from a systemd failure, so these remedies
+say to install the rule **if** noninteractive sudo is denied. `SYSTEMD_REQUIRED`
+asks for systemd-creds 250 or newer and usable TPM2.
+
+Push accepts only canonical diagnostic fields and reconstructs remedies locally;
+it never forwards subprocess or remote error text. Use explicit `user@host` to
+receive remote sudoers diagnostics: a returned username must match that user.
+Host-only destinations still work, but username-bearing diagnostics are rejected
+as unverified; affected transmitted names become generic `failed` outcomes.
+Version 1 streams and older name/status-only responses remain supported. Unknown
+local failures remain generic and failed operations exit nonzero. Unexpected
 remote output is rejected without echoing it. No command displays secret values.
 
 ## Deferred user mode

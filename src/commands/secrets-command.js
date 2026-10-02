@@ -1,3 +1,4 @@
+import { secretDiagnostic, validateRemoteDiagnostic } from "../secret-diagnostics.js";
 import { validateService } from "../secret-store.js";
 import {
   decodeSecretProtocol,
@@ -8,7 +9,7 @@ import {
 } from "../secrets-protocol.js";
 import { requireObject } from "../validate-json.js";
 
-/** @typedef {{name: string, status: "present"|"missing"|"planned"|"stored"|"removed"|"failed"}} SecretOutcome */
+/** @typedef {{name: string, status: "present"|"missing"|"planned"|"stored"|"removed"|"failed", diagnostic?: import("../secret-diagnostics.js").SecretDiagnostic}} SecretOutcome */
 /** @typedef {{store: import("../secret-store.js").SecretStore, input: import("../gateways/secret-input-gateway.js").SecretInputGateway, config: import("../gateways/secret-config-gateway.js").SecretConfigGateway, subprocess: import("../gateways/subprocess-gateway.js").SubprocessGateway}} SecretsDeps */
 const SSH_TIMEOUT_MS = 120_000;
 const REMOTE_IMPORT = "exec \"$SHELL\" -lc 'exec mailctl secrets import --apply --json'";
@@ -26,8 +27,9 @@ function resultFor(results, config) {
 function outcome(name, operation) {
   try {
     return { name, status: operation() };
-  } catch {
-    return { name, status: "failed" };
+  } catch (error) {
+    const diagnostic = secretDiagnostic(error);
+    return { name, status: "failed", ...(diagnostic ? { diagnostic } : {}) };
   }
 }
 
@@ -105,9 +107,9 @@ function sendProtocol(target, input, deps) {
   }
 }
 
-/** @param {string} output @param {import("../secrets-protocol.js").SecretEntry[]} entries
+/** @param {string} output @param {string} target @param {import("../secrets-protocol.js").SecretEntry[]} entries
  * @returns {SecretOutcome[]} */
-function remoteOutcomes(output, entries) {
+function remoteOutcomes(output, target, entries) {
   const remote = requireObject(JSON.parse(output), "response");
   if (!Array.isArray(remote.results) || remote.results.length !== entries.length)
     throw new Error("Invalid import response.");
@@ -116,10 +118,14 @@ function remoteOutcomes(output, entries) {
     if (
       entry.name !== entries[index].name ||
       (entry.status !== "stored" && entry.status !== "failed") ||
-      Object.keys(entry).some((key) => !["name", "status"].includes(key))
+      Object.keys(entry).some((key) => !["name", "status", "diagnostic"].includes(key))
     )
       throw new Error("Invalid import outcome.");
-    return { name: entries[index].name, status: entry.status };
+    if (entry.diagnostic !== undefined && entry.status !== "failed") throw new Error("Invalid import outcome.");
+    const diagnostic = entry.diagnostic === undefined ? undefined : validateRemoteDiagnostic(entry.diagnostic);
+    if (diagnostic?.username !== undefined && (!target.includes("@") || diagnostic.username !== target.split("@")[0]))
+      throw new Error("Invalid destination username.");
+    return { name: entries[index].name, status: entry.status, ...(diagnostic ? { diagnostic } : {}) };
   });
 }
 
@@ -135,11 +141,18 @@ async function pushSecrets(target, options, deps) {
   const accounts = validateAccounts(requireObject(deps.config.read(), "config").accounts ?? []);
   const names = expectedSecretNames(accounts);
   if (!options.apply) return resultFor(names.map((name) => ({ name, status: "planned" })));
-  deps.store.unlockNewtKeychain();
+  // Unlock once, retaining a safely classified failure for every affected name.
+  let unlockFailure;
+  try {
+    deps.store.unlockNewtKeychain();
+  } catch (error) {
+    unlockFailure = { error };
+  }
   /** @type {import("../secrets-protocol.js").SecretEntry[]} */
   const entries = [];
   const results = names.map((name) =>
     outcome(name, () => {
+      if (unlockFailure) throw unlockFailure.error;
       const value = deps.store.readSecret(name);
       if (value === null) return "missing";
       entries.push({ name, value });
@@ -149,7 +162,7 @@ async function pushSecrets(target, options, deps) {
   if (!entries.length && !options.config) return resultFor(results);
   try {
     const output = sendProtocol(target, encodeSecretProtocol(entries, options.config ? accounts : undefined), deps);
-    const remote = remoteOutcomes(output, entries);
+    const remote = remoteOutcomes(output, target, entries);
     const config = options.config
       ? requireObject(JSON.parse(output), "response").config === "stored"
         ? "stored"

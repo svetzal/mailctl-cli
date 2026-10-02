@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { CredentialFilesystemGateway } from "./gateways/credential-filesystem-gateway.js";
 import { KeychainGateway } from "./gateways/keychain-gateway.js";
 import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
+import { secretStoreFailure } from "./secret-diagnostics.js";
 
 /**
  * @typedef {{readSecret(service: string): string|null, unlockNewtKeychain(): void}} CredentialReader
@@ -66,17 +67,10 @@ export class LinuxSecretStore {
       version = Number(/^systemd\s+(\d+)/m.exec(output)?.[1]);
       if (!Number.isFinite(version) || version < MIN_SYSTEMD_VERSION) throw new Error();
     } catch {
-      throw new Error("Linux secret storage requires systemd-creds version 250 or newer and a usable TPM2.");
+      throw secretStoreFailure("SYSTEMD_REQUIRED");
     }
-    const output = this.invoke(
-      ["has-tpm2"],
-      undefined,
-      "TPM2 is unavailable. Enable TPM2 and install systemd TPM2 support; no host-key or plaintext fallback is permitted.",
-    );
-    if (output.trim() !== "yes")
-      throw new Error(
-        "TPM2 is unavailable. Enable TPM2 and install systemd TPM2 support; no host-key or plaintext fallback is permitted.",
-      );
+    const output = this.invoke(["has-tpm2"], undefined, "TPM2_CHECK_FAILED");
+    if (output.trim() !== "yes") throw secretStoreFailure("TPM2_UNAVAILABLE");
     this.filesystem.mkdir(this.directory, 0o700);
     const directory = this.filesystem.lstat(this.directory);
     if (!directory.isDirectory() || directory.isSymbolicLink()) throw new Error("Unsafe credential directory.");
@@ -85,8 +79,8 @@ export class LinuxSecretStore {
     return version;
   }
 
-  /** @param {string[]} args @param {string} [input] @param {string} [failure] @returns {string} */
-  invoke(args, input, failure = "TPM2 credential operation failed; storage was not downgraded.") {
+  /** @param {string[]} args @param {string} [input] @param {import("./secret-diagnostics.js").SecretFailureCode} [failure] @returns {string} */
+  invoke(args, input, failure = "TPM2_CHECK_FAILED") {
     try {
       return String(
         this.subprocess.execFileSync("/usr/bin/sudo", ["-n", CREDS, ...args], {
@@ -95,9 +89,7 @@ export class LinuxSecretStore {
         }),
       );
     } catch {
-      throw new Error(
-        `${failure} If noninteractive sudo is denied, install sudoers rule: ${this.username} ALL=(root) NOPASSWD: /usr/bin/systemd-creds`,
-      );
+      throw secretStoreFailure(failure, this.username);
     }
   }
 
@@ -125,14 +117,16 @@ export class LinuxSecretStore {
     if (!this.exists(path)) return null;
     this.filesystem.chmod(path, 0o600);
     requireTpm2Ciphertext(this.filesystem.readBuffer(path));
-    return this.invoke(["decrypt", `--name=${service}`, path, "-"]);
+    return this.invoke(["decrypt", `--name=${service}`, path, "-"], undefined, "DECRYPT_FAILED");
   }
 
   /** @param {string} service @param {string} secret @returns {void} */
   writeSecret(service, secret) {
     const path = this.path(service);
     this.prepare();
-    const ciphertext = Buffer.from(this.invoke(["encrypt", "--with-key=tpm2", `--name=${service}`, "-", "-"], secret));
+    const ciphertext = Buffer.from(
+      this.invoke(["encrypt", "--with-key=tpm2", `--name=${service}`, "-", "-"], secret, "ENCRYPT_FAILED"),
+    );
     requireTpm2Ciphertext(ciphertext);
     const temporary = `${path}.tmp`;
     try {

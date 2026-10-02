@@ -2,6 +2,7 @@ import { secretsCommand } from "../commands/secrets-command.js";
 import { SecretConfigGateway } from "../gateways/secret-config-gateway.js";
 import { SecretInputGateway } from "../gateways/secret-input-gateway.js";
 import { SubprocessGateway } from "../gateways/subprocess-gateway.js";
+import { secretDiagnostic } from "../secret-diagnostics.js";
 import { createSecretStore } from "../secret-store.js";
 
 export const secretsDeps = {
@@ -37,7 +38,8 @@ export function registerSecretsCommands(program, ctx, deps) {
             { ...opts, apply: opts.apply && !opts.dryRun },
             deps,
           );
-        } catch {
+        } catch (error) {
+          if (secretDiagnostic(error)) throw error;
           throw new Error(
             "Secret operation rejected. Check input/configuration, protocol version, TPM2 support and noninteractive sudo permissions; values are never reported.",
           );
@@ -45,8 +47,12 @@ export function registerSecretsCommands(program, ctx, deps) {
         console.log(
           ctx.resolveJson(opts)
             ? JSON.stringify(result)
-            : result.results.map(({ name, status }) => `${name}: ${status}`).join("\n") +
-                (result.config ? `\nconfiguration: ${result.config}` : ""),
+            : result.results
+                .map(
+                  ({ name, status, diagnostic }) =>
+                    `${name}: ${status}${diagnostic ? ` [${diagnostic.code}] ${diagnostic.remedy}` : ""}`,
+                )
+                .join("\n") + (result.config ? `\nconfiguration: ${result.config}` : ""),
         );
         return result;
       }),
