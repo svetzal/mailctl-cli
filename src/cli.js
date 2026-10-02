@@ -72,7 +72,7 @@ export function buildProgram(deps = defaultDeps) {
   program
     .name("mailctl")
     .description("Personal email operations tool — receipt sorting, search, folder management, and more")
-    .version("1.3.0")
+    .version("2.0.0")
     .option("--account <name>", "email account to use (searches all if omitted)")
     .option("--json", "output results as JSON");
 

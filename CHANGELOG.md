@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-02
+
 ### Added
 
 - Added `secrets list`, `set`, `rm`, `push`, and `import` with JSON outcomes, preview-by-default mutations, hidden prompt or exact stdin input, expected password/OAuth2/OpenAI names, one SSH login-shell replication session, strict optional non-secret account metadata and a versioned JSON-line protocol. Terminal import, unknown versions and malformed records fail before effects. Per-name failures are sanitized and exit nonzero.
