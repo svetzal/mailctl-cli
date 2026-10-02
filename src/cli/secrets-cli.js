@@ -4,6 +4,7 @@ import { SecretInputGateway } from "../gateways/secret-input-gateway.js";
 import { SubprocessGateway } from "../gateways/subprocess-gateway.js";
 import { secretDiagnostic } from "../secret-diagnostics.js";
 import { createSecretStore } from "../secret-store.js";
+import { SecretUsageError } from "../secret-usage.js";
 
 export const secretsDeps = {
   store: createSecretStore(),
@@ -40,7 +41,7 @@ export function registerSecretsCommands(program, ctx, deps) {
             deps,
           );
         } catch (error) {
-          if (secretDiagnostic(error)) throw error;
+          if (secretDiagnostic(error) || error instanceof SecretUsageError) throw error;
           throw new Error(
             "Secret operation rejected. Check input/configuration, protocol version, TPM2 support and noninteractive sudo permissions; values are never reported.",
           );

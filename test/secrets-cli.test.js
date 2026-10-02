@@ -202,6 +202,25 @@ function exposure(f, output, transport = [], writes = []) {
   }).includes("CREDENTIAL_SENTINEL");
 }
 
+it("tells the operator to pass --stdin when a value is piped without it, and stores nothing", async () => {
+  const f = fixture();
+  const d = dependencies(f, { input: SECRET, terminal: false });
+  const set = await run(d.deps, ["set", SERVICE, "--apply", "--json"]);
+  expect({
+    code: set.code,
+    error: JSON.parse(set.output).error,
+    reads: d.reads,
+    encrypted: f.calls.some((call) => call.args.includes("encrypt")),
+    leaked: exposure(f, set.output),
+  }).toEqual({
+    code: 1,
+    error: "Standard input is not a terminal. Pass --stdin to read the secret from standard input.",
+    reads: [],
+    encrypted: false,
+    leaked: false,
+  });
+});
+
 it("lists exact expected password, OAuth2 and OpenAI names with availability and no reads", async () => {
   const f = fixture({ secrets: { [SERVICE]: SECRET } });
   const { deps } = dependencies(f);
@@ -288,7 +307,8 @@ for (const verb of ["set", "rm", "push"]) {
 for (const stdin of [false, true]) {
   it(`sets exact bytes through ${stdin ? "stdin" : "hidden prompt"} and removes via registered actions`, async () => {
     const f = fixture();
-    const d = dependencies(f, { input: SECRET });
+    // A hidden prompt needs a terminal; --stdin needs piped input.
+    const d = dependencies(f, { input: SECRET, terminal: !stdin });
     const set = await run(d.deps, ["set", SERVICE, "--apply", "--json", ...(stdin ? ["--stdin"] : [])]);
     const rm = await run(d.deps, ["rm", SERVICE, "--apply", "--json"]);
     expect({

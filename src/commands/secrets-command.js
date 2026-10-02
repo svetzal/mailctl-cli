@@ -1,5 +1,6 @@
 import { secretDiagnostic, validateRemoteDiagnostic } from "../secret-diagnostics.js";
 import { validateService } from "../secret-store.js";
+import { SecretUsageError } from "../secret-usage.js";
 import {
   decodeSecretProtocol,
   encodeSecretProtocol,
@@ -53,9 +54,11 @@ export async function secretsCommand(command, argument, options, deps) {
   if (command === "list") return listSecrets(deps);
   const name = validateService(argument ?? "");
   if (!options.apply) return resultFor([{ name, status: "planned" }]);
-  if (options.stdin && deps.input.isTerminal()) throw new Error("Use non-terminal stdin.");
+  if (options.stdin && deps.input.isTerminal()) throw new SecretUsageError("TERMINAL_STDIN");
+  if (command === "set" && !options.stdin && !deps.input.isTerminal())
+    throw new SecretUsageError("STDIN_FLAG_REQUIRED");
   const value = command === "set" ? await (options.stdin ? deps.input.readStdin() : deps.input.prompt()) : undefined;
-  if (value === "") throw new Error("Empty secret input.");
+  if (value === "") throw new SecretUsageError("EMPTY_INPUT");
   return resultFor([
     outcome(name, () => {
       deps.store.unlockNewtKeychain();
