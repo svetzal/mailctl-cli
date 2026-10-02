@@ -80,7 +80,7 @@ for (const version of [250, 255, 256, 257, 259]) {
 }
 
 it("rejects absent TPM2 with a remedy and never attempts encryption", () => {
-  const f = fixture({ tpm: "partial" });
+  const f = fixture({ tpm: "partial\n+firmware\n+driver\n+system\n+subsystem\n-libraries\n" });
   let message;
   try {
     f.store.writeSecret(SERVICE, SECRET);
@@ -113,6 +113,11 @@ for (const fail of ["--version", "has-tpm2", "encrypt", "decrypt"]) {
     }).toEqual({ safe: true, failed: true, wrotePlaintext: false, downgraded: false });
   });
 }
+
+it("accepts the multi-line answer a real systemd-creds has-tpm2 prints", () => {
+  const f = fixture({ version: 255, secrets: { [SERVICE]: SECRET } });
+  expect(f.store.readSecret(SERVICE)).toBe(SECRET);
+});
 
 it("provides the exact sudoers remedy when noninteractive sudo is denied", () => {
   const f = fixture({ version: 255, fail: "has-tpm2" });

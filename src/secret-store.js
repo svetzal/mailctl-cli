@@ -69,8 +69,10 @@ export class LinuxSecretStore {
     } catch {
       throw secretStoreFailure("SYSTEMD_REQUIRED");
     }
+    // has-tpm2 answers on its first line (yes, partial or no), then lists one
+    // line per component (+firmware, +driver, ...). Only the answer decides.
     const output = this.invoke(["has-tpm2"], undefined, "TPM2_CHECK_FAILED");
-    if (output.trim() !== "yes") throw secretStoreFailure("TPM2_UNAVAILABLE");
+    if (output.split("\n", 1)[0].trim() !== "yes") throw secretStoreFailure("TPM2_UNAVAILABLE");
     this.filesystem.mkdir(this.directory, 0o700);
     const directory = this.filesystem.lstat(this.directory);
     if (!directory.isDirectory() || directory.isSymbolicLink()) throw new Error("Unsafe credential directory.");

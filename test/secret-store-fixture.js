@@ -19,7 +19,8 @@ export const CONFIG = [
 export function fixture({
   platform = "linux",
   version = 256,
-  tpm = "yes",
+  // The real command prints the answer, then one line per component.
+  tpm = "yes\n+firmware\n+driver\n+system\n+subsystem\n+libraries\n",
   fail = "",
   rejectUserTpm2 = false,
   secrets = {},
