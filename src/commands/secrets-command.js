@@ -142,7 +142,7 @@ async function pushSecrets(target, options, deps) {
   if (!target || !/^[A-Za-z0-9][A-Za-z0-9._@-]*$/.test(target)) throw new Error("Invalid SSH destination.");
   const accounts = validateAccounts(requireObject(deps.config.read(), "config").accounts ?? []);
   const names = expectedSecretNames(accounts);
-  if (!options.apply) return resultFor(names.map((name) => ({ name, status: "planned" })));
+  if (!options.apply) return { ...resultFor(names.map((name) => ({ name, status: "planned" }))), destination: target };
   // Unlock once, retaining a safely classified failure for every affected name.
   let unlockFailure;
   try {

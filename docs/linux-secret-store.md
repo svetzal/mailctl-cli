@@ -77,10 +77,19 @@ values are rejected. Interactive `set --apply` hides input and ends at Enter.
 ## Replicate
 
 ```sh
-mailctl secrets push stacey@ops-01 --json                # preview: no SSH or secret reads
+mailctl secrets push stacey@ops-01 --json                # preview destination and names; no SSH or secret reads
 mailctl secrets push stacey@ops-01 --apply --json         # provision secrets
 mailctl secrets push stacey@ops-01 --with-config --apply --json # also install account metadata
 ```
+
+Under `operations.decision.2026-10-02.mailctl-on-ops-01`, push previews report
+the exact validated SSH destination alongside the planned service names.
+Text starts with `destination: stacey@ops-01`; JSON includes
+`"destination":"stacey@ops-01"` alongside `results` and `stats`. This also
+applies with `--with-config`. Preview reads account metadata to select names,
+without unlocking or reading secrets, reading input, writing configuration or
+credentials, or starting SSH. Applied push and import retain their existing
+outcome format and version 1 protocol.
 
 Push selects `newt-openai-api` plus each configured `keychainService` and its
 `-client-id`, `-tenant-id`, `-client-secret` variants. Missing local values are

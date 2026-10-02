@@ -36,7 +36,7 @@ mailctl secrets list --json
 mailctl secrets set newt-gmail-imap              # preview
 mailctl secrets set newt-gmail-imap --apply      # hidden prompt
 mailctl secrets rm newt-gmail-imap              # preview; add --apply to delete
-mailctl secrets push stacey@ops-01 --json        # preview; no SSH
+mailctl secrets push stacey@ops-01 --json        # preview destination and service names; no SSH
 mailctl secrets push stacey@ops-01 --config --apply --json
 ```
 

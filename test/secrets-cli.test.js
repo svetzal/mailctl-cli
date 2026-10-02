@@ -6,6 +6,61 @@ import { CONFIG, fixture, SECRET, SERVICE } from "./secret-store-fixture.js";
 
 const NAMES = [SERVICE, `${SERVICE}-client-id`, `${SERVICE}-client-secret`, `${SERVICE}-tenant-id`, "newt-openai-api"];
 
+for (const withConfig of [false, true]) {
+  for (const json of [false, true]) {
+    it(`identifies exact push preview destinations and names without effects: config=${withConfig}, JSON=${json}`, async () => {
+      const effects = [];
+      const rejectEffect = () => {
+        effects.push("forbidden effect");
+        throw new Error("Preview attempted an effect.");
+      };
+      const d = dependencies(fixture());
+      d.deps.secrets = {
+        store: {
+          readSecret: rejectEffect,
+          unlockNewtKeychain: rejectEffect,
+          writeSecret: rejectEffect,
+          deleteSecret: rejectEffect,
+          listNames: rejectEffect,
+        },
+        input: { isTerminal: rejectEffect, readStdin: rejectEffect, prompt: rejectEffect },
+        config: {
+          directory: "/unused",
+          path: "/unused/config.json",
+          read: () => ({ accounts: CONFIG }),
+          write: rejectEffect,
+        },
+        subprocess: { execFileSync: rejectEffect },
+      };
+      const destinations = ["ops-01", "ops-02", "stacey@ops-01", "opsuser@ops-01"];
+      const previews = [];
+      for (const destination of destinations) {
+        previews.push(
+          await run(d.deps, [
+            "push",
+            destination,
+            ...(withConfig ? ["--with-config"] : []),
+            ...(json ? ["--json"] : []),
+          ]),
+        );
+      }
+      expect({ previews, effects }).toEqual({
+        previews: destinations.map((destination) => ({
+          code: 0,
+          output: json
+            ? JSON.stringify({
+                results: NAMES.map((name) => ({ name, status: "planned" })),
+                stats: { failed: 0 },
+                destination,
+              })
+            : [`destination: ${destination}`, ...NAMES.map((name) => `${name}: planned`)].join("\n"),
+        })),
+        effects: [],
+      });
+    });
+  }
+}
+
 for (const target of ["ops-01", "opsuser@ops-01"]) {
   for (const json of [false, true]) {
     for (const sshExit of [0, 1]) {
@@ -181,7 +236,11 @@ for (const configOption of ["--with-config", "--config"]) {
     expect({ result, calls: f.calls, io: f.io, reads: d.reads, writes: d.writes, transport }).toEqual({
       result: {
         code: 0,
-        output: JSON.stringify({ results: NAMES.map((name) => ({ name, status: "planned" })), stats: { failed: 0 } }),
+        output: JSON.stringify({
+          results: NAMES.map((name) => ({ name, status: "planned" })),
+          stats: { failed: 0 },
+          destination: "ops-01",
+        }),
       },
       calls: [],
       io: [],
@@ -216,6 +275,7 @@ for (const verb of ["set", "rm", "push"]) {
       response: {
         results: (verb === "push" ? NAMES : [SERVICE]).map((name) => ({ name, status: "planned" })),
         stats: { failed: 0 },
+        ...(verb === "push" ? { destination: "ops-01" } : {}),
       },
       calls: [],
       reads: [],

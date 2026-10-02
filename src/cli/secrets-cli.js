@@ -48,12 +48,14 @@ export function registerSecretsCommands(program, ctx, deps) {
         console.log(
           ctx.resolveJson(opts)
             ? JSON.stringify(result)
-            : result.results
-                .map(
-                  ({ name, status, diagnostic }) =>
-                    `${name}: ${status}${diagnostic ? ` [${diagnostic.code}] ${diagnostic.remedy}` : ""}`,
-                )
-                .join("\n") + (result.config ? `\nconfiguration: ${result.config}` : ""),
+            : ("destination" in result ? `destination: ${result.destination}\n` : "") +
+                result.results
+                  .map(
+                    ({ name, status, diagnostic }) =>
+                      `${name}: ${status}${diagnostic ? ` [${diagnostic.code}] ${diagnostic.remedy}` : ""}`,
+                  )
+                  .join("\n") +
+                (result.config ? `\nconfiguration: ${result.config}` : ""),
         );
         return result;
       }),
