@@ -64,6 +64,9 @@ Adding a new command in a noun group means editing only the matching registrar f
 src/cli/receipts-cli.js        — registerReceiptsCommands(program, ctx, deps): `receipts` noun group (scan, classify, import-classifications, sort, download, extract) + hidden legacy aliases; exports receiptsDeps
 src/cli/mail-cli.js            — registerMailCommands(program, ctx, deps): read-only mail nouns (search, read, folders/list-folders, extract-attachment, inbox, thread, contacts); exports mailDeps
 src/cli/mutation-cli.js        — registerMutationCommands(program, ctx, deps): mutating message commands (move, flag, reply) with injected smtpGateway/editorGateway/confirmGateway; exports mutationDeps
+src/cli/secrets-cli.js         — registerSecretsCommands(): list/set/rm/push/import, injected store/input/config/subprocess boundaries
+src/commands/secrets-command.js — provisioning and replication orchestration
+src/secrets-protocol.js        — versioned JSON-line protocol and strict non-secret account validation
 src/cli/init-cli.js            — registerInitCommand(program, ctx, deps): skill-distribution init command; exports initDeps
 
 Command orchestrators (testable, injected deps):
@@ -269,18 +272,16 @@ If tests fail, the line executes and the coverage report was wrong — do not ad
 - **NEVER** log, print, or expose secret values
 - Credentials come from `createSecretStore()` at runtime: macOS Newt Keychain or TPM2-bound Linux systemd credentials
 - Never place secret values in subprocess argv, environment options, logs or plaintext files. Use stdin or in-memory native calls.
-- Linux requires systemd-creds 250+ and usable TPM2; 256+ uses `--user`, earlier versions use `sudo -n /usr/bin/systemd-creds`. The denied-sudo remedy is `<username> ALL=(root) NOPASSWD: /usr/bin/systemd-creds`. No host-key-only or plaintext fallback.
-- Linux ciphertext: `~/.config/mailctl/credstore.encrypted/<service>.cred`, directory 0700 and file 0600. The library has read/write/delete/listNames; secrets CLI and replication are subsequent work.
+- Linux requires systemd-creds 250+ and usable TPM2; all supported versions use privileged TPM2-only encrypt/decrypt through `sudo -n /usr/bin/systemd-creds`. The denied-sudo remedy is `<username> ALL=(root) NOPASSWD: /usr/bin/systemd-creds`. No host-key-only or plaintext fallback.
+- Linux ciphertext: `~/.config/mailctl/credstore.encrypted/<service>.cred`, directory 0700 and file 0600. The library has read/write/delete/listNames. `secrets list/set/rm/push/import` use the shared store; mutations preview by default, `--apply` executes, and `--json` reports names/outcomes only. Push uses one SSH login-shell session and version 1 JSON lines over stdin. See [operator verification](docs/linux-secret-store.md).
 - Unsupported-platform store access throws `no secret store on this platform`; construction, help and version stay usable.
 - If adding a secret on macOS, use Newt Keychain (`~/.newt/newt-keychain-db`) via Keychain Access or the stdin-backed library. On Linux, provision the same service through the TPM2-backed library.
 
 
-**Compatibility blocker:** systemd 256 and current upstream reject
-`--user --with-key=tpm2`: TPM2-only encryption has no user-scoped format.
-The implementation retains the mandated invocations and fails closed; this is
-not working user-mode provisioning. Resolving it requires a policy decision
-between privileged TPM2-only mode and user-scoped host+TPM2 with binding
-verification. No alternative was silently selected.
+TPM2-only user-mode provisioning remains deferred: systemd 256 rejects
+`--user --with-key=tpm2`. The binding 2026-10-02 owner policy requires
+privileged TPM2-only operations on every supported version, including 256+.
+No weaker fallback is selected.
 [systemd source](https://github.com/systemd/systemd/blob/v256/src/creds/creds.c#L1001-L1013).
 
 ### Adding a New Email Account
@@ -298,7 +299,7 @@ verification. No alternative was silently selected.
    }
    ```
 
-2. Provision `newt-example-imap` in the selected store using Keychain Access on macOS or `createSecretStore().writeSecret()` with an in-memory value. Never put secrets in command arguments.
+2. Provision `newt-example-imap` using `mailctl secrets set newt-example-imap --apply` (hidden prompt on both platforms). Never put secrets in command arguments.
 
 3. `mailctl` automatically reads `keychainService` from the platform store at runtime
 4. Update README.md account table
@@ -314,7 +315,7 @@ This matters because real receipt details (line items, amounts, tax) are often i
 
 To enable LLM extraction:
 
-1. Provision `newt-openai-api` in the selected platform store through Keychain Access on macOS or the stdin-backed library on Linux.
+1. Provision `newt-openai-api` with `mailctl secrets set newt-openai-api --apply` in the selected platform store.
 
 2. `mailctl` automatically reads the key from the platform store at runtime
 3. If the key isn't available, the command falls back to regex-based pattern matching

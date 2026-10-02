@@ -6,16 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-**Compatibility blocker:** systemd 256 and current upstream reject
-`--user --with-key=tpm2`: TPM2-only encryption has no user-scoped format.
-The implementation retains the mandated invocations and fails closed; this is
-not working user-mode provisioning. Resolving it requires a policy decision
-between privileged TPM2-only mode and user-scoped host+TPM2 with binding
-verification. No alternative was silently selected.
-[systemd source](https://github.com/systemd/systemd/blob/v256/src/creds/creds.c#L1001-L1013).
-
-
-- Platform-selected secret-store library with read, write, delete and name listing. Existing mail and receipt paths now resolve Linux credentials using TPM2-bound systemd-creds (250–255 via noninteractive sudo, 256+ via user mode), with explicit prerequisite remedies and protected ciphertext permissions. Unsupported-platform credential access reports an error while help/version remain available. Secrets CLI and replication remain future work.
+- Added `secrets list`, `set`, `rm`, `push`, and `import` with JSON outcomes, preview-by-default mutations, hidden prompt or exact stdin input, expected password/OAuth2/OpenAI names, one SSH login-shell replication session, strict optional non-secret account metadata and a versioned JSON-line protocol. Terminal import, unknown versions and malformed records fail before effects. Per-name failures are sanitized and exit nonzero.
+- Linux uses privileged TPM2-only encryption/decryption through noninteractive sudo on every supported systemd version (250+), following the binding 2026-10-02 owner policy. Ciphertext returns over stdout and is written atomically at 0600 in a 0700 directory. TPM2-only user-mode provisioning remains deferred; no weaker fallback is used.
+- Replaced `bin/store-gmail-cred`'s secret-bearing argv with the hidden-prompt secrets command. Added Linux installation, sudoers and real-host verification documentation in `docs/linux-secret-store.md`.
 
 - **`search --include-junk`**, and a stderr note whenever a default search skipped a junk folder: `Not searched: <account> junk folder <path> (add --include-junk to search it)`. The junk folder was always excluded from `search`, silently; on accounts where a screening service files it under an underscore-prefixed parent (`_lma-shield/spam`) this hid an AWS support-case notification for four days. The exclusion stays the default, but it is now visible, and one flag lifts it. `--mailbox` still targets any folder explicitly, including junk.
 

@@ -9,93 +9,7 @@ const { getConfigAccounts, loadConfig, resetConfigCache } = await import(
 
 import { createSecretStore } from "../src/secret-store.js";
 
-const SECRET = `CREDENTIAL_SENTINEL_'"\\\nsecond line`;
-const CIPHERTEXT = Buffer.concat([
-  Buffer.from("0c7cc07b117645919c4b0bea08bc20fe", "hex"),
-  Buffer.from("FAKE_AUTHENTICATED_PAYLOAD"),
-]).toString("base64");
-const DIRECTORY = "/home/stacey/.config/mailctl/credstore.encrypted";
-const SERVICE = "newt-m365-imap";
-const CONFIG = [
-  {
-    prefix: "M365",
-    name: "Microsoft 365",
-    user: "stacey@example.com",
-    host: "imap.example.com",
-    keychainService: SERVICE,
-  },
-];
-
-function fixture({
-  platform = "linux",
-  version = 256,
-  tpm = "yes",
-  fail = "",
-  rejectUserTpm2 = false,
-  secrets = {},
-} = {}) {
-  const calls = [];
-  const files = new Map();
-  const io = [];
-  const filesystem = {
-    mkdir(path, mode) {
-      io.push(["mkdir", path, mode]);
-    },
-    lstat(path) {
-      if (path !== DIRECTORY && !files.has(path)) throw Object.assign(new Error("missing"), { code: "ENOENT" });
-      return { isDirectory: () => path === DIRECTORY, isFile: () => path !== DIRECTORY, isSymbolicLink: () => false };
-    },
-    chmod(path, mode) {
-      io.push(["chmod", path, mode]);
-    },
-    readBuffer(path) {
-      return files.get(path);
-    },
-    writeCiphertext(path, payload, mode) {
-      io.push(["write", path, payload.toString(), mode]);
-      files.set(path, payload);
-    },
-    rename(from, to) {
-      io.push(["rename", from, to]);
-      files.set(to, files.get(from));
-      files.delete(from);
-    },
-    readdir() {
-      return [...files.keys()].map((path) => path.slice(DIRECTORY.length + 1));
-    },
-    rm(path) {
-      io.push(["rm", path]);
-      files.delete(path);
-    },
-  };
-  const subprocess = {
-    execFileSync(command, args, options) {
-      calls.push({ command, args, options });
-      if (rejectUserTpm2 && args.includes("--user") && args.includes("--with-key=tpm2"))
-        throw new Error("Selected key not available in --uid= scoped mode, refusing.");
-      if (args.includes(fail))
-        throw Object.assign(new Error(`subprocess echoed ${SECRET}`), { stdout: SECRET, stderr: SECRET, status: 1 });
-      if (args.includes("--version")) return `systemd ${version}\n`;
-      if (args.includes("has-tpm2")) return tpm;
-      if (args.includes("encrypt")) {
-        files.set(args.at(-1), Buffer.from(CIPHERTEXT));
-        return "";
-      }
-      if (args.includes("decrypt")) return secrets[args.find((arg) => arg.startsWith("--name=")).slice(7)] ?? SECRET;
-      if (args[0] === "find-generic-password") {
-        if (args.includes("-a")) return `${SECRET}\n`;
-        const service = args[args.indexOf("-s") + 1];
-        if (!(service in secrets)) throw Object.assign(new Error(SECRET), { status: 44 });
-        return secrets[service];
-      }
-      if (args[0] === "dump-keychain") return '"svce"<blob>="newt-openai-api"\n"svce"<blob>="newt-m365-imap"';
-      return "";
-    },
-  };
-  for (const service of Object.keys(secrets)) files.set(`${DIRECTORY}/${service}.cred`, Buffer.from(CIPHERTEXT));
-  const store = createSecretStore({ platform, subprocess, filesystem, home: "/home/stacey", username: "stacey" });
-  return { store, calls, files, io, filesystem };
-}
+import { CIPHERTEXT, CONFIG, DIRECTORY, fixture, SECRET, SERVICE } from "./secret-store-fixture.js";
 
 // Inspect every argument, environment option, filesystem payload and captured
 // console call. Only explicitly designated pipe inputs may carry a secret.
@@ -111,7 +25,7 @@ function exposureReport(fixture, logging = []) {
   });
 }
 
-for (const version of [255, 256, 257]) {
+for (const version of [250, 255, 256, 257, 259]) {
   describe(`Linux systemd ${version}`, () => {
     it("round-trips exact names and secrets using only TPM2 stdin and secured ciphertext", () => {
       const f = fixture({ version });
@@ -119,7 +33,7 @@ for (const version of [255, 256, 257]) {
       const value = f.store.readSecret(SERVICE);
       const names = f.store.listNames();
       f.store.deleteSecret(SERVICE);
-      const prefix = version < 256 ? ["-n", "/usr/bin/systemd-creds"] : ["--user"];
+      const prefix = ["-n", "/usr/bin/systemd-creds"];
       expect({
         value,
         names,
@@ -134,17 +48,17 @@ for (const version of [255, 256, 257]) {
         calls: [
           { command: "/usr/bin/systemd-creds", args: ["--version"], input: undefined },
           {
-            command: version < 256 ? "/usr/bin/sudo" : "/usr/bin/systemd-creds",
-            args: version < 256 ? [...prefix, "has-tpm2"] : ["has-tpm2"],
+            command: "/usr/bin/sudo",
+            args: [...prefix, "has-tpm2"],
             input: undefined,
           },
           {
-            command: version < 256 ? "/usr/bin/sudo" : "/usr/bin/systemd-creds",
-            args: [...prefix, "encrypt", "--with-key=tpm2", `--name=${SERVICE}`, "-", `${DIRECTORY}/${SERVICE}.cred`],
+            command: "/usr/bin/sudo",
+            args: [...prefix, "encrypt", "--with-key=tpm2", `--name=${SERVICE}`, "-", "-"],
             input: SECRET,
           },
           {
-            command: version < 256 ? "/usr/bin/sudo" : "/usr/bin/systemd-creds",
+            command: "/usr/bin/sudo",
             args: [...prefix, "decrypt", `--name=${SERVICE}`, `${DIRECTORY}/${SERVICE}.cred`, "-"],
             input: undefined,
           },
@@ -154,8 +68,8 @@ for (const version of [255, 256, 257]) {
           ["chmod", DIRECTORY, 0o700],
           ["write", `${DIRECTORY}/${SERVICE}.cred.tmp`, CIPHERTEXT, 0o600],
           ["rename", `${DIRECTORY}/${SERVICE}.cred.tmp`, `${DIRECTORY}/${SERVICE}.cred`],
-          ["rm", `${DIRECTORY}/${SERVICE}.cred.tmp`],
           ["chmod", `${DIRECTORY}/${SERVICE}.cred`, 0o600],
+          ["rm", `${DIRECTORY}/${SERVICE}.cred.tmp`],
           ["chmod", `${DIRECTORY}/${SERVICE}.cred`, 0o600],
           ["rm", `${DIRECTORY}/${SERVICE}.cred`],
         ],
@@ -176,7 +90,7 @@ it("rejects absent TPM2 with a remedy and never attempts encryption", () => {
   expect({ message, calls: f.calls.map((call) => call.args), io: f.io }).toEqual({
     message:
       "TPM2 is unavailable. Enable TPM2 and install systemd TPM2 support; no host-key or plaintext fallback is permitted.",
-    calls: [["--version"], ["has-tpm2"]],
+    calls: [["--version"], ["-n", "/usr/bin/systemd-creds", "has-tpm2"]],
     io: [],
   });
 });
@@ -218,7 +132,7 @@ it("lists names without decrypting secrets or exposing unrelated files", () => {
   f.files.set(`${DIRECTORY}/notes.txt`, Buffer.from("unrelated"));
   expect({ names: f.store.listNames(), calls: f.calls.map((call) => call.args) }).toEqual({
     names: [SERVICE, "newt-openai-api"],
-    calls: [["--version"], ["has-tpm2"]],
+    calls: [["--version"], ["-n", "/usr/bin/systemd-creds", "has-tpm2"]],
   });
 });
 
@@ -335,8 +249,11 @@ for (const json of [false, true]) {
         disclosed: exposureReport(f, logging).includes("CREDENTIAL_SENTINEL"),
       }).toEqual({
         output: json
-          ? JSON.stringify({ error: "TPM2 credential operation failed; storage was not downgraded." })
-          : "Error: TPM2 credential operation failed; storage was not downgraded.",
+          ? JSON.stringify({
+              error:
+                "TPM2 credential operation failed; storage was not downgraded. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+            })
+          : "Error: TPM2 credential operation failed; storage was not downgraded. If noninteractive sudo is denied, install sudoers rule: stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
         exitCode: 1,
         disclosed: false,
       });
@@ -368,8 +285,8 @@ it("rejects symlink ciphertext before decrypting", () => {
 
 it("does not downgrade when ciphertext permission handling fails", () => {
   const f = fixture();
-  f.filesystem.readBuffer = () => {
-    throw new Error("unreadable ciphertext");
+  f.filesystem.writeCiphertext = () => {
+    throw new Error("unwritable ciphertext");
   };
   let message;
   try {
@@ -378,10 +295,9 @@ it("does not downgrade when ciphertext permission handling fails", () => {
     message = error.message;
   }
   expect({ message, writes: f.io.filter((op) => op[0] === "write"), invocation: f.calls.at(-1).args }).toEqual({
-    message:
-      "Unable to secure TPM2 ciphertext at mode 0600. Check credential-directory ownership and sudo umask (ciphertext must be readable by its owner); no plaintext fallback is permitted.",
+    message: "Unable to secure TPM2 ciphertext at mode 0600; check credential-directory ownership.",
     writes: [],
-    invocation: ["--user", "encrypt", "--with-key=tpm2", `--name=${SERVICE}`, "-", `${DIRECTORY}/${SERVICE}.cred`],
+    invocation: ["-n", "/usr/bin/systemd-creds", "encrypt", "--with-key=tpm2", `--name=${SERVICE}`, "-", "-"],
   });
 });
 
@@ -466,30 +382,18 @@ it("preserves CLI account selection after platform-store resolution", async () =
   ]);
 });
 
-it("fails closed on systemd's real rejection of user-scoped TPM2-only encryption", () => {
+it("avoids rejected user-scoped TPM2 encryption on current systemd", () => {
   const f = fixture({ version: 256, rejectUserTpm2: true });
-  let message;
-  try {
-    f.store.writeSecret(SERVICE, SECRET);
-  } catch (error) {
-    message = error.message;
-  }
-  expect({
-    message,
-    files: [...f.files.keys()],
-    calls: f.calls.map((call) => call.args),
-    disclosed: exposureReport(f).includes("CREDENTIAL_SENTINEL"),
-  }).toEqual({
-    message:
-      "systemd-creds user mode does not support --with-key=tpm2. TPM2-only storage requires a platform-policy decision; no fallback was attempted.",
-    files: [],
-    calls: [
-      ["--version"],
-      ["has-tpm2"],
-      ["--user", "encrypt", "--with-key=tpm2", `--name=${SERVICE}`, "-", `${DIRECTORY}/${SERVICE}.cred`],
-    ],
-    disclosed: false,
-  });
+  f.store.writeSecret(SERVICE, SECRET);
+  expect(f.calls.find((call) => call.args.includes("encrypt")).args).toEqual([
+    "-n",
+    "/usr/bin/systemd-creds",
+    "encrypt",
+    "--with-key=tpm2",
+    `--name=${SERVICE}`,
+    "-",
+    "-",
+  ]);
 });
 
 it("refuses host-only ciphertext before invoking decrypt", () => {
@@ -511,6 +415,28 @@ it("refuses host-only ciphertext before invoking decrypt", () => {
   }
   expect({ message, calls: f.calls.map((call) => call.args) }).toEqual({
     message: "Refusing credential without a TPM2-only encrypted header.",
-    calls: [["--version"], ["has-tpm2"]],
+    calls: [["--version"], ["-n", "/usr/bin/systemd-creds", "has-tpm2"]],
+  });
+});
+
+it("refuses plaintext masquerading as encryption output before any filesystem write", () => {
+  const f = fixture();
+  const execute = f.subprocess.execFileSync;
+  f.subprocess.execFileSync = (command, args, options) =>
+    args.includes("encrypt") ? SECRET : execute(command, args, options);
+  let message;
+  try {
+    f.store.writeSecret(SERVICE, SECRET);
+  } catch (error) {
+    message = error.message;
+  }
+  expect({
+    message,
+    writes: f.io.filter((operation) => operation[0] === "write"),
+    leaked: exposureReport(f).includes("CREDENTIAL_SENTINEL"),
+  }).toEqual({
+    message: "Refusing credential without a TPM2-only encrypted header.",
+    writes: [],
+    leaked: false,
   });
 });

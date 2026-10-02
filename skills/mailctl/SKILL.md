@@ -20,14 +20,19 @@ macOS uses `~/.newt/newt-keychain-db`, automatically unlocked using
 `newt-keychain-password` (account `newt`) from the login keychain. Linux requires
 systemd-creds 250+ and usable TPM2. Only TPM2-bound ciphertext is stored, at
 `~/.config/mailctl/credstore.encrypted/<service>.cred` (directory 0700, file 0600).
-256+ uses per-user mode without sudo; 250–255 uses
+Every supported version uses privileged TPM2-only operations through
 `sudo -n /usr/bin/systemd-creds`. Denied sudo errors include the exact required
 line: `<username> ALL=(root) NOPASSWD: /usr/bin/systemd-creds`.
 
 Never put secrets in argv, environment options, plaintext files or agent output.
-Provision through Keychain Access on macOS or the library's stdin/memory-backed
-`createSecretStore().writeSecret()` on Linux. The library also supports reading,
-deleting and listing names. Secrets CLI and replication are not delivered.
+Provision with `mailctl secrets set <service> --apply` at the hidden prompt on either platform.
+`--stdin` requires a trusted non-terminal pipe; never use shell literals, variables or secret files.
+`secrets list --json` reports availability for expected account/OAuth2/OpenAI names. `secrets rm
+<service>` and `secrets push <user@host>` preview by default; add `--apply` to execute. Push uses
+one SSH login shell and stdin, with optional `--config` for validated non-secret account metadata.
+`secrets import` accepts version 1 JSON lines on non-terminal stdin, previews by default and reports
+per-name outcomes without values. All commands support `--json` and failures exit nonzero. See
+`docs/linux-secret-store.md` in the source repository for installation and operator verification.
 Missing secrets return null; missing prerequisites and operational failures are
 explicit errors without a host-key or plaintext fallback. Unsupported platforms
 report `no secret store on this platform` for credential access, while help and
@@ -35,12 +40,10 @@ version remain usable. Existing environment-discovery compatibility remains
 unchanged when no accounts are configured.
 
 
-**Compatibility blocker:** systemd 256 and current upstream reject
-`--user --with-key=tpm2`: TPM2-only encryption has no user-scoped format.
-The implementation retains the mandated invocations and fails closed; this is
-not working user-mode provisioning. Resolving it requires a policy decision
-between privileged TPM2-only mode and user-scoped host+TPM2 with binding
-verification. No alternative was silently selected.
+TPM2-only user-mode provisioning remains deferred: systemd 256 rejects
+`--user --with-key=tpm2`. The binding 2026-10-02 owner policy requires
+privileged TPM2-only operations on every supported version, including 256+.
+No weaker fallback is selected.
 [systemd source](https://github.com/systemd/systemd/blob/v256/src/creds/creds.c#L1001-L1013).
 
 ## Running Commands

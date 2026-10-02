@@ -241,6 +241,8 @@ describe("buildProgram (integration)", () => {
   // ── defaultDeps shape ────────────────────────────────────────────────────────
 
   it("defaultDeps has the expected top-level slice keys", () => {
-    expect(Object.keys(defaultDeps).sort()).toEqual(["init", "mail", "mutation", "receipts", "requireAccounts"].sort());
+    expect(Object.keys(defaultDeps).sort()).toEqual(
+      ["init", "mail", "mutation", "receipts", "requireAccounts", "secrets"].sort(),
+    );
   });
 });

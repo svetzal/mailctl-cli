@@ -10,7 +10,6 @@ import { SubprocessGateway } from "./gateways/subprocess-gateway.js";
  */
 
 const CREDS = "/usr/bin/systemd-creds";
-const USER_MODE_VERSION = 256;
 const MIN_SYSTEMD_VERSION = 250;
 // systemd's authenticated credential header identifies the encryption key type.
 // https://github.com/systemd/systemd/blob/v256/src/shared/creds-util.h
@@ -24,7 +23,7 @@ const OPTIONS = {
 };
 
 /** @param {string} service @returns {string} */
-function validateService(service) {
+export function validateService(service) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(service) || Buffer.byteLength(service) > 250) {
     throw new Error("Invalid credential service name.");
   }
@@ -71,7 +70,6 @@ export class LinuxSecretStore {
     }
     const output = this.invoke(
       ["has-tpm2"],
-      version,
       undefined,
       "TPM2 is unavailable. Enable TPM2 and install systemd TPM2 support; no host-key or plaintext fallback is permitted.",
     );
@@ -87,23 +85,18 @@ export class LinuxSecretStore {
     return version;
   }
 
-  /** @param {string[]} args @param {number} version @param {string} [input] @param {string} [failure] @returns {string} */
-  invoke(args, version, input, failure = "TPM2 credential operation failed; storage was not downgraded.") {
-    const privileged = version < USER_MODE_VERSION;
+  /** @param {string[]} args @param {string} [input] @param {string} [failure] @returns {string} */
+  invoke(args, input, failure = "TPM2 credential operation failed; storage was not downgraded.") {
     try {
       return String(
-        this.subprocess.execFileSync(
-          privileged ? "/usr/bin/sudo" : CREDS,
-          privileged ? ["-n", CREDS, ...args] : args[0] === "has-tpm2" ? args : ["--user", ...args],
-          { ...OPTIONS, ...(input === undefined ? {} : { input }) },
-        ),
+        this.subprocess.execFileSync("/usr/bin/sudo", ["-n", CREDS, ...args], {
+          ...OPTIONS,
+          ...(input === undefined ? {} : { input }),
+        }),
       );
     } catch {
-      // Never forward stderr, argv, stdin or causes from secret-bearing subprocesses.
       throw new Error(
-        privileged
-          ? `${failure} If noninteractive sudo is denied, install this sudoers line: ${this.username} ALL=(root) NOPASSWD: /usr/bin/systemd-creds`
-          : failure,
+        `${failure} If noninteractive sudo is denied, install sudoers rule: ${this.username} ALL=(root) NOPASSWD: /usr/bin/systemd-creds`,
       );
     }
   }
@@ -120,21 +113,6 @@ export class LinuxSecretStore {
     }
   }
 
-  /** Older systemd-creds atomically writes a root-owned file. Only ciphertext
-   * is re-homed, within the 0700 directory, to enforce operator-owned 0600.
-   * @param {string} path */
-  sealCiphertext(path) {
-    const ciphertext = this.filesystem.readBuffer(path);
-    requireTpm2Ciphertext(ciphertext);
-    const temporary = `${path}.tmp`;
-    this.filesystem.writeCiphertext(temporary, ciphertext, 0o600);
-    try {
-      this.filesystem.rename(temporary, path);
-    } finally {
-      this.filesystem.rm(temporary);
-    }
-  }
-
   /** @param {string} service @returns {string} */
   path(service) {
     return join(this.directory, `${validateService(service)}.cred`);
@@ -143,33 +121,28 @@ export class LinuxSecretStore {
   /** @param {string} service @returns {string|null} */
   readSecret(service) {
     const path = this.path(service);
-    const version = this.prepare();
+    this.prepare();
     if (!this.exists(path)) return null;
     this.filesystem.chmod(path, 0o600);
     requireTpm2Ciphertext(this.filesystem.readBuffer(path));
-    return this.invoke(["decrypt", `--name=${service}`, path, "-"], version);
+    return this.invoke(["decrypt", `--name=${service}`, path, "-"]);
   }
 
   /** @param {string} service @param {string} secret @returns {void} */
   writeSecret(service, secret) {
     const path = this.path(service);
-    const version = this.prepare();
-    this.invoke(
-      ["encrypt", "--with-key=tpm2", `--name=${service}`, "-", path],
-      version,
-      secret,
-      version >= USER_MODE_VERSION
-        ? "systemd-creds user mode does not support --with-key=tpm2. TPM2-only storage requires a platform-policy decision; no fallback was attempted."
-        : undefined,
-    );
+    this.prepare();
+    const ciphertext = Buffer.from(this.invoke(["encrypt", "--with-key=tpm2", `--name=${service}`, "-", "-"], secret));
+    requireTpm2Ciphertext(ciphertext);
+    const temporary = `${path}.tmp`;
     try {
-      if (!this.exists(path)) throw new Error();
-      this.sealCiphertext(path);
+      this.filesystem.writeCiphertext(temporary, ciphertext, 0o600);
+      this.filesystem.rename(temporary, path);
       this.filesystem.chmod(path, 0o600);
     } catch {
-      throw new Error(
-        "Unable to secure TPM2 ciphertext at mode 0600. Check credential-directory ownership and sudo umask (ciphertext must be readable by its owner); no plaintext fallback is permitted.",
-      );
+      throw new Error("Unable to secure TPM2 ciphertext at mode 0600; check credential-directory ownership.");
+    } finally {
+      this.filesystem.rm(temporary);
     }
   }
 

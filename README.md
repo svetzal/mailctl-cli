@@ -20,28 +20,35 @@ On macOS, secrets remain in `~/.newt/newt-keychain-db`. mailctl automatically
 reads `newt-keychain-password` (account `newt`) from the login keychain and
 unlocks the Newt keychain before account or OpenAI reads. Unlock and write
 operations use native Security APIs via stdin, so quoting and embedded newlines
-do not become command arguments. Use Keychain Access to provision secrets;
+do not become command arguments. Use `mailctl secrets set <service> --apply` or Keychain Access to provision secrets;
 never put a password in a command argument.
 
 On Linux, mailctl requires systemd-creds 250+ and a usable TPM2. Ciphertext lives
 at `~/.config/mailctl/credstore.encrypted/<service>.cred`: directory mode `0700`,
-files mode `0600`. Encryption is strictly `--with-key=tpm2`. systemd 256+ uses
-`--user` without sudo; versions 250–255 use
-`sudo -n /usr/bin/systemd-creds`. If noninteractive sudo is denied, the error
-includes the required sudoers line (replace `stacey` with the operator's login):
+files mode `0600`. Every supported systemd version uses
+`sudo -n /usr/bin/systemd-creds` with TPM2-only encryption/decryption.
+The exact sudoers rule is `<username> ALL=(root) NOPASSWD: /usr/bin/systemd-creds`.
+Encryption returns ciphertext through stdout; mailctl atomically writes it with
+operator ownership and 0600 permissions. Plaintext stays in memory/stdin.
 
-```sudoers
-stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds
+```sh
+mailctl secrets list --json
+mailctl secrets set newt-gmail-imap              # preview
+mailctl secrets set newt-gmail-imap --apply      # hidden prompt
+mailctl secrets rm newt-gmail-imap              # preview; add --apply to delete
+mailctl secrets push stacey@ops-01 --json        # preview; no SSH
+mailctl secrets push stacey@ops-01 --config --apply --json
 ```
 
-This grants privileged systemd-creds access. Review it for your own host. Older
-systemd-creds writes root-owned ciphertext; mailctl re-homes only ciphertext
-inside the protected directory to enforce `0600`. A restrictive sudo umask that
-makes that ciphertext unreadable causes an explicit failure.
+`set --stdin --apply` accepts exact bytes from a trusted piped source; never
+place secrets in shell literals, variables, files or arguments. Push transfers
+expected account password/OAuth2 and OpenAI credentials in one SSH login-shell
+session, optionally with validated non-secret account metadata. Import accepts
+a versioned line-delimited protocol on non-terminal stdin and previews by
+default. All commands support `--json`, report names/outcomes without values,
+and exit nonzero on failures. See [Linux installation, provisioning and
+real-host verification](docs/linux-secret-store.md) for the operator procedure.
 
-The library's `createSecretStore()` exposes `readSecret`, `writeSecret`,
-`deleteSecret`, and `listNames`. Provisioning must supply secrets in memory or
-over stdin. There is no secrets CLI or replication workflow in this foundation.
 TPM2, systemd, sudo, encryption and decryption failures never select a host-only
 key or plaintext fallback. Unsupported platforms report
 `no secret store on this platform` on credential access; help and version work.
@@ -50,12 +57,10 @@ The existing environment-discovery compatibility path remains unchanged when
 no accounts are configured; configured Linux accounts always use the TPM2 store.
 
 
-**Compatibility blocker:** systemd 256 and current upstream reject
-`--user --with-key=tpm2`: TPM2-only encryption has no user-scoped format.
-The implementation retains the mandated invocations and fails closed; this is
-not working user-mode provisioning. Resolving it requires a policy decision
-between privileged TPM2-only mode and user-scoped host+TPM2 with binding
-verification. No alternative was silently selected.
+TPM2-only user-mode provisioning remains deferred: systemd 256 rejects
+`--user --with-key=tpm2`. The binding 2026-10-02 owner policy requires
+privileged TPM2-only operations on every supported version, including 256+.
+No weaker fallback is selected.
 [systemd source](https://github.com/systemd/systemd/blob/v256/src/creds/creds.c#L1001-L1013).
 
 ### Currently Configured Accounts

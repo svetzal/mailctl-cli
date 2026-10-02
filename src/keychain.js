@@ -9,7 +9,7 @@
  *   {keychainService}-client-secret → OAuth2 client secret
  */
 
-const OPENAI_SERVICE = "newt-openai-api";
+export const OPENAI_SERVICE = "newt-openai-api";
 
 /**
  * @typedef {import("./secret-store.js").CredentialReader} KeychainGateway
@@ -25,6 +25,16 @@ const OPENAI_SERVICE = "newt-openai-api";
  * @property {number} [port]
  * @property {{ host: string, port: number, secure: boolean }} [smtp]
  */
+
+/** @param {string} service @returns {{password: string, clientId: string, tenantId: string, clientSecret: string}} */
+export function accountSecretServices(service) {
+  return {
+    password: service,
+    clientId: `${service}-client-id`,
+    tenantId: `${service}-tenant-id`,
+    clientSecret: `${service}-client-secret`,
+  };
+}
 
 /**
  * Load account credentials from keychain for all configured accounts.
@@ -46,10 +56,11 @@ export function loadAccountCredentials(configAccounts, keychain) {
 
     if (!user || !host || !svc) continue;
 
+    const services = accountSecretServices(svc);
     // Try OAuth2 credentials first
-    const clientId = keychain.readSecret(`${svc}-client-id`);
-    const tenantId = keychain.readSecret(`${svc}-tenant-id`);
-    const clientSecret = keychain.readSecret(`${svc}-client-secret`);
+    const clientId = keychain.readSecret(services.clientId);
+    const tenantId = keychain.readSecret(services.tenantId);
+    const clientSecret = keychain.readSecret(services.clientSecret);
 
     const smtp = acct.smtp || null;
 
@@ -59,7 +70,7 @@ export function loadAccountCredentials(configAccounts, keychain) {
     }
 
     // Fall back to password-based auth
-    const pass = keychain.readSecret(svc);
+    const pass = keychain.readSecret(services.password);
     if (pass) {
       accounts.push({ name: acct.name, user, pass, host, port, smtp });
     }

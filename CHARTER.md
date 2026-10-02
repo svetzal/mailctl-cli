@@ -11,7 +11,8 @@ mailctl serves Stacey Vetzal's personal and business email accounts on her Mac a
 - Download and deduplicate business receipt PDF attachments for bookkeeper handoff
 - Keep credentials secure via macOS Keychain or TPM2-bound systemd credentials on Linux -- no plaintext secret files or secrets in agent contexts
 - Support machine-readable (--json) output on all commands for agent and pipeline integration
-- Ship as a single compiled binary installable via Homebrew
+- Provision and replicate credentials through preview/apply CLI operations without exposing values; on Linux use privileged TPM2-only operations on every supported systemd version
+- Ship as a single compiled binary installable via Homebrew on macOS or directly on Linux
 
 ## Non-Goals
 
@@ -23,3 +24,11 @@ mailctl serves Stacey Vetzal's personal and business email accounts on her Mac a
 ## Target Users
 
 Stacey Vetzal and agents operating on her behalf. The tool is designed for a solo operator who needs automated receipt management and email search across personal and business accounts.
+
+## Credential policy
+
+`mailctl.charter.credentials-in-platform-secret-store` and
+`operations.decision.2026-10-02.mailctl-on-ops-01` authorize platform-neutral
+credential provisioning and replication. The binding always-sudo decision
+requires privileged TPM2-only Linux encryption/decryption, with no weaker
+fallback. See [the operator workflow](docs/linux-secret-store.md).

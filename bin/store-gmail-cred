@@ -1,9 +1,3 @@
-#!/bin/bash
-# Store Gmail IMAP password in newt keychain
-KC="$HOME/.newt/newt-keychain-db"
-EMAIL="${1:?Usage: store-gmail-cred <email@example.com>}"
-echo -n "Enter Gmail app password: "
-read -s PASS
-echo
-security add-generic-password -s "newt-gmail-imap" -a "$EMAIL" -w "$PASS" "$KC"
-echo "✅ Gmail credential stored in newt keychain"
+#!/bin/sh
+# Compatibility wrapper: secrets never enter shell variables or argv.
+exec mailctl secrets set newt-gmail-imap --apply
