@@ -1,6 +1,6 @@
 # mailctl
 
-Personal email operations tool — receipt sorting, search, folder management, and more. Connects to email accounts via secure keychain credentials, manages receipts, searches mail, and provides general IMAP operations across multiple accounts.
+Personal email operations tool — receipt sorting, search, folder management, and more. Connects to email accounts via platform secret stores, manages receipts, searches mail, and provides general IMAP operations across multiple accounts.
 
 - **Created:** 2026-01-31
 
@@ -10,22 +10,53 @@ Personal email operations tool — receipt sorting, search, folder management, a
 npm install
 ```
 
-### Credential Storage (macOS Keychain)
+### Credential Storage
 
-Credentials are stored in `~/.newt/newt-keychain-db` — an encrypted macOS Keychain file. **No `.env` files, no plaintext secrets on disk.**
+Account metadata stays in `~/.config/mailctl/config.json`. The existing
+`keychainService` field names the credential on both platforms; service names
+and OAuth2-first lookup are unchanged. No plaintext secret files are used.
 
-To add an IMAP account:
+On macOS, secrets remain in `~/.newt/newt-keychain-db`. mailctl automatically
+reads `newt-keychain-password` (account `newt`) from the login keychain and
+unlocks the Newt keychain before account or OpenAI reads. Unlock and write
+operations use native Security APIs via stdin, so quoting and embedded newlines
+do not become command arguments. Use Keychain Access to provision secrets;
+never put a password in a command argument.
 
-```bash
-security unlock-keychain ~/.newt/newt-keychain-db
-read -rs "pw?Password: " && security add-generic-password \
-  -a "you@example.com" \
-  -s "newt-<account>-imap" \
-  -l "<Account> IMAP" \
-  -w "$pw" ~/.newt/newt-keychain-db && unset pw && echo " ✅"
+On Linux, mailctl requires systemd-creds 250+ and a usable TPM2. Ciphertext lives
+at `~/.config/mailctl/credstore.encrypted/<service>.cred`: directory mode `0700`,
+files mode `0600`. Encryption is strictly `--with-key=tpm2`. systemd 256+ uses
+`--user` without sudo; versions 250–255 use
+`sudo -n /usr/bin/systemd-creds`. If noninteractive sudo is denied, the error
+includes the required sudoers line (replace `stacey` with the operator's login):
+
+```sudoers
+stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds
 ```
 
-The `mailctl` binary reads credentials directly from the macOS Keychain at runtime. Secrets are never exposed to calling processes or agent contexts.
+This grants privileged systemd-creds access. Review it for your own host. Older
+systemd-creds writes root-owned ciphertext; mailctl re-homes only ciphertext
+inside the protected directory to enforce `0600`. A restrictive sudo umask that
+makes that ciphertext unreadable causes an explicit failure.
+
+The library's `createSecretStore()` exposes `readSecret`, `writeSecret`,
+`deleteSecret`, and `listNames`. Provisioning must supply secrets in memory or
+over stdin. There is no secrets CLI or replication workflow in this foundation.
+TPM2, systemd, sudo, encryption and decryption failures never select a host-only
+key or plaintext fallback. Unsupported platforms report
+`no secret store on this platform` on credential access; help and version work.
+
+The existing environment-discovery compatibility path remains unchanged when
+no accounts are configured; configured Linux accounts always use the TPM2 store.
+
+
+**Compatibility blocker:** systemd 256 and current upstream reject
+`--user --with-key=tpm2`: TPM2-only encryption has no user-scoped format.
+The implementation retains the mandated invocations and fails closed; this is
+not working user-mode provisioning. Resolving it requires a policy decision
+between privileged TPM2-only mode and user-scoped host+TPM2 with binding
+verification. No alternative was silently selected.
+[systemd source](https://github.com/systemd/systemd/blob/v256/src/creds/creds.c#L1001-L1013).
 
 ### Currently Configured Accounts
 
@@ -41,7 +72,7 @@ The `mailctl` binary reads credentials directly from the macOS Keychain at runti
 mailctl <command> [options]
 ```
 
-For development (running from the source repo), use `bin/run` instead to inject keychain credentials.
+For development (running from the source repo), use `bun src/cli.js <command>` or `bin/run`; both use the same platform store.
 
 ### General Email Operations
 
@@ -191,10 +222,12 @@ Downloads receipt PDFs and writes a JSON sidecar alongside each one with extract
 src/
 ├── cli.js              # CLI interface (commander)
 ├── index.js            # Public API exports
-├── accounts.js         # Account loading with keychain credentials
-├── keychain.js         # Keychain credential resolution logic
+├── accounts.js         # Account loading with platform credentials
+├── keychain.js         # OAuth2-first credential resolution logic
+├── secret-store.js     # Platform selection and TPM2 Linux store
 ├── gateways/
-│   └── keychain-gateway.js  # Thin wrapper for macOS security CLI
+│   ├── keychain-gateway.js  # macOS Keychain access
+│   └── credential-filesystem-gateway.js # Credential-only file operations
 ├── imap-client.js      # IMAP connection, search, fetch, folder listing
 ├── scanner.js          # Scan orchestration & sender aggregation
 ├── sorter.js           # IMAP folder creation & message moving
@@ -205,16 +238,11 @@ data/                   # (gitignored) scan results, classifications, manifest
 
 ## Security Model
 
-```
-User / Agent
-  → invokes mailctl (cannot see secrets)
-    → reads keychain password from login keychain
-      → unlocks ~/.newt/newt-keychain-db
-        → reads IMAP credentials via security CLI
-          → credentials exist only in process memory
-```
-
-Secrets never appear in agent context, command history, or on disk.
+macOS reads the unlock password from the login keychain and opens the Newt
+keychain. Linux encrypts stdin directly with TPM2-bound systemd credentials and
+decrypts to a captured pipe. Secret values stay in memory and pipe transport;
+only encrypted credentials reach the filesystem. Subprocess diagnostics are
+replaced with safe operational errors before text or JSON CLI output.
 
 ## License
 

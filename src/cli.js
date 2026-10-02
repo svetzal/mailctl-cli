@@ -7,14 +7,14 @@ import { mutationDeps, registerMutationCommands } from "./cli/mutation-cli.js";
 import { receiptsDeps, registerReceiptsCommands } from "./cli/receipts-cli.js";
 import { createCliContext } from "./cli-context.js";
 import { NO_ACCOUNTS_CONFIGURED_MESSAGE } from "./cli-helpers.js";
-import { KeychainGateway } from "./gateways/keychain-gateway.js";
 import { loadOpenAiKey } from "./keychain.js";
+import { createSecretStore } from "./secret-store.js";
 
-const _keychainSingleton = new KeychainGateway();
+const _keychainSingleton = createSecretStore();
 
-function makeRequireAccounts(keychain) {
+function makeRequireAccounts(keychain, readConfigAccounts) {
   return () => {
-    const accounts = loadAccounts(keychain);
+    const accounts = loadAccounts(keychain, readConfigAccounts);
     if (accounts.length === 0) {
       throw new Error(NO_ACCOUNTS_CONFIGURED_MESSAGE);
     }
@@ -26,6 +26,7 @@ function makeGetOpenAiKey(keychain) {
   let _cache;
   return () => {
     if (_cache === undefined) {
+      keychain.unlockNewtKeychain();
       _cache = loadOpenAiKey(keychain);
     }
     return _cache;
@@ -34,15 +35,21 @@ function makeGetOpenAiKey(keychain) {
 
 /**
  * Default production dependencies — each value is the named noun-registrar's own dep slice.
- * `receipts.getOpenAiKey` is overridden here with the real keychain-backed getter.
+ * The account and OpenAI resolvers share one platform-selected store.
+ * @param {import("./secret-store.js").CredentialReader} [store]
+ * @param {() => import("./keychain.js").ConfigAccount[]} [readConfigAccounts]
  */
-export const defaultDeps = {
-  requireAccounts: makeRequireAccounts(_keychainSingleton),
-  receipts: { ...receiptsDeps, getOpenAiKey: makeGetOpenAiKey(_keychainSingleton) },
-  mail: mailDeps,
-  mutation: mutationDeps,
-  init: initDeps,
-};
+export function createDefaultDeps(store = _keychainSingleton, readConfigAccounts) {
+  return {
+    requireAccounts: makeRequireAccounts(store, readConfigAccounts),
+    receipts: { ...receiptsDeps, getOpenAiKey: makeGetOpenAiKey(store) },
+    mail: mailDeps,
+    mutation: mutationDeps,
+    init: initDeps,
+  };
+}
+
+export const defaultDeps = createDefaultDeps();
 
 /**
  * Build and return a configured Commander program instance without parsing.

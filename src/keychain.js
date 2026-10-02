@@ -1,6 +1,6 @@
 /**
- * Resolve account secrets from macOS Keychain.
- * Pure logic — receives a keychain gateway for I/O, testable with mocks.
+ * Resolve account secrets from the platform secret store.
+ * Pure logic — receives a credential reader for I/O, testable with mocks.
  *
  * Performs per-account secret resolution using the account's keychainService field:
  *   {keychainService}              → IMAP password
@@ -12,7 +12,7 @@
 const OPENAI_SERVICE = "newt-openai-api";
 
 /**
- * @typedef {import("./gateways/keychain-gateway.js").KeychainGateway} KeychainGateway
+ * @typedef {import("./secret-store.js").CredentialReader} KeychainGateway
  */
 
 /**

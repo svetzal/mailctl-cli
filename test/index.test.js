@@ -22,6 +22,7 @@ describe("index public API", () => {
       "cleanVendorForFilename",
       "collectValues",
       "connect",
+      "createSecretStore",
       "discoverAccountsFromEnv",
       "downloadReceiptEmails",
       "downloadReceipts",

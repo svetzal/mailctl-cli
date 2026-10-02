@@ -45,6 +45,7 @@ export {
 // Reply
 export { buildEditorTemplate, buildReplyBody, buildReplyHeaders, parseEditorContent } from "./reply.js";
 export { aggregateBySender, scanAllAccounts } from "./scanner.js";
+export { createSecretStore } from "./secret-store.js";
 // Pure business logic
 export { BIZ_FOLDER, classifyMessage, PERSONAL_FOLDER, planMoves } from "./sort-logic.js";
 export { sortReceipts } from "./sorter.js";

@@ -2,13 +2,13 @@
 name: mailctl
 description: |
   Personal email operations tool — receipt sorting, search, folder management, and more.
-  Connects to email accounts via macOS Keychain credentials, provides general IMAP
+  Connects to email accounts via platform secret-store credentials, provides general IMAP
   operations (search, read, folder listing), identifies receipt emails, classifies by
   business/personal, sorts into IMAP folders, and downloads business receipt PDFs
   for bookkeeping.
 
   Bun ES module project using imapflow for IMAP operations and commander for CLI.
-  Secrets are managed via macOS Keychain — never stored in .env files or source.
+  Secrets are managed via macOS Keychain or TPM2-bound Linux credentials — never stored in .env files or source.
 ---
 
 # mailctl Agent Instructions
@@ -113,7 +113,7 @@ src/receipts/format-download-receipts.js — formatDownloadReceiptsText(), build
 Pure logic modules:
 src/config.js                  — Loads ~/.config/mailctl/config.json (account metadata)
 src/accounts.js                — Builds IMAP account list from config.json + env var secrets
-src/keychain.js                — loadAccountCredentials(), loadOpenAiKey() — resolve account passwords and OpenAI key from the keychain gateway
+src/keychain.js                — loadAccountCredentials(), loadOpenAiKey() — resolve account passwords and OpenAI key from the platform credential reader
 src/m365-auth.js               — getM365AccessToken() — Microsoft 365 OAuth device-code / token-refresh flow
 src/imap-client.js             — IMAP connection, search, fetch, mailbox filtering, account iteration; scanForReceipts() is a thin adapter over receipts/receipt-mailbox-search.js
 src/imap-orchestration.js      — Shared pure helpers: groupByMailbox(), forEachMailboxGroup()
@@ -174,7 +174,9 @@ src/gateways/imap-gateway.js   — ImapGateway: imapflow wrapper
 src/gateways/smtp-gateway.js   — SmtpGateway: nodemailer wrapper
 src/gateways/editor-gateway.js — EditorGateway: temp file + $EDITOR + read-back workflow
 src/gateways/confirm-gateway.js — ConfirmGateway: readline yes/no prompt wrapper
-src/gateways/keychain-gateway.js — KeychainGateway: reads secrets from ~/.newt/newt-keychain-db (macOS security wrapper)
+src/gateways/keychain-gateway.js — KeychainGateway: macOS reads/deletes/lists via security; unlocks/writes via native Security APIs on stdin
+src/secret-store.js — createSecretStore(): platform selection, LinuxSecretStore TPM2 operations, unsupported-platform errors; read/write/delete/listNames library API
+src/gateways/credential-filesystem-gateway.js — thin credential-only filesystem operations with explicit permissions
 
 src/index.js                   — Public API re-exports
 src/init.js                    — initCommand() (imperative shell), buildInitResult()/warningFor() (pure) — delegates multi-platform skill install to cmx-core behind `mailctl init`
@@ -189,8 +191,8 @@ data/                          — Runtime data (gitignored): scan results, clas
 - **Content-hash dedup** (SHA-256) prevents duplicate PDF downloads — all PDF hashing goes through `contentHash()` (`src/receipts/receipt-decisions.js`); nothing calls `createHash("sha256")` on a PDF buffer directly
 - **Single source for lookback dates** — every scan/sort/download/extract lookback date is computed via `monthsAgo()` (`src/parse-date.js`), which normalizes to local midnight so messages received earlier today aren't excluded; month-count defaults for each command come from `src/receipt-defaults.js`
 - **Single summary renderer** — the `receipts extract` run summary is rendered only by `formatDownloadReceiptsText()` (`src/receipts/format-download-receipts.js`); the library layer returns `{ stats, records }` and does not narrate its own progress summary
-- **Config-driven accounts** — account metadata (host, port, user) lives in `~/.config/mailctl/config.json`; secrets come from macOS Keychain
-- **Direct keychain access** — secrets are read from `~/.newt/newt-keychain-db` at runtime via `KeychainGateway` (`src/gateways/keychain-gateway.js`); `src/keychain.js` wraps the gateway to expose `loadAccountCredentials()` and `loadOpenAiKey()`; no wrapper script or env vars needed
+- **Config-driven accounts** — account metadata (host, port, user) lives in `~/.config/mailctl/config.json`; secrets come from the platform secret store
+- **macOS keychain access** — secrets are read from `~/.newt/newt-keychain-db` at runtime via `KeychainGateway` (`src/gateways/keychain-gateway.js`); `src/keychain.js` wraps the gateway to expose `loadAccountCredentials()` and `loadOpenAiKey()`; no wrapper script or env vars needed
 - **Shared helpers** — `forEachAccount()` handles connect/logout lifecycle, `filterScanMailboxes()` and `filterSearchMailboxes()` centralize mailbox exclusion logic
 - **Search dedup** — search deduplicates results by message-id header to avoid showing the same email found in multiple mailboxes (e.g. Gmail All Mail + INBOX)
 - **Consistent `--json`** — all commands support `--json` for machine-readable output; errors also output as JSON in that mode
@@ -265,8 +267,21 @@ If tests fail, the line executes and the coverage report was wrong — do not ad
 
 - **NEVER** store credentials in source files, .env files, or commit them
 - **NEVER** log, print, or expose secret values
-- Credentials come from macOS Keychain via `KeychainGateway` at runtime
-- If adding a new secret, add it to the Newt keychain (`~/.newt/newt-keychain-db`)
+- Credentials come from `createSecretStore()` at runtime: macOS Newt Keychain or TPM2-bound Linux systemd credentials
+- Never place secret values in subprocess argv, environment options, logs or plaintext files. Use stdin or in-memory native calls.
+- Linux requires systemd-creds 250+ and usable TPM2; 256+ uses `--user`, earlier versions use `sudo -n /usr/bin/systemd-creds`. The denied-sudo remedy is `<username> ALL=(root) NOPASSWD: /usr/bin/systemd-creds`. No host-key-only or plaintext fallback.
+- Linux ciphertext: `~/.config/mailctl/credstore.encrypted/<service>.cred`, directory 0700 and file 0600. The library has read/write/delete/listNames; secrets CLI and replication are subsequent work.
+- Unsupported-platform store access throws `no secret store on this platform`; construction, help and version stay usable.
+- If adding a secret on macOS, use Newt Keychain (`~/.newt/newt-keychain-db`) via Keychain Access or the stdin-backed library. On Linux, provision the same service through the TPM2-backed library.
+
+
+**Compatibility blocker:** systemd 256 and current upstream reject
+`--user --with-key=tpm2`: TPM2-only encryption has no user-scoped format.
+The implementation retains the mandated invocations and fails closed; this is
+not working user-mode provisioning. Resolving it requires a policy decision
+between privileged TPM2-only mode and user-scoped host+TPM2 with binding
+verification. No alternative was silently selected.
+[systemd source](https://github.com/systemd/systemd/blob/v256/src/creds/creds.c#L1001-L1013).
 
 ### Adding a New Email Account
 
@@ -283,13 +298,9 @@ If tests fail, the line executes and the coverage report was wrong — do not ad
    }
    ```
 
-2. Store the password in Newt keychain:
+2. Provision `newt-example-imap` in the selected store using Keychain Access on macOS or `createSecretStore().writeSecret()` with an in-memory value. Never put secrets in command arguments.
 
-   ```bash
-   security add-generic-password -a "you@example.com" -s "newt-example-imap" -l "Example IMAP" -w ~/.newt/newt-keychain-db
-   ```
-
-3. `mailctl` automatically reads the keychainService from the Newt keychain at runtime
+3. `mailctl` automatically reads `keychainService` from the platform store at runtime
 4. Update README.md account table
 
 ### LLM-Based Receipt Extraction
@@ -303,13 +314,9 @@ This matters because real receipt details (line items, amounts, tax) are often i
 
 To enable LLM extraction:
 
-1. Store your OpenAI API key in the Newt keychain:
+1. Provision `newt-openai-api` in the selected platform store through Keychain Access on macOS or the stdin-backed library on Linux.
 
-   ```bash
-   security add-generic-password -s "newt-openai-api" -a "openai" -l "OpenAI API Key" -w ~/.newt/newt-keychain-db
-   ```
-
-2. `mailctl` automatically reads the key from the Newt keychain at runtime
+2. `mailctl` automatically reads the key from the platform store at runtime
 3. If the key isn't available, the command falls back to regex-based pattern matching
 4. `docling` must be installed at `~/.local/bin/docling` for PDF-to-markdown conversion; if missing, falls back to email body text
 

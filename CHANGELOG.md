@@ -6,9 +6,22 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+**Compatibility blocker:** systemd 256 and current upstream reject
+`--user --with-key=tpm2`: TPM2-only encryption has no user-scoped format.
+The implementation retains the mandated invocations and fails closed; this is
+not working user-mode provisioning. Resolving it requires a policy decision
+between privileged TPM2-only mode and user-scoped host+TPM2 with binding
+verification. No alternative was silently selected.
+[systemd source](https://github.com/systemd/systemd/blob/v256/src/creds/creds.c#L1001-L1013).
+
+
+- Platform-selected secret-store library with read, write, delete and name listing. Existing mail and receipt paths now resolve Linux credentials using TPM2-bound systemd-creds (250–255 via noninteractive sudo, 256+ via user mode), with explicit prerequisite remedies and protected ciphertext permissions. Unsupported-platform credential access reports an error while help/version remain available. Secrets CLI and replication remain future work.
+
 - **`search --include-junk`**, and a stderr note whenever a default search skipped a junk folder: `Not searched: <account> junk folder <path> (add --include-junk to search it)`. The junk folder was always excluded from `search`, silently; on accounts where a screening service files it under an underscore-prefixed parent (`_lma-shield/spam`) this hid an AWS support-case notification for four days. The exclusion stays the default, but it is now visible, and one flag lifts it. `--mailbox` still targets any folder explicitly, including junk.
 
 ### Changed
+
+- macOS unlock and write operations transport secrets through stdin to native Security APIs instead of secret-bearing argv. Newt keychain location, login-keychain unlock source, service names, OAuth2 precedence and environment discovery are preserved. Secret-bearing subprocess diagnostics are sanitized before CLI output.
 
 - **BREAKING: commands now exit non-zero when any operational failure occurred, even if the overall command otherwise "completed."** Previously, a total IMAP account outage during `search`/`inbox`/`contacts`/`folders` printed an empty result and exited 0 — indistinguishable from "no matches." Per-account connect failures now surface as `accountFailures` in the result (and, in `--json` mode, in the payload), a `⚠` warning prints in text mode, and the process exits 1. `move`/`flag` now fold connect failures into `stats.failed` the same way they already fold per-UID failures. `receipts extract`'s `download`, `reprocess`, and `--list-vendors` modes previously only checked `stats.errors`/`stats.timedOut` for the `download` mode and silently ignored search failures and dedup-index load failures elsewhere; all three modes now escalate consistently via a shared `src/exit-status.js` contract. Scripts that previously treated exit 0 as "ran clean" should now check the exit code instead of (or in addition to) parsing stdout/stderr for warnings.
 - **Consolidated per-command month-lookback defaults into `src/receipt-defaults.js`.** Each of `scan` (12), `sort` (24), `download` (24), and `extract` (12) previously had its default declared three times — once in the CLI option, once in the command orchestrator, once in the library function — with no single place to change it. All three layers now import from the shared constants.
