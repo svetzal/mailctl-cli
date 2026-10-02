@@ -29,11 +29,14 @@ operator's login for `<username>` and checking it with `visudo`:
 <username> ALL=(root) NOPASSWD: /usr/bin/systemd-creds
 ```
 
-For Stacey on ops-01 the rule is:
+On `mojility-ops-01` the login is `svetzal`, so the rule is:
 
 ```sudoers
-stacey ALL=(root) NOPASSWD: /usr/bin/systemd-creds
+svetzal ALL=(root) NOPASSWD: /usr/bin/systemd-creds
 ```
+
+That host already grants `svetzal` passwordless sudo for every command, so no
+new rule is needed there.
 
 Check `systemd-creds --version` and `sudo -n /usr/bin/systemd-creds has-tpm2`.
 The latter must return `yes`. If TPM2 is unavailable, enable it in firmware,
