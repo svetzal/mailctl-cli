@@ -123,7 +123,9 @@ function remoteOutcomes(output, target, entries) {
       throw new Error("Invalid import outcome.");
     if (entry.diagnostic !== undefined && entry.status !== "failed") throw new Error("Invalid import outcome.");
     const diagnostic = entry.diagnostic === undefined ? undefined : validateRemoteDiagnostic(entry.diagnostic);
-    if (diagnostic?.username !== undefined && (!target.includes("@") || diagnostic.username !== target.split("@")[0]))
+    // Host-only destinations let SSH configuration select the remote login.
+    // Explicit logins must still match the canonical diagnostic's username.
+    if (diagnostic?.username !== undefined && target.includes("@") && diagnostic.username !== target.split("@")[0])
       throw new Error("Invalid destination username.");
     return { name: entries[index].name, status: entry.status, ...(diagnostic ? { diagnostic } : {}) };
   });

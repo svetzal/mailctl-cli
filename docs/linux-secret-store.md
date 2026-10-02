@@ -79,7 +79,7 @@ values are rejected. Interactive `set --apply` hides input and ends at Enter.
 ```sh
 mailctl secrets push stacey@ops-01 --json                # preview: no SSH or secret reads
 mailctl secrets push stacey@ops-01 --apply --json         # provision secrets
-mailctl secrets push stacey@ops-01 --config --apply --json # also install account metadata
+mailctl secrets push stacey@ops-01 --with-config --apply --json # also install account metadata
 ```
 
 Push selects `newt-openai-api` plus each configured `keychainService` and its
@@ -94,7 +94,7 @@ shell's PATH. The secret stream travels only through SSH stdin. Remote secrets
 are decrypted locally and re-encrypted against the destination TPM2; encrypted
 files are never copied between machines.
 
-`--config` sends only validated account metadata: prefix, name, user, host,
+`--with-config` (also accepted as `--config`) sends only validated account metadata: prefix, name, user, host,
 port, keychainService and optional SMTP host/port/secure. Unknown fields,
 password fields, invalid ports and control characters are rejected before
 transmission or writes. Import replaces the destination account array and
@@ -129,10 +129,11 @@ say to install the rule **if** noninteractive sudo is denied. `SYSTEMD_REQUIRED`
 asks for systemd-creds 250 or newer and usable TPM2.
 
 Push accepts only canonical diagnostic fields and reconstructs remedies locally;
-it never forwards subprocess or remote error text. Use explicit `user@host` to
-receive remote sudoers diagnostics: a returned username must match that user.
-Host-only destinations still work, but username-bearing diagnostics are rejected
-as unverified; affected transmitted names become generic `failed` outcomes.
+it never forwards subprocess or remote error text. For explicit `user@host`, a
+returned username must match that user. Host-only destinations such as `ops-01`
+let SSH configuration select the login; canonical diagnostics retain the
+destination username and its exact sudoers remedy. Partial imports retain
+successfully stored names even when SSH exits nonzero.
 Version 1 streams and older name/status-only responses remain supported. Unknown
 local failures remain generic and failed operations exit nonzero. Unexpected
 remote output is rejected without echoing it. No command displays secret values.

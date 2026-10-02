@@ -1,9 +1,90 @@
 import { expect, it } from "bun:test";
 import { buildProgram, createDefaultDeps } from "../src/cli.js";
+import { createSecretStore } from "../src/secret-store.js";
 import { encodeSecretProtocol } from "../src/secrets-protocol.js";
 import { CONFIG, fixture, SECRET, SERVICE } from "./secret-store-fixture.js";
 
 const NAMES = [SERVICE, `${SERVICE}-client-id`, `${SERVICE}-client-secret`, `${SERVICE}-tenant-id`, "newt-openai-api"];
+
+for (const target of ["ops-01", "opsuser@ops-01"]) {
+  for (const json of [false, true]) {
+    for (const sshExit of [0, 1]) {
+      it(`retains destination-user diagnostics and stored names from a real partial import: ${target}, JSON=${json}, SSH=${sshExit}`, async () => {
+        const destination = fixture();
+        const exec = destination.subprocess.execFileSync;
+        destination.subprocess.execFileSync = (command, args, options) => {
+          if (args.includes("encrypt") && args.includes(`--name=${SERVICE}`)) throw new Error(SECRET);
+          return exec(command, args, options);
+        };
+        destination.store = createSecretStore({
+          platform: "linux",
+          username: "opsuser",
+          home: "/home/stacey",
+          subprocess: destination.subprocess,
+          filesystem: destination.filesystem,
+        });
+        const entries = [SERVICE, "newt-openai-api"].map((name) => ({ name, value: SECRET }));
+        const receiver = dependencies(destination, { input: encodeSecretProtocol(entries) });
+        const imported = await run(receiver.deps, ["import", "--apply", "--json"]);
+        const source = fixture({ secrets: Object.fromEntries(entries.map(({ name, value }) => [name, value])) });
+        const transport = [];
+        const sender = dependencies(source, {
+          subprocess: {
+            execFileSync(command, args, options) {
+              transport.push({ command, args, options });
+              if (sshExit)
+                throw Object.assign(new Error(SECRET), {
+                  stdout: Buffer.from(imported.output),
+                  stderr: SECRET,
+                  status: sshExit,
+                });
+              return imported.output;
+            },
+          },
+        });
+        const pushed = await run(sender.deps, ["push", target, "--apply", ...(json ? ["--json"] : [])]);
+        const diagnostic = {
+          code: "ENCRYPT_FAILED",
+          username: "opsuser",
+          remedy:
+            "TPM2 encryption failed. Check TPM2 availability and credential binding. If noninteractive sudo is denied, install sudoers rule: opsuser ALL=(root) NOPASSWD: /usr/bin/systemd-creds",
+        };
+        const results = NAMES.map((name) =>
+          name === SERVICE
+            ? { name, status: "failed", diagnostic }
+            : { name, status: name === "newt-openai-api" ? "stored" : "missing" },
+        );
+        expect({
+          imported: imported.code,
+          pushed: pushed.code,
+          output: pushed.output,
+          transport: transport.map(({ command, args }) => ({ command, args })),
+          leaked:
+            exposure(source, pushed.output, transport, sender.writes) ||
+            exposure(destination, imported.output, [], receiver.writes),
+        }).toEqual({
+          imported: 1,
+          pushed: 1,
+          output: json
+            ? JSON.stringify({ results, stats: { failed: 1 } })
+            : results
+                .map(
+                  ({ name, status, diagnostic }) =>
+                    `${name}: ${status}${diagnostic ? ` [${diagnostic.code}] ${diagnostic.remedy}` : ""}`,
+                )
+                .join("\n"),
+          transport: [
+            {
+              command: "ssh",
+              args: ["-T", "--", target, "exec \"$SHELL\" -lc 'exec mailctl secrets import --apply --json'"],
+            },
+          ],
+          leaked: false,
+        });
+      });
+    }
+  }
+}
 
 /** @param {ReturnType<typeof fixture>} f
  * @param {{input?: string, terminal?: boolean, config?: unknown, subprocess?: import("../src/gateways/subprocess-gateway.js").SubprocessGateway}} [options] */
@@ -84,6 +165,33 @@ it("lists exact expected password, OAuth2 and OpenAI names with availability and
   });
 });
 
+for (const configOption of ["--with-config", "--config"]) {
+  it(`previews push ${configOption} without transport or secret reads`, async () => {
+    const f = fixture({ secrets: { [SERVICE]: SECRET } });
+    const transport = [];
+    const d = dependencies(f, {
+      subprocess: {
+        execFileSync: (...args) => {
+          transport.push(args);
+          return "";
+        },
+      },
+    });
+    const result = await run(d.deps, ["push", "ops-01", configOption, "--json"]);
+    expect({ result, calls: f.calls, io: f.io, reads: d.reads, writes: d.writes, transport }).toEqual({
+      result: {
+        code: 0,
+        output: JSON.stringify({ results: NAMES.map((name) => ({ name, status: "planned" })), stats: { failed: 0 } }),
+      },
+      calls: [],
+      io: [],
+      reads: [],
+      writes: [],
+      transport: [],
+    });
+  });
+}
+
 for (const verb of ["set", "rm", "push"]) {
   it(`previews ${verb} without input, store operations, config writes or SSH`, async () => {
     const f = fixture();
@@ -141,50 +249,52 @@ for (const stdin of [false, true]) {
   });
 }
 
-it("replicates exact sentinel bytes from macOS to Linux using one SSH login shell and validated account metadata", async () => {
-  const source = fixture({ platform: "darwin", secrets: Object.fromEntries(NAMES.map((name) => [name, SECRET])) });
-  const receiver = fixture({ version: 257 });
-  const receiverWrites = [];
-  const transport = [];
-  const sender = dependencies(source, {
-    subprocess: {
-      execFileSync(command, args, options) {
-        transport.push({ command, args, options });
-        return JSON.stringify({
-          results: NAMES.map((name) => ({ name, status: "stored" })),
-          stats: { failed: 0 },
-          config: "stored",
-        });
+for (const configOption of ["--with-config", "--config"]) {
+  it(`replicates exact sentinel bytes from macOS to Linux using one SSH login shell and validated account metadata via ${configOption}`, async () => {
+    const source = fixture({ platform: "darwin", secrets: Object.fromEntries(NAMES.map((name) => [name, SECRET])) });
+    const receiver = fixture({ version: 257 });
+    const receiverWrites = [];
+    const transport = [];
+    const sender = dependencies(source, {
+      subprocess: {
+        execFileSync(command, args, options) {
+          transport.push({ command, args, options });
+          return JSON.stringify({
+            results: NAMES.map((name) => ({ name, status: "stored" })),
+            stats: { failed: 0 },
+            config: "stored",
+          });
+        },
       },
-    },
+    });
+    const sent = await run(sender.deps, ["push", "stacey@ops-01", configOption, "--apply", "--json"]);
+    const remote = dependencies(receiver, { input: String(transport[0].options.input) });
+    const received = await run(remote.deps, ["import", "--apply", "--json"]);
+    receiverWrites.push(...remote.writes);
+    expect({
+      sent: JSON.parse(sent.output),
+      received: JSON.parse(received.output),
+      writes: receiverWrites,
+      receivingBytes: receiver.calls
+        .filter((call) => call.args.includes("encrypt"))
+        .map((call) => [call.args.find((arg) => arg.startsWith("--name=")), call.options.input]),
+      ssh: transport.map(({ command, args }) => ({ command, args })),
+      leaked: exposure(source, sent.output, transport) || exposure(receiver, received.output, [], receiverWrites),
+    }).toEqual({
+      sent: { results: NAMES.map((name) => ({ name, status: "stored" })), stats: { failed: 0 }, config: "stored" },
+      received: { results: NAMES.map((name) => ({ name, status: "stored" })), stats: { failed: 0 }, config: "stored" },
+      writes: [{ accounts: CONFIG }],
+      receivingBytes: NAMES.map((name) => [`--name=${name}`, SECRET]),
+      ssh: [
+        {
+          command: "ssh",
+          args: ["-T", "--", "stacey@ops-01", "exec \"$SHELL\" -lc 'exec mailctl secrets import --apply --json'"],
+        },
+      ],
+      leaked: false,
+    });
   });
-  const sent = await run(sender.deps, ["push", "stacey@ops-01", "--config", "--apply", "--json"]);
-  const remote = dependencies(receiver, { input: String(transport[0].options.input) });
-  const received = await run(remote.deps, ["import", "--apply", "--json"]);
-  receiverWrites.push(...remote.writes);
-  expect({
-    sent: JSON.parse(sent.output),
-    received: JSON.parse(received.output),
-    writes: receiverWrites,
-    receivingBytes: receiver.calls
-      .filter((call) => call.args.includes("encrypt"))
-      .map((call) => [call.args.find((arg) => arg.startsWith("--name=")), call.options.input]),
-    ssh: transport.map(({ command, args }) => ({ command, args })),
-    leaked: exposure(source, sent.output, transport) || exposure(receiver, received.output, [], receiverWrites),
-  }).toEqual({
-    sent: { results: NAMES.map((name) => ({ name, status: "stored" })), stats: { failed: 0 }, config: "stored" },
-    received: { results: NAMES.map((name) => ({ name, status: "stored" })), stats: { failed: 0 }, config: "stored" },
-    writes: [{ accounts: CONFIG }],
-    receivingBytes: NAMES.map((name) => [`--name=${name}`, SECRET]),
-    ssh: [
-      {
-        command: "ssh",
-        args: ["-T", "--", "stacey@ops-01", "exec \"$SHELL\" -lc 'exec mailctl secrets import --apply --json'"],
-      },
-    ],
-    leaked: false,
-  });
-});
+}
 
 it("previews a valid import without touching the receiving store or configuration", async () => {
   const f = fixture();
@@ -625,6 +735,64 @@ for (const diagnostic of [
     });
   });
 }
+
+for (const target of ["ops-01", "opsuser@ops-01", "different@ops-01"]) {
+  for (const diagnostic of [
+    { code: "ENCRYPT_FAILED", username: "opsuser", remedy: SECRET },
+    { code: "ENCRYPT_FAILED", username: "opsuser\nALL=(ALL) ALL", remedy: SECRET },
+    { code: "ENCRYPT_FAILED", username: "opsuser", remedy: SECRET, stderr: SECRET },
+  ]) {
+    it(`rejects hostile destination diagnostics on ${target} without leaking values`, async () => {
+      const f = fixture({ secrets: { [SERVICE]: SECRET, "newt-openai-api": SECRET } });
+      const d = dependencies(f, {
+        subprocess: {
+          execFileSync: () =>
+            JSON.stringify({
+              results: [
+                { name: SERVICE, status: "failed", diagnostic },
+                { name: "newt-openai-api", status: "stored" },
+              ],
+            }),
+        },
+      });
+      const result = await run(d.deps, ["push", target, "--apply", "--json"]);
+      expect({ result, leaked: exposure(f, result.output) }).toEqual({
+        result: {
+          code: 1,
+          output: JSON.stringify({
+            results: NAMES.map((name) => ({
+              name,
+              status: name === SERVICE || name === "newt-openai-api" ? "failed" : "missing",
+            })),
+            stats: { failed: 2 },
+          }),
+        },
+        leaked: false,
+      });
+    });
+  }
+}
+
+it("rejects a canonical remote diagnostic belonging to a different explicit SSH login", async () => {
+  const destination = fixture({ fail: "encrypt" });
+  const remote = await run(
+    dependencies(destination, { input: encodeSecretProtocol([{ name: SERVICE, value: SECRET }]) }).deps,
+    ["import", "--apply", "--json"],
+  );
+  const source = fixture({ secrets: { [SERVICE]: SECRET } });
+  const sender = dependencies(source, { subprocess: { execFileSync: () => remote.output } });
+  const result = await run(sender.deps, ["push", "different@ops-01", "--apply", "--json"]);
+  expect({ result, leaked: exposure(source, result.output) }).toEqual({
+    result: {
+      code: 1,
+      output: JSON.stringify({
+        results: NAMES.map((name) => ({ name, status: name === SERVICE ? "failed" : "missing" })),
+        stats: { failed: 1 },
+      }),
+    },
+    leaked: false,
+  });
+});
 
 it("preserves classified thrown list failures while sanitizing unknown thrown errors", async () => {
   const f = fixture({ fail: "has-tpm2" });

@@ -24,7 +24,8 @@ export function registerSecretsCommands(program, ctx, deps) {
     if (verb === "push")
       command
         .argument("<destination>", "SSH host or user@host")
-        .option("--config", "include validated non-secret account metadata");
+        .option("--with-config", "include validated non-secret account metadata")
+        .option("--config", "alias for --with-config");
     if (verb === "set") command.option("--stdin", "read exact secret bytes from non-terminal stdin");
     if (verb !== "list") ctx.mutating(command);
     command.action(
@@ -35,7 +36,7 @@ export function registerSecretsCommands(program, ctx, deps) {
           result = await secretsCommand(
             verb,
             ["set", "rm", "push"].includes(verb) ? args[0] : undefined,
-            { ...opts, apply: opts.apply && !opts.dryRun },
+            { ...opts, config: opts.withConfig || opts.config, apply: opts.apply && !opts.dryRun },
             deps,
           );
         } catch (error) {
