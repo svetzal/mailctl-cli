@@ -8,11 +8,12 @@
 import { parseIntOption } from "../parse-options.js";
 import { SORT_DEFAULT_MONTHS } from "../receipt-defaults.js";
 import { rethrowWithPrefix } from "../rethrow-with-prefix.js";
-import { sortReceipts } from "../sorter.js";
+import { sortReceipts as _sortReceipts } from "../sorter.js";
 
 /**
  * @typedef {Object} SortCommandDeps
  * @property {string|null|undefined} account - account filter (or null/undefined for all)
+ * @property {typeof _sortReceipts} [sortReceipts] - override for testing
  */
 
 /**
@@ -22,7 +23,7 @@ import { sortReceipts } from "../sorter.js";
  * @returns {Promise<{ moved: number, skipped: number, alreadySorted: number, unclassified: number }>}
  */
 export async function sortCommand(opts, deps, onProgress = () => {}) {
-  const { account } = deps;
+  const { account, sortReceipts = _sortReceipts } = deps;
 
   try {
     return await sortReceipts(

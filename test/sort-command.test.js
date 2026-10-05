@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
+import { sortCommand as sortCommandWithDeps } from "../src/commands/sort-command.js";
 
 function makeSortCommand(overrides = {}) {
   const sortReceipts =
@@ -12,9 +13,7 @@ function makeSortCommand(overrides = {}) {
       }),
     );
 
-  mock.module("../src/sorter.js", () => ({ sortReceipts }));
-
-  const { sortCommand } = require("../src/commands/sort-command.js");
+  const sortCommand = (opts, deps, onProgress) => sortCommandWithDeps(opts, { ...deps, sortReceipts }, onProgress);
 
   return { sortCommand, sortReceipts };
 }
