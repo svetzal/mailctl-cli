@@ -125,7 +125,7 @@
 
     "iconv-lite": ["iconv-lite@0.7.3", "", { "dependencies": { "safer-buffer": ">= 2.1.2 < 3.0.0" } }, "sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ=="],
 
-    "imapflow": ["imapflow@2.4.2", "", { "dependencies": { "@zone-eu/mailsplit": "5.4.21", "encoding-japanese": "2.4.0", "iconv-lite": "0.7.3", "libbase64": "1.3.3", "libmime": "5.4.8", "libqp": "2.1.2", "pino": "10.3.1", "socks": "2.8.10" } }, "sha512-eW8KJnylIsxiWwCHQZmVB1/gZ0ifh2QYjC9VBND1uD2ocDoyLYRlVRupH3iHvzlvGFD+UDXhcY1+J53EpHzbMQ=="],
+    "imapflow": ["imapflow@2.4.3", "", { "dependencies": { "@zone-eu/mailsplit": "5.4.21", "encoding-japanese": "2.4.0", "iconv-lite": "0.7.3", "libbase64": "1.3.3", "libmime": "5.4.8", "libqp": "2.1.2", "pino": "10.3.1", "socks": "2.8.10" } }, "sha512-n9JLurmTDHRYacQXvi7zlNIuyeG7sjsKAXI1nyJ1cFqd1fHwqVXf1UOnmTL/GwnFURvDnQ6H0akuwltyffxyUA=="],
 
     "ip-address": ["ip-address@10.7.2", "", {}, "sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w=="],
 
