@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Upgraded `mojentic` from 2.1.0 to 3.0.0. The receipt-extraction calls (`OpenAIGateway`, `LlmBroker`, `generateObject`, `isOk`, `Message`) keep the same signatures, so no source changes were needed.
+
 ## [2.0.1] - 2026-10-02
 
 ### Fixed
