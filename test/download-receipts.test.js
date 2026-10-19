@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { mkdirSync, rmSync } from "node:fs";
+import { describe, expect, it, mock } from "bun:test";
 import { join } from "node:path";
 import { EXTRACT_DEFAULT_MONTHS } from "../src/receipt-defaults.js";
 import { downloadReceiptEmails, listReceiptVendors, reprocessReceipts } from "../src/receipts/download-receipts.js";
@@ -10,16 +9,7 @@ const HOME = process.env.HOME ?? "/tmp";
 
 const FAKE_PDF = Buffer.from("%PDF-1.4 fake content for tests");
 
-let tmpDir;
-
-beforeEach(() => {
-  tmpDir = join("/tmp", `mailctl-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(tmpDir, { recursive: true });
-});
-
-afterEach(() => {
-  rmSync(tmpDir, { recursive: true, force: true });
-});
+const tmpDir = "/receipts";
 
 // ── downloadReceiptEmails integration ────────────────────────────────────────
 

@@ -180,6 +180,9 @@ src/gateways/confirm-gateway.js — ConfirmGateway: readline yes/no prompt wrapp
 src/gateways/keychain-gateway.js — KeychainGateway: macOS reads/deletes/lists via security; unlocks/writes via native Security APIs on stdin
 src/secret-store.js — createSecretStore(): platform selection, LinuxSecretStore TPM2 operations, unsupported-platform errors; read/write/delete/listNames library API
 src/gateways/credential-filesystem-gateway.js — thin credential-only filesystem operations with explicit permissions
+test/fake-fs.js                — makeFakeFs(): shared in-memory FileSystemGateway double for tests
+
+Only suites under test/gateways/ may perform real filesystem I/O, and only under os.tmpdir(); every other suite injects makeFakeFs() or a mock.
 
 src/index.js                   — Public API re-exports
 src/init.js                    — initCommand() (imperative shell), buildInitResult()/warningFor() (pure) — delegates multi-platform skill install to cmx-core behind `mailctl init`

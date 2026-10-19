@@ -1,20 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { describe, expect, it, mock } from "bun:test";
 import { processReceiptMessage } from "../src/receipts/process-receipt-message.js";
 
 const FAKE_PDF = Buffer.from("%PDF-1.4 fake content for tests");
 
-let tmpDir;
-
-beforeEach(() => {
-  tmpDir = join("/tmp", `mailctl-pm-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(tmpDir, { recursive: true });
-});
-
-afterEach(() => {
-  rmSync(tmpDir, { recursive: true, force: true });
-});
+const tmpDir = "/receipts";
 
 function buildEmailWithPdf(pdfContent = FAKE_PDF) {
   const emailDate = new Date("2025-03-07");

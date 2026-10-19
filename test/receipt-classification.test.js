@@ -1,6 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { downloadReceiptEmails, RECEIPT_EXTRACTION_SCHEMA } from "../src/receipts/download-receipts.js";
 import { makeLock } from "./helpers.js";
 
@@ -8,16 +6,7 @@ import { makeLock } from "./helpers.js";
 
 const _FAKE_PDF = Buffer.from("%PDF-1.4 fake content for tests");
 
-let tmpDir;
-
-beforeEach(() => {
-  tmpDir = join("/tmp", `mailctl-classify-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(tmpDir, { recursive: true });
-});
-
-afterEach(() => {
-  rmSync(tmpDir, { recursive: true, force: true });
-});
+const tmpDir = "/receipts";
 
 /** Build a mock email client yielding one plain-text email. */
 function makeEmailClient(subject = "Invoice #TEST-001") {
