@@ -101,7 +101,7 @@ export async function processReceiptMessage(client, msg, context) {
   const metadata = await extractReceiptMetadata(
     llm,
     extractionText,
-    parsed.subject || msg.subject,
+    parsed.subject || msg.subject || "",
     msg.fromAddress,
     msg.fromName,
     emailDate,
