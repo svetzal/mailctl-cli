@@ -50,7 +50,7 @@
     "typescript": "7.0.2"
   },
   "overrides": {
-    "ip-address": "^10.7.2",
+    "ip-address": "^10.7.4",
     "deepmerge-ts": "^8.0.2"
   }
 }
