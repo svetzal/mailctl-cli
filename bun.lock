@@ -143,11 +143,11 @@
 
     "linkify-it": ["linkify-it@5.0.2", "", { "dependencies": { "uc.micro": "^2.0.0" } }, "sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q=="],
 
-    "mailparser": ["mailparser@3.14.2", "", { "dependencies": { "@zone-eu/mailsplit": "5.4.30", "he": "1.2.0", "html-to-text": "10.0.1", "libmime": "5.6.4", "linkify-it": "5.0.2", "nodemailer": "10.3.1", "punycode.js": "2.3.1", "tlds": "1.261.0" } }, "sha512-D5hdnLqSfjm6JV361ZqyWCx+bJsU5AovGiNloNqAM0pPJsa0BqVluDh+bgcOS+aHUtJdN/GJ2FVGGtCt841lyw=="],
+    "mailparser": ["mailparser@3.14.3", "", { "dependencies": { "@zone-eu/mailsplit": "5.4.30", "he": "1.2.0", "html-to-text": "10.0.1", "libmime": "5.6.4", "linkify-it": "5.0.2", "nodemailer": "10.5.0", "punycode.js": "2.3.1", "tlds": "1.261.0" } }, "sha512-GFaKR2tMTDALRM9PQ3DkfOmWeLaRerjifEhCdUb4mM2+VtO+jZFhPMvQivvM/Df/51qYmH7msrreeQmdWjM2kw=="],
 
     "mojentic": ["mojentic@3.0.0", "", { "dependencies": { "gpt-tokenizer": "^4.0.0", "zod": "^4.6.5" } }, "sha512-uAhu4AW/ZLfJKiy6qmHgE2O7UCdmy5AX6ulPMsMsIuWcrGcw1WCkQSUWNP9pdk0X6cSDv5qjR0cSc80Tg+gzFg=="],
 
-    "nodemailer": ["nodemailer@10.4.0", "", {}, "sha512-fyy6r4Q5euRJ9Qr3Cts9K7SZrfe9zmz9oLOYiAR02MEJRDRci+99y0OoYBYBgpLffOqkkjXrB/d26VfiMje/kA=="],
+    "nodemailer": ["nodemailer@10.5.0", "", {}, "sha512-L/w/HH5MqpzMDuZD7fQdt/+KqymuvrpaApaIjAH2XA3ILePwlcvXCVVvP75xVrXCEt2ggK2marrrHHFB5Qu0kA=="],
 
     "on-exit-leak-free": ["on-exit-leak-free@2.1.2", "", {}, "sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA=="],
 
@@ -198,7 +198,5 @@
     "zod": ["zod@4.6.6", "", {}, "sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA=="],
 
     "htmlparser2/entities": ["entities@7.0.1", "", {}, "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="],
-
-    "mailparser/nodemailer": ["nodemailer@10.3.1", "", {}, "sha512-uF0AFsJC07Y1vdW7p580DKAnh7rAO+4UPSSB3mDCPNDufoiaOebV6JmrzpxB14OjEEEiBsNdYoM2Y+fN8M7BBA=="],
   }
 }
