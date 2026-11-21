@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - Upgraded `mojentic` from 2.1.0 to 3.0.0. The receipt-extraction calls (`OpenAIGateway`, `LlmBroker`, `generateObject`, `isOk`, `Message`) keep the same signatures, so no source changes were needed.
+- Upgraded `cmx-core` from 0.4.0 to 0.5.0. The release only adds `planForPlatform()` to the installers; `SkillInstaller.plan()`/`apply()` and the other APIs `mailctl init` uses are unchanged, so no source changes were needed.
 
 ## [2.0.1] - 2026-10-02
 
